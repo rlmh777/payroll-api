@@ -5,9 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 
-class CitizenshipStatus extends Model
+class Honorific extends Model
 {
-    protected $table = 'citizenship_status';
+    protected $table = 'honorific';
     protected $primarykey = 'id';
 
     protected $fillable = [

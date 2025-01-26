@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relation\HasMany;
 
 class PayrateFrequency extends Model
 {
@@ -12,4 +13,8 @@ class PayrateFrequency extends Model
     protected $fillable = [
         'name'
     ];
+
+    public function employees(): HasMany {
+        return $this->hasMany(Employee::class);
+    }
 }
