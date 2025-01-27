@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relation\HasMany;
 
 class Relationship extends Model
 {
@@ -12,4 +13,8 @@ class Relationship extends Model
     protected $fillable = [
         'name'
     ];
+
+    public function contacts(): HasMany {
+        return $this->hasMany(EmployeeContacts::class);
+    }
 }

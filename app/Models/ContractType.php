@@ -5,17 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 
-class Institution extends Model
+class ContractType extends Model
 {
-    protected $table = 'institution';
+    protected $table = 'contract_type';
     protected $primarykey = 'id';
 
     protected $fillable = [
         'name'
     ];
 
-    public function qualifications(): HasMany {
-        return $this->hasMany(Qualification::class);
+    public function employmentDetails(): HasMany {
+        return $this->hasMany(EmploymentDetail::class);
     }
-
 }

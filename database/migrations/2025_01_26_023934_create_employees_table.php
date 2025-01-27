@@ -39,7 +39,6 @@ return new class extends Migration
             $table->decimal('annualSalary', total: 12, places: 2);
             $table->string('notes',255)->nullable();
             $table->string('picturePath',255)->nullable();
-            $table->foreignId('statusId')->constrained('employment_status')->onDelete('cascade');
             $table->text('health')->nullable();
             $table->text('unionMembership')->nullable();
             $table->timestamps();

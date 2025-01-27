@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Model\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class ChartOfAccount extends Model
@@ -20,4 +21,16 @@ class ChartOfAccount extends Model
         'code1',
         'code2',
     ];
+
+    public function deductions(): HasMany {
+        return $this->hasMany(EmployeeDefaultDeduction::class);
+    }
+
+    public function employmentDetails(): HasMany {
+        return $this->hasMany(EmploymentDetail::class);
+    }
+
+    public function historicalDeductions(): HasMany {
+        return $this->hasMany(HistoricalEmployeeDeduction::class);
+    }
 }

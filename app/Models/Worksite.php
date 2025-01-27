@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relation\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Worksite extends Model
@@ -24,5 +25,9 @@ class Worksite extends Model
 
     public function locality(): BelongsTo {
         return $this->belongsTo(Locality::class);
+    }
+
+    public function employmentDetails(): HasMany {
+        return $this->hasMany(EmploymentDetail::class);
     }
 }

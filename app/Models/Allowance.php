@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relation\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Allowance extends Model
@@ -21,4 +22,9 @@ class Allowance extends Model
         'note',
         'defaultAmount'
     ];
+
+    public function employeeAllowance(): HasMany {
+        return $this->hasMany(EmployeeAllowance::class);
+    }
+
 }

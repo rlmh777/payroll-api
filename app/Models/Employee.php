@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relation\HasManyThrough;
 
 
 class Employee extends Model
@@ -74,16 +75,52 @@ class Employee extends Model
         return $this->belongsTo(PayrateFrequency::class);
     }
 
-    public function employmentStatus(): BelongsTo {
-        return $this->belongsTo(EmploymentStatus::class);
-    }
-
     public function employeeWorkPermit(): HasMany {
         return $this->hasMany(EmployeeWorkPermit::class);
     }
 
     public function employmentHistory(): HasMany {
         return $this->hasMany(EmployeeHistory::class);
+    }
+
+    public function allowances(): HasMany {
+        return $this->hasMany(EmployeeAllowance::class);
+    }
+
+    public function employeeBanks(): HasMany {
+        return $this->hasMany(EmployeeBank::class);
+    }
+
+    public function contacts(): HasMany {
+        return $this->hasMany(EmployeeContact::class);
+    }
+
+    public function employeeDefaultDeductions(): HasMany {
+        return $this->hasMany(EmployeeDefaultDeduction::class);
+    }
+
+    public function employmentDetails(): HasMany {
+        return $this->hasMany(EmploymentDetail::class);
+    }
+
+    public function loans(): HasMany {
+        return $this->hasMany(Loan::class);
+    }
+
+    public function payrolls(): HasMany {
+        return $this->hasMany(Payroll::class);
+    }
+
+    public function historicalDeductions(): HasMany {
+        return $this->hasMany(HistoricalEmployeeDeduction::class);
+    }
+
+    public function qualifications(): HasMany {
+        return $this->hasMany(Qualification::class);
+    }
+
+    public function leaves(): HasMany {
+        return $this->hasMany(TrackEmployeeLeave::class);
     }
 
 }

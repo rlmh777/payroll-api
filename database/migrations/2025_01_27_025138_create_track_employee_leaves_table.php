@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('vendor', function (Blueprint $table) {
+        Schema::create('track_employee_leave', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('name',512)->unique();
-            $table->string('phone',255);
-            $table->string('email',255)->unique();
-            $table->foreignId('bankId')->constrained('bank')->onDelete('cascade');
-            $table->string('accountNumber',64);
+            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignId('leaveTypeId')->constrained('leave_type')->onDelete('cascade');
+            $table->date('startDate');
+            $table->date('endDate');
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('vendor');
+        Schema::dropIfExists('track_employee_leave');
     }
 };

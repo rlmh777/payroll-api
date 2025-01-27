@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relation\HasMany;
 
 class Banks extends Model
 {
@@ -18,4 +19,13 @@ class Banks extends Model
         'code'
      
     ];
+
+    public function employeeBank(): HasMany {
+        return $this->hasMany(EmployeeBank::class);
+    }
+
+    public function vendors(): HasMany {
+        return $this->hasMany(Vendor::class);
+    }
+
 }

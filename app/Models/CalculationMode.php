@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relation\HasMany;
+
 
 class CalculationMode extends Model
 {
@@ -12,4 +14,9 @@ class CalculationMode extends Model
     protected $fillable = [
        'name'
     ];
+
+    public function payrolls(): HasMany {
+        return $this->hasMany(Payroll::class);
+    }
+
 }

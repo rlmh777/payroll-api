@@ -5,17 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 
-class Institution extends Model
+class EmployeeStatus extends Model
 {
-    protected $table = 'institution';
+    protected $table = 'employee_status';
     protected $primarykey = 'id';
 
     protected $fillable = [
         'name'
     ];
 
-    public function qualifications(): HasMany {
-        return $this->hasMany(Qualification::class);
+    public function employeeDetails(): HasMany {
+        return $this->hasMany(EmploymentDetail::class);
     }
+
+
 
 }

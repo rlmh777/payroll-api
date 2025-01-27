@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Relation\HasMany;
-
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Locality extends Model
@@ -31,5 +30,9 @@ class Locality extends Model
 
     public function employees(): HasMany {
         return $this->hasMany(Employee::class);
+    }
+
+    public function contacts(): HasMany {
+        return $this->hasMany(EmployeeContacts::class);
     }
 }
