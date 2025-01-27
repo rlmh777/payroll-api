@@ -26,6 +26,7 @@ return new class extends Migration
             $table->decimal('totalAllowances', total: 6, places: 2);
             $table->foreignId('taxCalculationModeId')->constrained('calculation_mode')->onDelete('cascade');
             $table->foreignId('socialSecurityCalculationModeId')->constrained('calculation_mode')->onDelete('cascade');
+            $table->foreignId('paymentMethodId')->constrained('payment_method')->onDelete('cascade');
             $table->text('note');
             $table->timestamps();
         });

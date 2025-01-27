@@ -29,6 +29,7 @@ class Payroll extends Model
         'totalAllowances',
         'taxCalculationModeId',
         'socialSecurityCalculationModeId',
+        'paymentMethodId'
         'note'
     ];
 
@@ -47,5 +48,10 @@ class Payroll extends Model
     public function historicalDeductions(): HasMany {
         return $this->hasMany(HistoricalEmployeeDeduction::class);
     }
+
+    public function paymentMethods(): BelongsTo {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
 
 }

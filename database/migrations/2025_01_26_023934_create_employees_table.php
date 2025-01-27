@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('employee', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('code',64);
-            $table->string('internalId1',64);
+            $table->string('internalId1',64)->nullable();
             $table->string('internalId2',64)->nullable();
-            $table->foreignId('honorificId')->constrained('honorific')->onDelete('cascade');
+            $table->foreignId('honorificId')->nullable()->constrained('honorific')->onDelete('cascade');
             $table->string('firstName',128);
             $table->string('middleName',128)->nullable();
             $table->string('lastName',128);
@@ -29,14 +29,13 @@ return new class extends Migration
             $table->string('email',255)->nullabe();
             $table->foreignId('genderId')->constrained('gender')->onDelete('cascade');
             $table->string('socialSecurityNumber',12);
-            $table->string('taxIdentificationNumber',64);
-            $table->string('passportNumber',64);
+            $table->string('taxIdentificationNumber',64)->nullable();
+            $table->string('passportNumber',64)->nullable();
             $table->string('votersId',64)->nullable();
             $table->foreignId('citizenshipStatusId')->nullable()->constrained('citizenship_status')->onDelete('cascade');
             $table->foreignId('nationalityId')->nullable()->constrained('country')->onDelete('cascade');
-            $table->foreignId('defaultPayrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
-            $table->decimal('hourlyRate', total: 6, places: 2);
-            $table->decimal('annualSalary', total: 12, places: 2);
+            $table->foreignId('payrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
+            $table->foreignId('paymentMethodId')->constrained('payment_method')->onDelete('cascade');
             $table->string('notes',255)->nullable();
             $table->string('picturePath',255)->nullable();
             $table->text('health')->nullable();

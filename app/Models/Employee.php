@@ -40,12 +40,10 @@ class Employee extends Model
         'votersId',
         'citizenshipStatusId',
         'nationalityId',
-        'defaultPayrateFrequencyId',
-        'hourlyrate',
-        'annualSalary',
+        'payrateFrequencyId',
+        'paymentMethodId',
         'notes',
         'picturePath',
-        'statusId',
         'health',
         'unionMembership'
     ];
@@ -121,6 +119,10 @@ class Employee extends Model
 
     public function leaves(): HasMany {
         return $this->hasMany(TrackEmployeeLeave::class);
+    }
+
+    public function paymentMethods(): BelongsTo {
+        return $this->belongsTo(PaymentMethod::class);
     }
 
 }

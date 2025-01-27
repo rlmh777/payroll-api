@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('citizenship_status', function (Blueprint $table) {
+        Schema::create('payment_method', function (Blueprint $table) {
             $table->id('id')->primary();
-            $table->string('name', 512)->unique();
+            $table->string('name', 64)->unique();
             $table->timestamps();
         });
     }
@@ -23,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('citizenship_status');
+        Schema::dropIfExists('payment_method');
     }
 };
