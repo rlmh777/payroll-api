@@ -20,6 +20,7 @@ return new class extends Migration
             $table->text('note');
             $table->foreignId('frequencyId')->constrained('payrate_frequency')->onDelete('cascade');
             $table->foreignId('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignId('deductionTypeId')->constrained('deduction_type')->onDelete('cascade');
             $table->timestamps();
         });
     }

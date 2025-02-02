@@ -27,4 +27,8 @@ class Allowance extends Model
         return $this->hasMany(EmployeeAllowance::class);
     }
 
+    public function employeeHistoricalAllowance(): HasMany {
+        return $this->hasMany(HistoricalEmployeeAllowance::class);
+    }
+
 }

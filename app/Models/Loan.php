@@ -16,13 +16,15 @@ class Loan extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'reference',
+        'note',
         'employeeId',
         'loanTypeId',
         'loanAmount',
+        'interestType',
         'annualInterestRate',
         'loanPeriods',
-        'optionalExtraPayment'
+        'optionalExtraPayment',
+        'chartOfAccountId'
     ];
 
     public function employees(): BelongsTo {
@@ -31,5 +33,9 @@ class Loan extends Model
 
     public function loanType(): BelongsTo {
         return $this->BelongsTo(LoanType::class);
+    }
+
+    public function chartOfAccount(): BelongsTo {
+        return $this->BelongsTo(ChartOfAccount::class);
     }
 }

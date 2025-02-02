@@ -10,7 +10,7 @@ class EmployeeAllowance extends Model
 {
     use HasUuids;
 
-    protected $table = 'employee_allowance';
+    protected $table = 'default_employee_allowance';
     protected $primarykey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
@@ -19,6 +19,7 @@ class EmployeeAllowance extends Model
         'employeeId',
         'allowanceId',
         'frequencyId',
+        'chartOfAccountId',
         'note',
         'amount'
     ];
@@ -33,5 +34,9 @@ class EmployeeAllowance extends Model
 
     public function payrateFrequency(): BelongsTo {
         return $this->belongsTo(PayrateFrequency::class);
+    }
+
+    public function chartOfAccount(): BelongsTo {
+        return $this->belongsTo(ChartOfAccount::class);
     }
 }

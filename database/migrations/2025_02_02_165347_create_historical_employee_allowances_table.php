@@ -11,15 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('historical_employee_deduction', function (Blueprint $table) {
+        Schema::create('historical_employee_allowance', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
-            $table->foreignId('paymentToId')->constrained('vendor')->onDelete('cascade');
             $table->decimal('amount', total: 6, places: 2);
             $table->text('note');
             $table->foreignId('payrollId')->constrained('payroll')->onDelete('cascade');
+            $table->foreignId('allowanceId')->constrained('allowance')->onDelete('cascade');
             $table->foreignId('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
-            $table->foreignId('deductionTypeId')->constrained('deduction_type')->onDelete('cascade');
             $table->timestamps();
         });
     }
@@ -29,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('historical_employee_deduction');
+        Schema::dropIfExists('historical_employee_allowance');
     }
 };

@@ -6,31 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
-class HistoricalEmployeeDeduction extends Model
+class HistoricalEmployeeAllowance extends Model
 {
     use HasUuids;
 
-    protected $table = 'historical_employee_deduction';
+    protected $table = 'historical_employee_allowance';
     protected $primarykey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
     protected $fillable = [
         'employeeId',
-        'paymentToId',
-        'phoneNumber',
         'amount',
         'note',
+        'amount',
         'payrollId',
+        'allowanceId',
         'chartOfAccountId'   
     ];
-
     public function employee(): BelongsTo {
         return $this->belongsTo(Employee::class);
     }
 
-    public function vendor(): BelongsTo {
-        return $this->belongsTo(Vendor::class);
+    public function allowance(): BelongsTo {
+        return $this->belongsTo(Allowance::class);
     }
 
     public function payroll(): BelongsTo {
@@ -41,11 +40,4 @@ class HistoricalEmployeeDeduction extends Model
         return $this->belongsTo(ChartOfAccount::class);
     }
 
-    public function deductionType(): BelongsTo {
-        return $this->belongsTo(DeductionType::class);
-    }
-
-
-
-    
 }

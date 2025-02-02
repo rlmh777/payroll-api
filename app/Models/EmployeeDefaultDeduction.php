@@ -18,11 +18,11 @@ class EmployeeDefaultDeduction extends Model
     protected $fillable = [
         'employeeId',
         'paymentToId',
-        'phoneNumber',
         'amount',
         'note',
         'frequencyId',
-        'chartOfAccountId'
+        'chartOfAccountId',
+        'deductionTypeId'
     ];
 
     public function employee(): BelongsTo {
@@ -39,6 +39,10 @@ class EmployeeDefaultDeduction extends Model
 
     public function chartOfAccount(): BelongsTo {
         return $this->belongsTo(ChartOfAccount::class);
+    }
+
+    public function deductionType(): BelongsTo {
+        return $this->belongsTo(DeductionType::class);
     }
 
 }

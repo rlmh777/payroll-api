@@ -33,4 +33,18 @@ class ChartOfAccount extends Model
     public function historicalDeductions(): HasMany {
         return $this->hasMany(HistoricalEmployeeDeduction::class);
     }
+
+    public function allowances(): HasMany {
+        return $this->hasMany(EmployeeAllowance::class);
+    }
+
+    public function historicalAllowances(): HasMany {
+        return $this->hasMany(HistoricalEmployeeAllowance::class);
+    }
+
+    public function loans(): HasMany {
+        return $this->hasMany(Loan::class);
+    }
+
+
 }
