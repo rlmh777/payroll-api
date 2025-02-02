@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('historical_employee_allowance', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->decimal('amount', total: 6, places: 2);
             $table->text('note');
-            $table->foreignId('payrollId')->constrained('payroll')->onDelete('cascade');
-            $table->foreignId('allowanceId')->constrained('allowance')->onDelete('cascade');
-            $table->foreignId('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('payrollId')->constrained('payroll')->onDelete('cascade');
+            $table->foreignUuid('allowanceId')->constrained('allowance')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
             $table->timestamps();
         });
     }

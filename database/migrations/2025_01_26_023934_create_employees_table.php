@@ -24,7 +24,7 @@ return new class extends Migration
             $table->date('birthdate');
             $table->string('address1',255);
             $table->string('address2',255)->nullable();
-            $table->foreignId('localityId')->constrained('locality')->onDelete('cascade');
+            $table->foreignUuid('localityId')->constrained('locality')->onDelete('cascade');
             $table->string('phone',12)->nullable();
             $table->string('email',255)->nullabe();
             $table->foreignId('genderId')->constrained('gender')->onDelete('cascade');
@@ -33,7 +33,7 @@ return new class extends Migration
             $table->string('passportNumber',64)->nullable();
             $table->string('votersId',64)->nullable();
             $table->foreignId('citizenshipStatusId')->nullable()->constrained('citizenship_status')->onDelete('cascade');
-            $table->foreignId('nationalityId')->nullable()->constrained('country')->onDelete('cascade');
+            $table->foreignUuid('nationalityId')->nullable()->constrained('country')->onDelete('cascade');
             $table->foreignId('payrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
             $table->foreignId('paymentMethodId')->constrained('payment_method')->onDelete('cascade');
             $table->string('notes',255)->nullable();

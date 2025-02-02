@@ -21,9 +21,9 @@ return new class extends Migration
             $table->string('email',255);
             $table->string('address1',512);
             $table->string('address2',512)->nullable();
-            $table->foreignId('localityId')->constrained('locality')->onDelete('cascade');
+            $table->foreignUuid('localityId')->constrained('locality')->onDelete('cascade');
             $table->foreignId('relationshipId')->constrained('relationship')->onDelete('cascade');
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->boolean('isDependent')->default(false);
             $table->boolean('isProfessionalReference')->default(false);
             $table->timestamps();

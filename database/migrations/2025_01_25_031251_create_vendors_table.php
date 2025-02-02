@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name',512)->unique();
             $table->string('phone',255);
             $table->string('email',255)->unique();
-            $table->foreignId('bankId')->constrained('bank')->onDelete('cascade');
+            $table->foreignUuid('bankId')->constrained('bank')->onDelete('cascade');
             $table->string('accountNumber',64);
             $table->timestamps();
         });

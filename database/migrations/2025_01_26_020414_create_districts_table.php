@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('district', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name',255);
-            $table->foreignId('countryId')->constrained('country')->onDelete('cascade');
+            $table->foreignUuid('countryId')->constrained('country')->onDelete('cascade');
             $table->timestamps();
         });
     }

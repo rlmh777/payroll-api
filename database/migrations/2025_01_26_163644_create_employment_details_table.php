@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('employment_detail', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->date('startDate');
             $table->date('endDate');
             $table->boolean('isActive');
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->decimal('totalRate', total: 12, places: 2);
             $table->foreignId('payrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
             $table->text('benefits');
-            $table->foreignId('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
             $table->foreignId('contractTypeId')->constrained('contract_type')->onDelete('cascade');
             $table->text('employmentPolicies');
             $table->string('contractAgreementPath', 1024);

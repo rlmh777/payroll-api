@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('track_employee_leave', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->foreignId('leaveTypeId')->constrained('leave_type')->onDelete('cascade');
             $table->date('startDate');
             $table->date('endDate');

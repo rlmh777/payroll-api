@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name', 512);
             $table->string('address1', 512);
             $table->string('address2',512)->nullable();
-            $table->foreignId('localityId')->constrained('locality')->onDelete('cascade');
+            $table->foreignUuid('localityId')->constrained('locality')->onDelete('cascade');
             $table->timestamps();
         });
     }

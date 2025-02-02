@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('employee_default_deduction', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
-            $table->foreignId('paymentToId')->constrained('vendor')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('paymentToId')->constrained('vendor')->onDelete('cascade');
             $table->string('phoneNumber', 24);
             $table->decimal('amount', total: 12, places: 2);
             $table->text('note');
             $table->foreignId('frequencyId')->constrained('payrate_frequency')->onDelete('cascade');
-            $table->foreignId('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
             $table->foreignId('deductionTypeId')->constrained('deduction_type')->onDelete('cascade');
             $table->timestamps();
         });

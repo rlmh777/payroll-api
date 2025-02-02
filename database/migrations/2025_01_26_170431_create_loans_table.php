@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::create('loan', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->text('note');
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->foreignId('loanTypeId')->constrained('loan_type')->onDelete('cascade');
             $table->decimal('loanAmount', total: 12, places: 2);
             $table->enum('interestType', ['Compound Interest', 'Simple Interest'])->default('Simple Interest');
             $table->decimal('annualInterestRate', total: 6, places: 2)->default(0.0);
             $table->integer('loanPeriods');
             $table->decimal('optionalExtraPayment', total: 12, places: 2);
-            $table->foreignId('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
             $table->timestamps();
         });
     }

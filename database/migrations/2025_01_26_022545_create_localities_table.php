@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('locality', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name',255);
-            $table->foreignId('districtId')->constrained('district')->onDelete('cascade');
+            $table->foreignUuid('districtId')->constrained('district')->onDelete('cascade');
             $table->timestamps();
         });
     }

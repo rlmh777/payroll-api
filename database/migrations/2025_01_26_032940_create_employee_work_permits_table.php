@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('employee_work_permit', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('employeeId')->nullable()->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->nullable()->constrained('employee')->onDelete('cascade');
             $table->string('workPermitNumber', 64);
             $table->date('issued');
             $table->date('expires');

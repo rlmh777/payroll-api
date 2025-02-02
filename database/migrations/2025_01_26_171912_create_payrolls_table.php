@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('payroll', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignId('employeeId')->constrained('employee')->onDelete('cascade');
+            $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->date('date')->useCurrent();
             $table->decimal('totalRegularHours', total: 6, places: 2);
             $table->decimal('totalOvertimeHours', total: 6, places: 2);
