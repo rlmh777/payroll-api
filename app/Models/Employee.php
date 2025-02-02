@@ -7,11 +7,15 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 use Illuminate\Database\Eloquent\Relation\HasManyThrough;
+use ParagonIE\CipherSweet\BlindIndex;
+use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
+use ParagonIE\CipherSweet\EncryptedRow;
+use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
 
-
-class Employee extends Model
+class Employee extends Model implements CipherSweetEncrypted
 {
     use HasUuids;
+    use UsesCipherSweet;
 
     protected $table = 'employee';
     protected $primarykey = 'id';
@@ -127,6 +131,22 @@ class Employee extends Model
 
     public function historicalAllowances(): HasMany {
         return $this->hasMany(HistoricalEmployeeAllowance::class);
+    }
+
+    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    {
+        $encryptedRow
+            // add the columns you want to encrypt the values ​​for
+            ->addField('socialSecurityNumber')
+            ->addField('taxIdentificationNumber')
+            ->addField('passportNumber')
+            ->addField('voterId')
+            // add a blind index for each column you want to search
+            ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
+            ->addBlindIndex('taxIdentificationNumber', new BlindIndex('taxIdentificationNumberIndex'))
+            ->addBlindIndex('passportNumber', new BlindIndex('passportNumberIndex'))
+            ->addBlindIndex('voterId', new BlindIndex('voterIdIndex'));
+
     }
 
 }
