@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
-class Districts extends Model
+class District extends Model
 {
     use HasUuids;
 

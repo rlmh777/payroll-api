@@ -140,12 +140,12 @@ class Employee extends Model implements CipherSweetEncrypted
             ->addField('socialSecurityNumber')
             ->addField('taxIdentificationNumber')
             ->addField('passportNumber')
-            ->addField('voterId')
+            ->addField('votersId')
             // add a blind index for each column you want to search
             ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
             ->addBlindIndex('taxIdentificationNumber', new BlindIndex('taxIdentificationNumberIndex'))
             ->addBlindIndex('passportNumber', new BlindIndex('passportNumberIndex'))
-            ->addBlindIndex('voterId', new BlindIndex('voterIdIndex'));
+            ->addBlindIndex('votersId', new BlindIndex('votersIdIndex'));
 
     }
 

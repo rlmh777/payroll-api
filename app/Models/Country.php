@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
-class Countries extends Model
+class Country extends Model
 {
     use HasUuids;
 
@@ -23,7 +23,7 @@ class Countries extends Model
     ];
 
     public function districts(): HasMany {
-        return $this->hasMany(District::class)
+        return $this->hasMany(District::class);
     }
 
     public function employees(): HasMany {

@@ -28,10 +28,10 @@ return new class extends Migration
             $table->string('phone',12)->nullable();
             $table->string('email',255)->nullabe();
             $table->foreignId('genderId')->constrained('gender')->onDelete('cascade');
-            $table->string('socialSecurityNumber',12);
-            $table->string('taxIdentificationNumber',64)->nullable();
-            $table->string('passportNumber',64)->nullable();
-            $table->string('votersId',64)->nullable();
+            $table->string('socialSecurityNumber');
+            $table->string('taxIdentificationNumber')->nullable();
+            $table->string('passportNumber')->nullable();
+            $table->string('votersId')->nullable();
             $table->foreignId('citizenshipStatusId')->nullable()->constrained('citizenship_status')->onDelete('cascade');
             $table->foreignUuid('nationalityId')->nullable()->constrained('country')->onDelete('cascade');
             $table->foreignId('payrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
