@@ -149,4 +149,6 @@ class Employee extends Model implements CipherSweetEncrypted
 
     }
 
+    
+
 }

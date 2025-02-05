@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\District;
+use App\Models\Country;
 use Illuminate\Support\Str;
 
 class DistrictSeeder extends Seeder
@@ -17,7 +18,7 @@ class DistrictSeeder extends Seeder
         District::create([
             'id'=> Str::uuid(),
             'name' => 'Cayo',
-            'countryId' => 'e84c2f37-355e-4a0f-8917-be23b5922cd9',
+            'countryId' => Country::all()->random()->id,
         ]);
     }
 }

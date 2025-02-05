@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Locality;
+use App\Models\District;
 use Illuminate\Support\Str;
 
 class localitiesSeeder extends Seeder
@@ -17,7 +18,7 @@ class localitiesSeeder extends Seeder
         Locality::create([
             'id'=> Str::uuid(),
             'name' => 'San Ignacio',
-            'districtId' => 'ce069ff2-dbc6-4bf3-857a-dee4557d938f',
+            'districtId' => District::all()->random()->id,
         ]);
     }
 }

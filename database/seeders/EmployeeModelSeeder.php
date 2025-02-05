@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Employee;
+use App\Models\Locality;
+use App\Models\Country;
 use Illuminate\Support\Str;
 
 class EmployeeModelSeeder extends Seeder
@@ -28,7 +30,7 @@ class EmployeeModelSeeder extends Seeder
             'birthdate' => '1990-01-01',
             'address1' => '123 Main St',
             'address2' => 'Apt 4B',
-            'localityId' => 'a434ac68-a096-49ab-b2af-85764db981e3',
+            'localityId' => Locality::all()->random()->id,
             'phone' => '6072471',
             'email' => 'johndoe@example.com',
             'genderId' => 1, // Example: Male, Female, etc.
@@ -37,7 +39,7 @@ class EmployeeModelSeeder extends Seeder
             'passportNumber' => 'A12345678',
             'votersId' => 'VOTER12345',
             'citizenshipStatusId' => 1,
-            'nationalityId' => 'e84c2f37-355e-4a0f-8917-be23b5922cd9',
+            'nationalityId' => Country::all()->random()->id,
             'payrateFrequencyId' => 1, // Example: Monthly, Weekly
             'paymentMethodId' => 1, // Example: Bank Transfer, Cash
             'notes' => 'Test data entry',
@@ -45,7 +47,5 @@ class EmployeeModelSeeder extends Seeder
             'health' => 'Good',
             'unionMembership' => 'PSU',
         ]);
-
-
     }
 }
