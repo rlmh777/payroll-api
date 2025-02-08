@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->foreignUuid('bankId')->constrained('bank')->onDelete('cascade');
-            $table->string('accountNumber',64);
+            $table->string('accountNumber');
             $table->text('notes');
             $table->timestamps();
         });

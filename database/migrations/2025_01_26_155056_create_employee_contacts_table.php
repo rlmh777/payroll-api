@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('employee_contact', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('firstName',255);
-            $table->string('middleName',128)->nullable();
-            $table->string('lastName',255);
-            $table->string('phoneNumber1',24);
-            $table->string('phoneNumber2',24)->nullable();
-            $table->string('email',255);
+            $table->string('firstName');
+            $table->string('middleName')->nullable();
+            $table->string('lastName');
+            $table->string('phoneNumber1');
+            $table->string('phoneNumber2')->nullable();
+            $table->string('email');
             $table->string('address1',512);
             $table->string('address2',512)->nullable();
             $table->foreignUuid('localityId')->constrained('locality')->onDelete('cascade');

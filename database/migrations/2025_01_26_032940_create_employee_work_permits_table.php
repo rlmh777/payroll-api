@@ -3,6 +3,10 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use ParagonIE\CipherSweet\BlindIndex;
+use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
+use ParagonIE\CipherSweet\EncryptedRow;
+use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
 
 return new class extends Migration
 {
@@ -14,10 +18,10 @@ return new class extends Migration
         Schema::create('employee_work_permit', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('employeeId')->nullable()->constrained('employee')->onDelete('cascade');
-            $table->string('workPermitNumber', 64);
+            $table->string('workPermitNumber');
             $table->date('issued');
             $table->date('expires');
-            $table->string('socialSecurityNumber', 12);
+            $table->string('socialSecurityNumber');
             $table->timestamps();
         });
     }
@@ -29,4 +33,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('employee_work_permit');
     }
+
+    
 };

@@ -15,7 +15,6 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->foreignUuid('paymentToId')->constrained('vendor')->onDelete('cascade');
-            $table->string('phoneNumber', 24);
             $table->decimal('amount', total: 12, places: 2);
             $table->text('note');
             $table->foreignId('frequencyId')->constrained('payrate_frequency')->onDelete('cascade');

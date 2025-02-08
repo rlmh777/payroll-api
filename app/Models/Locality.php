@@ -35,4 +35,8 @@ class Locality extends Model
     public function contacts(): HasMany {
         return $this->hasMany(EmployeeContacts::class);
     }
+
+    public function companies(): HasMany {
+        return $this->hasMany(Company::class);
+    }
 }

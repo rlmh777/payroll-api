@@ -13,11 +13,11 @@ return new class extends Migration
     {
         Schema::create('vendor', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('name',512)->unique();
-            $table->string('phone',255);
-            $table->string('email',255)->unique();
+            $table->string('name')->unique();
+            $table->string('phone');
+            $table->string('email')->unique();
             $table->foreignUuid('bankId')->constrained('bank')->onDelete('cascade');
-            $table->string('accountNumber',64);
+            $table->string('accountNumber');
             $table->timestamps();
         });
     }

@@ -5,6 +5,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Relation\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use ParagonIE\CipherSweet\BlindIndex;
+use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
+use ParagonIE\CipherSweet\EncryptedRow;
+use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
 
 class Vendor extends Model
 {
@@ -33,6 +37,23 @@ class Vendor extends Model
 
     public function historicalDeductions(): HasMany {
         return $this->hasMany(HistoricalEmployeeDeduction::class);
+    }
+
+    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    {
+        $encryptedRow
+            // add the columns you want to encrypt the values ​​for
+            ->addField('name')
+            ->addField('phone')
+            ->addField('email')
+            ->addField('accountNumber')
+
+            // add a blind index for each column you want to search
+            ->addBlindIndex('name', new BlindIndex('nameIndex'))
+            ->addBlindIndex('phone', new BlindIndex('phoneIndex'))
+            ->addBlindIndex('email', new BlindIndex('emailIndex'))
+            ->addBlindIndex('accountNumber', new BlindIndex('accountNumberIndex'));
+
     }
 
 }

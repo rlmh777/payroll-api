@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('employment_history', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('employeeId')->nullable()->constrained('employee')->onDelete('cascade');
-            $table->string('employerName', 512);
+            $table->string('employerName');
             $table->string('positionHeld', 512);
             $table->date('from');
             $table->date('to');

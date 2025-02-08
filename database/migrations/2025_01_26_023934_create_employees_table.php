@@ -17,10 +17,10 @@ return new class extends Migration
             $table->string('internalId1',64)->nullable();
             $table->string('internalId2',64)->nullable();
             $table->foreignId('honorificId')->nullable()->constrained('honorific')->onDelete('cascade');
-            $table->string('firstName',128);
-            $table->string('middleName',128)->nullable();
-            $table->string('lastName',128);
-            $table->string('maidenName',128)->nullable();
+            $table->string('firstName');
+            $table->string('middleName')->nullable();
+            $table->string('lastName');
+            $table->string('maidenName')->nullable();
             $table->date('birthdate');
             $table->string('address1',255);
             $table->string('address2',255)->nullable();
@@ -36,8 +36,8 @@ return new class extends Migration
             $table->foreignUuid('nationalityId')->nullable()->constrained('country')->onDelete('cascade');
             $table->foreignId('payrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
             $table->foreignId('paymentMethodId')->constrained('payment_method')->onDelete('cascade');
-            $table->string('notes',255)->nullable();
-            $table->string('picturePath',255)->nullable();
+            $table->string('notes')->nullable();
+            $table->string('picturePath')->nullable();
             $table->text('health')->nullable();
             $table->text('unionMembership')->nullable();
             $table->timestamps();

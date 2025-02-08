@@ -13,15 +13,16 @@ return new class extends Migration
     {
         Schema::create('company', function (Blueprint $table) {
             $table->id('id')->primary();
-            $table->string('legalName', 255);
-            $table->string('alias', 255);
+            $table->string('legalName');
+            $table->string('alias');
             $table->binary('socialSecurityNumber');
             $table->integer('taxIdentificationNumber');
             $table->string('logoPath', 255);
-            $table->string('phoneNumber1', 24);
-            $table->string('phoneNumber2', 24);
-            $table->string('email', 255);
+            $table->string('phoneNumber1');
+            $table->string('phoneNumber2');
+            $table->string('email');
             $table->string('street', 255);
+            $table->foreignUuid('localityId')->constrained('locality')->onDelete('cascade');
             $table->timestamps();
         });
     }
