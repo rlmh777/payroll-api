@@ -80,3 +80,5 @@ php artisan make:model Flight -m (creates model with migrations)
 
 php artisan make:migration create_users_table --create=users
 php artisan make:model Todo -a
+
+create controller: /vendor/bin/sail artisan make:controller BankController --model=Bank
