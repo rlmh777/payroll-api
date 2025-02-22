@@ -28,7 +28,7 @@ class BankController extends Controller
      */
     public function show(Bank $bank)
     {
-        return Bank::find($bank.id);
+        return Bank::find($bank . id);
     }
 
 
@@ -37,7 +37,7 @@ class BankController extends Controller
      */
     public function update(Request $request, Bank $bank)
     {
-        $bank = Banl::findOrFail($bank.id);
+        $bank = Bank::findOrFail($bank . id);
         $bank->update($request->all());
 
         return $bank;
@@ -48,7 +48,7 @@ class BankController extends Controller
      */
     public function destroy(Bank $bank)
     {
-        $bank = Bank::findOrFail($bank.id);
+        $bank = Bank::findOrFail($bank . id);
         $bank->delete();
 
         return 204;

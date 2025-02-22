@@ -30,7 +30,9 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             DistrictSeeder::class,
             localitiesSeeder::class,
-            EmployeeModelSeeder::class
+            EmployeeModelSeeder::class,
+            UserSeeder::class,
+            RoleAndPermissionSeeder::class,
         ]);
     }
 }
