@@ -29,31 +29,37 @@ class Payroll extends Model
         'totalAllowances',
         'taxCalculationModeId',
         'socialSecurityCalculationModeId',
-        'paymentMethodId'
+        'paymentMethodId',
         'note'
     ];
 
-    public function employee(): BelongsTo {
+    public function employee(): BelongsTo
+    {
         return $this->belongsTo(Employee::class);
     }
 
-    public function taxCalculationMode(): BelongsTo {
+    public function taxCalculationMode(): BelongsTo
+    {
         return $this->belongsTo(CalculationMode::class);
     }
 
-    public function socialSecurityCalculationMode(): BelongsTo {
+    public function socialSecurityCalculationMode(): BelongsTo
+    {
         return $this->belongsTo(CalculationMode::class);
     }
 
-    public function historicalDeductions(): HasMany {
+    public function historicalDeductions(): HasMany
+    {
         return $this->hasMany(HistoricalEmployeeDeduction::class);
     }
 
-    public function paymentMethods(): BelongsTo {
+    public function paymentMethods(): BelongsTo
+    {
         return $this->belongsTo(PaymentMethod::class);
     }
 
-    public function historicalAllowances(): HasMany {
+    public function historicalAllowances(): HasMany
+    {
         return $this->hasMany(HistoricalEmployeeAllowance::class);
     }
 

@@ -22,20 +22,23 @@ class Vendor extends Model
     protected $fillable = [
         'name',
         'phone',
-        'email'
+        'email',
         'bankId',
         'accountNumber'
     ];
 
-    public function bank(): BelongsTo {
+    public function bank(): BelongsTo
+    {
         return $this->belongsTo(Bank::class);
     }
 
-    public function deductions(): HasMany {
+    public function deductions(): HasMany
+    {
         return $this->hasMany(EmployeeDefaultDeduction::class);
     }
 
-    public function historicalDeductions(): HasMany {
+    public function historicalDeductions(): HasMany
+    {
         return $this->hasMany(HistoricalEmployeeDeduction::class);
     }
 

@@ -10,19 +10,22 @@ class Department extends Model
     protected $primarykey = 'id';
 
     protected $fillable = [
-        'name'
+        'name',
         'parentId'
     ];
 
-    public function parent() {
+    public function parent()
+    {
         return $this->belongsTo(Department::class, 'parentId');
     }
 
-    public function children() {
+    public function children()
+    {
         return $this->hasMany(Department::class, 'parentId');
     }
 
-    public function employmentDetails() {
+    public function employmentDetails()
+    {
         return $this->hasMany(EmploymentDetail::class);
     }
 }

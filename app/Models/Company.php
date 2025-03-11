@@ -24,11 +24,12 @@ class Company extends Model
         'phoneNumber1',
         'phoneNumber2',
         'email',
-        'street'
+        'street',
         'localityId'
     ];
 
-    public function locality(): BelongsTo {
+    public function locality(): BelongsTo
+    {
         return $this->belongsTo(Locality::class);
     }
 
@@ -43,7 +44,7 @@ class Company extends Model
             ->addField('phoneNumber1')
             ->addField('phoneNumber2')
             ->addField('email')
-    
+
             // add a blind index for each column you want to search
             ->addBlindIndex('legalName', new BlindIndex('legalNameIndex'))
             ->addBlindIndex('alias', new BlindIndex('aliasIndex'))
