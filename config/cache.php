@@ -34,7 +34,7 @@ return [
     'stores' => [
 
         'array' => [
-            'driver' => 'array',
+            'driver' => 'redis',
             'serialize' => false,
         ],
 
@@ -103,6 +103,6 @@ return [
     |
     */
 
-    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
+    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_cache_'),
 
 ];
