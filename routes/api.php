@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\CountryController;
 
 
 Route::get('/user', function (Request $request) {
@@ -21,3 +22,7 @@ Route::put('banks/{id}', [BankController::class, 'update']);
 Route::delete('banks/{id}', [BankController::class, 'delete']);
 
 Route::post('roles', [RoleController::class, 'store']);
+
+
+Route::get('countries', [CountryController::class, 'index']);
+Route::get('countries/{country}', [CountryController::class, 'show']);
