@@ -3,24 +3,67 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Model\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class ChartOfAccount extends Model
 {
     use HasUuids;
 
-    protected $table = 'chart_of_account';
-    protected $primarykey = 'id';
+    protected $table = 'chart_of_accounts';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
     protected $fillable = [
+        'code',
         'name',
+        'type',
+        'parent_id',
         'description',
-        'code1',
-        'code2',
+        'is_active',
+        'balance',
+        'level'
     ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'balance' => 'decimal:2',
+        'level' => 'integer'
+    ];
+
+    /**
+     * Get the parent account.
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(ChartOfAccount::class, 'parent_id');
+    }
+
+    /**
+     * Get the child accounts.
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(ChartOfAccount::class, 'parent_id');
+    }
+
+    /**
+     * Get all descendants recursively.
+     */
+    public function descendants(): HasMany
+    {
+        return $this->children()->with('descendants');
+    }
+
+    /**
+     * Get all ancestors recursively.
+     */
+    public function ancestors(): BelongsTo
+    {
+        return $this->parent()->with('ancestors');
+    }
 
     public function deductions(): HasMany {
         return $this->hasMany(EmployeeDefaultDeduction::class);
@@ -45,6 +88,4 @@ class ChartOfAccount extends Model
     public function loans(): HasMany {
         return $this->hasMany(Loan::class);
     }
-
-
 }
