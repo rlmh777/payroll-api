@@ -23,11 +23,13 @@ class Allowance extends Model
         'defaultAmount'
     ];
 
-    public function employeeAllowance(): HasMany {
+    public function employeeAllowance(): HasMany
+    {
         return $this->hasMany(EmployeeAllowance::class);
     }
 
-    public function employeeHistoricalAllowance(): HasMany {
+    public function employeeHistoricalAllowance(): HasMany
+    {
         return $this->hasMany(HistoricalEmployeeAllowance::class);
     }
 
