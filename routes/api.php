@@ -6,6 +6,7 @@ use App\Http\Controllers\BankController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
+use App\Http\Controllers\ContactTypeController;
 
 
 Route::get('/user', function (Request $request) {
@@ -30,3 +31,13 @@ Route::post('allowances', [AllowanceController::class, 'store']);
 Route::patch('allowances/{allowance}', [AllowanceController::class, 'update']);
 Route::delete('allowances/{allowance}', [AllowanceController::class, 'destroy']);
 //End Allowance
+
+//Contact Type
+Route::prefix('contact-type')->group(function () {
+    Route::get('/', [ContactTypeController::class, 'index']);
+    Route::post('/', [ContactTypeController::class, 'store']);
+    Route::get('/{contactType}', [ContactTypeController::class, 'show']);
+    Route::put('/{contactType}', [ContactTypeController::class, 'update']);
+    Route::delete('/{contactType}', [ContactTypeController::class, 'destroy']);
+});
+//End Contact Type
