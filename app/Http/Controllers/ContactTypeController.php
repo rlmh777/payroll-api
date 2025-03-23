@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 class ContactTypeController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of contact types.
      */
     public function index(Request $request): JsonResponse
     {
@@ -21,16 +21,11 @@ class ContactTypeController extends Controller
             $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($request->search) . '%']);
         }
 
-        // Filter by active status
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
-
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
         
-        if (in_array($sortField, ['name', 'created_at'])) {
+        if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
             $query->orderBy('name', 'asc');
@@ -44,15 +39,13 @@ class ContactTypeController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created contact type.
      */
     public function store(Request $request): JsonResponse
     {
         try {
             $validatedData = $request->validate([
-                'name' => 'required|string|max:255|unique:contact_type,name',
-                'description' => 'nullable|string|max:1024',
-                'is_active' => 'boolean',
+                'name' => 'required|string|max:512',
             ]);
 
             $contactType = ContactType::create($validatedData);
@@ -66,7 +59,7 @@ class ContactTypeController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified contact type.
      */
     public function show(ContactType $contactType): JsonResponse
     {
@@ -74,7 +67,7 @@ class ContactTypeController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified contact type.
      */
     public function update(Request $request, ContactType $contactType): JsonResponse
     {
@@ -88,9 +81,7 @@ class ContactTypeController extends Controller
             }
 
             $validatedData = $request->validate([
-                'name' => 'sometimes|string|max:255|unique:contact_type,name,' . $contactType->id,
-                'description' => 'sometimes|nullable|string|max:1024',
-                'is_active' => 'sometimes|boolean',
+                'name' => 'sometimes|string|max:512',
             ]);
 
             $contactType->update($validatedData);
@@ -104,7 +95,7 @@ class ContactTypeController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified contact type.
      */
     public function destroy(ContactType $contactType): JsonResponse
     {

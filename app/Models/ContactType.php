@@ -16,13 +16,7 @@ class ContactType extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'name',
-        'description',
-        'is_active'
-    ];
-
-    protected $casts = [
-        'is_active' => 'boolean'
+        'name'
     ];
 
     /**
