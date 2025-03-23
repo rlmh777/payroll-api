@@ -20,13 +20,17 @@ class ChartOfAccount extends Model
         'name',
         'description',
         'code1',
-        'code2'
+        'code2',
+        'parent_id',
+        'type',
+        'is_active',
+        'balance',
+        'level'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'balance' => 'decimal:2',
-        'level' => 'integer'
+        'balance' => 'decimal:2'
     ];
 
     /**
@@ -46,7 +50,7 @@ class ChartOfAccount extends Model
     }
 
     /**
-     * Get all descendants recursively.
+     * Get all descendants.
      */
     public function descendants(): HasMany
     {
@@ -54,11 +58,19 @@ class ChartOfAccount extends Model
     }
 
     /**
-     * Get all ancestors recursively.
+     * Get all ancestors.
      */
-    public function ancestors(): BelongsTo
+    public function ancestors(): HasMany
     {
         return $this->parent()->with('ancestors');
+    }
+
+    /**
+     * Get the transactions for this account.
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
     }
 
     public function deductions(): HasMany {

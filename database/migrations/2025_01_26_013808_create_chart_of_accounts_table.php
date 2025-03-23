@@ -15,9 +15,19 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('name', 100);
             $table->string('description', 255);
-            $table->string('code1',24);
+            $table->string('code1', 24);
             $table->string('code2', 24);
+            $table->uuid('parent_id')->nullable();
+            $table->string('type', 20); // asset, liability, equity, revenue, expense
+            $table->boolean('is_active')->default(true);
+            $table->decimal('balance', 15, 2)->default(0);
+            $table->integer('level')->default(1);
             $table->timestamps();
+
+            $table->foreign('parent_id')
+                  ->references('id')
+                  ->on('chart_of_account')
+                  ->onDelete('cascade');
         });
     }
 
