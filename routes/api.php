@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\DepartmentController;
 
 
 Route::get('/user', function (Request $request) {
@@ -52,5 +53,14 @@ Route::prefix('deduction-types')->group(function () {
     Route::get('/{deductionType}', [DeductionTypeController::class, 'show']);
     Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
+});
+
+// Department Routes
+Route::prefix('departments')->group(function () {
+    Route::get('/', [DepartmentController::class, 'index']);
+    Route::post('/', [DepartmentController::class, 'store']);
+    Route::get('/{department}', [DepartmentController::class, 'show']);
+    Route::put('/{department}', [DepartmentController::class, 'update']);
+    Route::delete('/{department}', [DepartmentController::class, 'destroy']);
 });
 
