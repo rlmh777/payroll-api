@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\CalculationModeController;
 
 
 Route::get('/user', function (Request $request) {
@@ -52,5 +53,14 @@ Route::prefix('deduction-types')->group(function () {
     Route::get('/{deductionType}', [DeductionTypeController::class, 'show']);
     Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
+});
+
+// Calculation Mode Routes
+Route::prefix('calculation-modes')->group(function () {
+    Route::get('/', [CalculationModeController::class, 'index']);
+    Route::post('/', [CalculationModeController::class, 'store']);
+    Route::get('/{calculationMode}', [CalculationModeController::class, 'show']);
+    Route::put('/{calculationMode}', [CalculationModeController::class, 'update']);
+    Route::delete('/{calculationMode}', [CalculationModeController::class, 'destroy']);
 });
 
