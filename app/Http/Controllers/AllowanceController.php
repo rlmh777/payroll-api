@@ -94,12 +94,20 @@ class AllowanceController extends Controller
     public function update(Request $request, Allowance $allowance): JsonResponse
     {
         try {
+            // If request is empty, return early with current data
+            if ($request->isEmpty()) {
+                return response()->json([
+                    'message' => 'No data provided for update',
+                    'data' => $allowance
+                ], 200);
+            }
+
             $validatedData = $request->validate([
-                'name' => 'string|max:255',
-                'isTaxable' => 'nullable|boolean',
-                'isSocialSecurityDeductable' => 'nullable|boolean',
-                'note' => 'nullable|string|max:1024',
-                'defaultAmount' => 'numeric|min:0|max:9999999999.99',
+                'name' => 'sometimes|string|max:255',
+                'isTaxable' => 'sometimes|nullable|boolean',
+                'isSocialSecurityDeductable' => 'sometimes|nullable|boolean',
+                'note' => 'sometimes|nullable|string|max:1024',
+                'defaultAmount' => 'sometimes|numeric|min:0|max:9999999999.99',
             ]);
 
             $allowance->update($validatedData);
