@@ -6,6 +6,8 @@ use App\Http\Controllers\BankController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
+use App\Http\Controllers\ChartOfAccountController;
+use App\Http\Controllers\DeductionTypeController;
 
 
 Route::get('/user', function (Request $request) {
@@ -30,3 +32,25 @@ Route::post('allowances', [AllowanceController::class, 'store']);
 Route::patch('allowances/{allowance}', [AllowanceController::class, 'update']);
 Route::delete('allowances/{allowance}', [AllowanceController::class, 'destroy']);
 //End Allowance
+// Chart of Accounts Routes
+Route::prefix('chart-of-accounts')->group(function () {
+    Route::get('/', [ChartOfAccountController::class, 'index']);
+    Route::post('/', [ChartOfAccountController::class, 'store']);
+    Route::get('/{chartOfAccount}', [ChartOfAccountController::class, 'show']);
+    Route::put('/{chartOfAccount}', [ChartOfAccountController::class, 'update']);
+    Route::delete('/{chartOfAccount}', [ChartOfAccountController::class, 'destroy']);
+    
+    // Custom endpoints
+    Route::get('/{chartOfAccount}/hierarchy', [ChartOfAccountController::class, 'hierarchy']);
+    Route::get('/{chartOfAccount}/balance-history', [ChartOfAccountController::class, 'balanceHistory']);
+});
+
+// Deduction Type Routes
+Route::prefix('deduction-types')->group(function () {
+    Route::get('/', [DeductionTypeController::class, 'index']);
+    Route::post('/', [DeductionTypeController::class, 'store']);
+    Route::get('/{deductionType}', [DeductionTypeController::class, 'show']);
+    Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
+    Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
+});
+
