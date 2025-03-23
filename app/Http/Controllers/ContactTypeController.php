@@ -24,7 +24,7 @@ class ContactTypeController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
@@ -73,7 +73,7 @@ class ContactTypeController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $contactType
@@ -102,4 +102,4 @@ class ContactTypeController extends Controller
         $contactType->delete();
         return response()->json(['message' => 'Contact Type deleted successfully.']);
     }
-} 
+}
