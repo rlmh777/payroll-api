@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\LocalityController;
 
 
 Route::get('/user', function (Request $request) {
@@ -52,5 +53,14 @@ Route::prefix('deduction-types')->group(function () {
     Route::get('/{deductionType}', [DeductionTypeController::class, 'show']);
     Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
+});
+
+// Locality routes
+Route::prefix('localities')->group(function () {
+    Route::get('/', [LocalityController::class, 'index']);
+    Route::post('/', [LocalityController::class, 'store']);
+    Route::get('/{locality}', [LocalityController::class, 'show']);
+    Route::put('/{locality}', [LocalityController::class, 'update']);
+    Route::delete('/{locality}', [LocalityController::class, 'destroy']);
 });
 
