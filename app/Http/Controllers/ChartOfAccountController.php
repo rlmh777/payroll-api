@@ -10,74 +10,67 @@ use Illuminate\Validation\ValidationException;
 class ChartOfAccountController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of chart of accounts.
      */
     public function index(Request $request): JsonResponse
     {
         $query = ChartOfAccount::query();
 
-        // Search by code or name
+        // Search by name or description
         if ($request->has('search')) {
-            $searchTerm = strtolower($request->search);
-            $query->where(function($q) use ($searchTerm) {
-                $q->whereRaw('LOWER(code) LIKE ?', ['%' . $searchTerm . '%'])
-                  ->orWhereRaw('LOWER(name) LIKE ?', ['%' . $searchTerm . '%']);
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('code1', 'like', "%{$search}%")
+                  ->orWhere('code2', 'like', "%{$search}%");
             });
         }
 
-        // Filter by account type
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
+        // Filter by code1
+        if ($request->has('code1')) {
+            $query->where('code1', $request->input('code1'));
         }
 
-        // Filter by parent account
-        if ($request->has('parent_id')) {
-            $query->where('parent_id', $request->parent_id);
-        }
-
-        // Filter by active status
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
+        // Filter by code2
+        if ($request->has('code2')) {
+            $query->where('code2', $request->input('code2'));
         }
 
         // Sorting
-        $sortField = $request->get('sort_by', 'code');
+        $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
         
-        if (in_array($sortField, ['code', 'name', 'type', 'balance'])) {
+        if (in_array($sortField, ['name', 'code1', 'code2'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
-            $query->orderBy('code', 'asc');
+            $query->orderBy('name', 'asc');
         }
 
         // Pagination
         $perPage = $request->get('per_page', 10);
-        $accounts = $query->paginate($perPage);
+        $chartOfAccounts = $query->paginate($perPage);
 
-        return response()->json($accounts);
+        return response()->json($chartOfAccounts);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created chart of account.
      */
     public function store(Request $request): JsonResponse
     {
         try {
             $validatedData = $request->validate([
-                'code' => 'required|string|max:20|unique:chart_of_accounts,code',
-                'name' => 'required|string|max:255',
-                'type' => 'required|string|in:asset,liability,equity,revenue,expense',
-                'parent_id' => 'nullable|exists:chart_of_accounts,id',
-                'description' => 'nullable|string|max:1024',
-                'is_active' => 'boolean',
-                'balance' => 'required|numeric|min:0',
-                'level' => 'required|integer|min:1|max:10',
+                'name' => 'required|string|max:100',
+                'description' => 'required|string|max:255',
+                'code1' => 'required|string|max:24',
+                'code2' => 'required|string|max:24',
             ]);
 
-            $account = ChartOfAccount::create($validatedData);
+            $chartOfAccount = ChartOfAccount::create($validatedData);
             return response()->json([
                 'message' => 'Chart of Account created successfully',
-                'data' => $account
+                'data' => $chartOfAccount
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -85,7 +78,7 @@ class ChartOfAccountController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified chart of account.
      */
     public function show(ChartOfAccount $chartOfAccount): JsonResponse
     {
@@ -93,7 +86,7 @@ class ChartOfAccountController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified chart of account.
      */
     public function update(Request $request, ChartOfAccount $chartOfAccount): JsonResponse
     {
@@ -107,14 +100,10 @@ class ChartOfAccountController extends Controller
             }
 
             $validatedData = $request->validate([
-                'code' => 'sometimes|string|max:20|unique:chart_of_account,code,' . $chartOfAccount->id,
-                'name' => 'sometimes|string|max:255',
-                'type' => 'sometimes|string|in:asset,liability,equity,revenue,expense',
-                'parent_id' => 'sometimes|nullable|exists:chart_of_account,id',
-                'description' => 'sometimes|nullable|string|max:1024',
-                'is_active' => 'sometimes|boolean',
-                'balance' => 'sometimes|numeric|min:0',
-                'level' => 'sometimes|integer|min:1|max:10',
+                'name' => 'sometimes|string|max:100',
+                'description' => 'sometimes|string|max:255',
+                'code1' => 'sometimes|string|max:24',
+                'code2' => 'sometimes|string|max:24',
             ]);
 
             $chartOfAccount->update($validatedData);
@@ -128,17 +117,10 @@ class ChartOfAccountController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified chart of account.
      */
     public function destroy(ChartOfAccount $chartOfAccount): JsonResponse
     {
-        // Check if account has children
-        if ($chartOfAccount->children()->exists()) {
-            return response()->json([
-                'error' => 'Cannot delete account with child accounts'
-            ], 422);
-        }
-
         $chartOfAccount->delete();
         return response()->json(['message' => 'Chart of Account deleted successfully.']);
     }

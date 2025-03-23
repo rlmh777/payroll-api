@@ -17,14 +17,10 @@ class ChartOfAccount extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'code',
         'name',
-        'type',
-        'parent_id',
         'description',
-        'is_active',
-        'balance',
-        'level'
+        'code1',
+        'code2'
     ];
 
     protected $casts = [
