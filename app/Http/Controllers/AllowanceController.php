@@ -12,10 +12,48 @@ class AllowanceController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request): JsonResponse
     {
-        return Allowance::all();
+        $query = Allowance::query();
 
+        // Search by name
+        if ($request->has('search')) {
+            $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($request->search) . '%']);
+        }
+
+        // Filter by isTaxable
+        if ($request->has('isTaxable')) {
+            $query->where('isTaxable', $request->boolean('isTaxable'));
+        }
+
+        // Filter by isSocialSecurityDeductable
+        if ($request->has('isSocialSecurityDeductable')) {
+            $query->where('isSocialSecurityDeductable', $request->boolean('isSocialSecurityDeductable'));
+        }
+
+        // Filter by defaultAmount range
+        if ($request->has('min_amount')) {
+            $query->where('defaultAmount', '>=', $request->min_amount);
+        }
+        if ($request->has('max_amount')) {
+            $query->where('defaultAmount', '<=', $request->max_amount);
+        }
+
+        // Sorting
+        $sortField = $request->get('sort_by', 'name');
+        $sortDirection = $request->get('sort_direction', 'asc');
+        
+        if (in_array($sortField, ['name', 'isTaxable', 'isSocialSecurityDeductable', 'defaultAmount'])) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->orderBy('name', 'asc');
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 10);
+        $allowances = $query->paginate($perPage);
+
+        return response()->json($allowances);
     }
 
     /**
