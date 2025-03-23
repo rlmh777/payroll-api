@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\CountryController;
 
 
 Route::get('/user', function (Request $request) {
@@ -52,5 +53,15 @@ Route::prefix('deduction-types')->group(function () {
     Route::get('/{deductionType}', [DeductionTypeController::class, 'show']);
     Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
+});
+
+// Country routes
+Route::prefix('countries')->group(function () {
+    Route::get('/', [CountryController::class, 'index']);
+    Route::post('/', [CountryController::class, 'store']);
+    Route::get('/{country}', [CountryController::class, 'show']);
+    Route::put('/{country}', [CountryController::class, 'update']);
+    Route::delete('/{country}', [CountryController::class, 'destroy']);
+    Route::get('/{country}/districts', [CountryController::class, 'districts']);
 });
 
