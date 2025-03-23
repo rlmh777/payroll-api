@@ -107,10 +107,10 @@ class ChartOfAccountController extends Controller
             }
 
             $validatedData = $request->validate([
-                'code' => 'sometimes|string|max:20|unique:chart_of_accounts,code,' . $chartOfAccount->id,
+                'code' => 'sometimes|string|max:20|unique:chart_of_account,code,' . $chartOfAccount->id,
                 'name' => 'sometimes|string|max:255',
                 'type' => 'sometimes|string|in:asset,liability,equity,revenue,expense',
-                'parent_id' => 'sometimes|nullable|exists:chart_of_accounts,id',
+                'parent_id' => 'sometimes|nullable|exists:chart_of_account,id',
                 'description' => 'sometimes|nullable|string|max:1024',
                 'is_active' => 'sometimes|boolean',
                 'balance' => 'sometimes|numeric|min:0',

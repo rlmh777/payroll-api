@@ -11,7 +11,7 @@ class ChartOfAccount extends Model
 {
     use HasUuids;
 
-    protected $table = 'chart_of_accounts';
+    protected $table = 'chart_of_account';
     protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;

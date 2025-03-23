@@ -32,8 +32,8 @@ Route::patch('allowances/{allowance}', [AllowanceController::class, 'update']);
 Route::delete('allowances/{allowance}', [AllowanceController::class, 'destroy']);
 //End Allowance
 
-// Chart of Accounts Routes
-Route::prefix('chart-of-accounts')->group(function () {
+// Chart of Account Routes
+Route::prefix('chart-of-account')->group(function () {
     Route::get('/', [ChartOfAccountController::class, 'index']);
     Route::post('/', [ChartOfAccountController::class, 'store']);
     Route::get('/{chartOfAccount}', [ChartOfAccountController::class, 'show']);
