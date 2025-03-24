@@ -9,6 +9,7 @@ use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\CalculationModeController;
+use App\Http\Controllers\GenderController;
 
 
 Route::get('/user', function (Request $request) {
@@ -62,5 +63,14 @@ Route::prefix('calculation-modes')->group(function () {
     Route::get('/{calculationMode}', [CalculationModeController::class, 'show']);
     Route::put('/{calculationMode}', [CalculationModeController::class, 'update']);
     Route::delete('/{calculationMode}', [CalculationModeController::class, 'destroy']);
+});
+
+// Gender routes
+Route::prefix('genders')->group(function () {
+    Route::get('/', [GenderController::class, 'index']);
+    Route::post('/', [GenderController::class, 'store']);
+    Route::get('/{gender}', [GenderController::class, 'show']);
+    Route::put('/{gender}', [GenderController::class, 'update']);
+    Route::delete('/{gender}', [GenderController::class, 'destroy']);
 });
 
