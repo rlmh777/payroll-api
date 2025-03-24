@@ -9,6 +9,7 @@ use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\CalculationModeController;
+use App\Http\Controllers\EmployeeStatusController;
 
 
 Route::get('/user', function (Request $request) {
@@ -62,5 +63,14 @@ Route::prefix('calculation-modes')->group(function () {
     Route::get('/{calculationMode}', [CalculationModeController::class, 'show']);
     Route::put('/{calculationMode}', [CalculationModeController::class, 'update']);
     Route::delete('/{calculationMode}', [CalculationModeController::class, 'destroy']);
+});
+
+// Employee Status Routes
+Route::prefix('employee-statuses')->group(function () {
+    Route::get('/', [EmployeeStatusController::class, 'index']);
+    Route::post('/', [EmployeeStatusController::class, 'store']);
+    Route::get('/{employeeStatus}', [EmployeeStatusController::class, 'show']);
+    Route::put('/{employeeStatus}', [EmployeeStatusController::class, 'update']);
+    Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
