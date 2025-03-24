@@ -31,7 +31,7 @@ class DistrictController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
@@ -82,7 +82,7 @@ class DistrictController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $district
@@ -136,7 +136,7 @@ class DistrictController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         }
@@ -144,7 +144,7 @@ class DistrictController extends Controller
         // Pagination
         $perPage = $request->get('per_page', 10);
         $localities = $query->paginate($perPage);
-            
+
         return response()->json([
             'district' => [
                 'id' => $district->id,
@@ -154,4 +154,4 @@ class DistrictController extends Controller
             'localities' => $localities
         ]);
     }
-} 
+}
