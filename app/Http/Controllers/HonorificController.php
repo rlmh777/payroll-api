@@ -24,7 +24,7 @@ class HonorificController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
@@ -73,7 +73,7 @@ class HonorificController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $honorific
@@ -109,4 +109,4 @@ class HonorificController extends Controller
         $honorific->delete();
         return response()->json(['message' => 'Honorific deleted successfully.']);
     }
-} 
+}
