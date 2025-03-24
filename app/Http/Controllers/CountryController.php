@@ -21,16 +21,16 @@ class CountryController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code1', 'like', "%{$search}%")
-                  ->orWhere('code2', 'like', "%{$search}%")
-                  ->orWhere('nationalityName', 'like', "%{$search}%");
+                    ->orWhere('code1', 'like', "%{$search}%")
+                    ->orWhere('code2', 'like', "%{$search}%")
+                    ->orWhere('nationalityName', 'like', "%{$search}%");
             });
         }
 
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name', 'code1', 'code2', 'nationalityName'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
@@ -82,7 +82,7 @@ class CountryController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $country
@@ -145,7 +145,7 @@ class CountryController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         }
@@ -153,7 +153,7 @@ class CountryController extends Controller
         // Pagination
         $perPage = $request->get('per_page', 10);
         $districts = $query->paginate($perPage);
-            
+
         return response()->json([
             'country' => [
                 'id' => $country->id,
@@ -165,4 +165,4 @@ class CountryController extends Controller
             'districts' => $districts
         ]);
     }
-} 
+}
