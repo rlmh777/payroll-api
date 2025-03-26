@@ -31,7 +31,7 @@ class LocalityController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
@@ -82,7 +82,7 @@ class LocalityController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $locality
@@ -140,4 +140,4 @@ class LocalityController extends Controller
         $locality->delete();
         return response()->json(['message' => 'Locality deleted successfully.']);
     }
-} 
+}
