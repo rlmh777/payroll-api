@@ -8,6 +8,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DegreeController;
 use App\Http\Controllers\LocalityController;
 use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
@@ -58,7 +60,24 @@ Route::prefix('deduction-types')->group(function () {
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
 });
 
-// Locality routes
+// Department Routes
+Route::prefix('departments')->group(function () {
+    Route::get('/', [DepartmentController::class, 'index']);
+    Route::post('/', [DepartmentController::class, 'store']);
+    Route::get('/{department}', [DepartmentController::class, 'show']);
+    Route::put('/{department}', [DepartmentController::class, 'update']);
+    Route::delete('/{department}', [DepartmentController::class, 'destroy']);
+});
+
+// Degree Routes
+Route::prefix('degrees')->group(function () {
+    Route::get('/', [DegreeController::class, 'index']);
+    Route::post('/', [DegreeController::class, 'store']);
+    Route::get('/{degree}', [DegreeController::class, 'show']);
+    Route::put('/{degree}', [DegreeController::class, 'update']);
+    Route::delete('/{degree}', [DegreeController::class, 'destroy']);
+
+ // Locality routes
 Route::prefix('localities')->group(function () {
     Route::get('/', [LocalityController::class, 'index']);
     Route::post('/', [LocalityController::class, 'store']);
