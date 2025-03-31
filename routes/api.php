@@ -18,6 +18,7 @@ use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
 use App\Http\Controllers\EmployeeStatusController;
+use App\Http\Controllers\QualificationController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -81,6 +82,7 @@ Route::prefix('honorifics')->group(function () {
     Route::get('/{honorific}', [HonorificController::class, 'show']);
     Route::put('/{honorific}', [HonorificController::class, 'update']);
     Route::delete('/{honorific}', [HonorificController::class, 'destroy']);
+});
 
 // Country routes
 Route::prefix('countries')->group(function () {
@@ -90,7 +92,7 @@ Route::prefix('countries')->group(function () {
     Route::put('/{country}', [CountryController::class, 'update']);
     Route::delete('/{country}', [CountryController::class, 'destroy']);
     Route::get('/{country}/districts', [CountryController::class, 'districts']);
-
+});
 
 // Department Routes
 Route::prefix('departments')->group(function () {
@@ -108,16 +110,18 @@ Route::prefix('degrees')->group(function () {
     Route::get('/{degree}', [DegreeController::class, 'show']);
     Route::put('/{degree}', [DegreeController::class, 'update']);
     Route::delete('/{degree}', [DegreeController::class, 'destroy']);
+});
 
- // Locality routes
+// Locality routes
 Route::prefix('localities')->group(function () {
     Route::get('/', [LocalityController::class, 'index']);
     Route::post('/', [LocalityController::class, 'store']);
     Route::get('/{locality}', [LocalityController::class, 'show']);
     Route::put('/{locality}', [LocalityController::class, 'update']);
     Route::delete('/{locality}', [LocalityController::class, 'destroy']);
+});
 
-  // District routes
+// District routes
 Route::prefix('districts')->group(function () {
     Route::get('/', [DistrictController::class, 'index']);
     Route::post('/', [DistrictController::class, 'store']);
@@ -125,8 +129,9 @@ Route::prefix('districts')->group(function () {
     Route::put('/{district}', [DistrictController::class, 'update']);
     Route::delete('/{district}', [DistrictController::class, 'destroy']);
     Route::get('/{district}/localities', [DistrictController::class, 'localities']);
+});
 
-  // Calculation Mode Routes
+// Calculation Mode Routes
 Route::prefix('calculation-modes')->group(function () {
     Route::get('/', [CalculationModeController::class, 'index']);
     Route::post('/', [CalculationModeController::class, 'store']);
@@ -142,6 +147,7 @@ Route::prefix('genders')->group(function () {
     Route::get('/{gender}', [GenderController::class, 'show']);
     Route::put('/{gender}', [GenderController::class, 'update']);
     Route::delete('/{gender}', [GenderController::class, 'destroy']);
+});
 
 // Employee Status Routes
 Route::prefix('employee-statuses')->group(function () {
@@ -150,4 +156,13 @@ Route::prefix('employee-statuses')->group(function () {
     Route::get('/{employeeStatus}', [EmployeeStatusController::class, 'show']);
     Route::put('/{employeeStatus}', [EmployeeStatusController::class, 'update']);
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
+});
+
+// Qualification Routes
+Route::prefix('qualifications')->group(function () {
+    Route::get('/', [QualificationController::class, 'index']);
+    Route::post('/', [QualificationController::class, 'store']);
+    Route::get('/{qualification}', [QualificationController::class, 'show']);
+    Route::put('/{qualification}', [QualificationController::class, 'update']);
+    Route::delete('/{qualification}', [QualificationController::class, 'destroy']);
 });
