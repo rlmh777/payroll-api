@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Department extends Model
 {
     protected $table = 'department';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name',
@@ -26,6 +26,6 @@ class Department extends Model
 
     public function employmentDetails()
     {
-        return $this->hasMany(EmploymentDetail::class);
+        return $this->hasMany(EmploymentDetail::class, 'departmentId');
     }
 }
