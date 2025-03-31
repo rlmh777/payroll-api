@@ -23,6 +23,7 @@ use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\HistoricalEmployeeAllowanceController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -178,4 +179,13 @@ Route::prefix('employment-histories')->group(function () {
     Route::get('/{employmentHistory}', [EmploymentHistoryController::class, 'show']);
     Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
     Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
+});
+
+// Historical Employee Allowance Routes
+Route::prefix('historical-employee-allowances')->group(function () {
+    Route::get('/', [HistoricalEmployeeAllowanceController::class, 'index']);
+    Route::post('/', [HistoricalEmployeeAllowanceController::class, 'store']);
+    Route::get('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'show']);
+    Route::put('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'update']);
+    Route::delete('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'destroy']);
 });
