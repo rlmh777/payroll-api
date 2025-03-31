@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
@@ -79,6 +80,7 @@ Route::prefix('countries')->group(function () {
     Route::delete('/{country}', [CountryController::class, 'destroy']);
     Route::get('/{country}/districts', [CountryController::class, 'districts']);
 
+
 // Department Routes
 Route::prefix('departments')->group(function () {
     Route::get('/', [DepartmentController::class, 'index']);
@@ -138,4 +140,3 @@ Route::prefix('employee-statuses')->group(function () {
     Route::put('/{employeeStatus}', [EmployeeStatusController::class, 'update']);
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
-
