@@ -33,6 +33,8 @@ class DatabaseSeeder extends Seeder
             EmployeeModelSeeder::class,
             UserSeeder::class,
             RoleAndPermissionSeeder::class,
+            DegreeSeeder::class,
+            EmployeeStatusSeeder::class,
         ]);
     }
 }

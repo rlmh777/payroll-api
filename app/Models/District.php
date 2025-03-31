@@ -28,6 +28,6 @@ class District extends Model
 
     public function localities(): HasMany
     {
-        return $this->hasMany(Locality::class);
+        return $this->hasMany(Locality::class, 'districtId');
     }
 }
