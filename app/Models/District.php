@@ -23,7 +23,7 @@ class District extends Model
 
     public function country(): BelongsTo
     {
-        return $this->belongsTo(Country::class);
+        return $this->belongsTo(Country::class, 'countryId');
     }
 
     public function localities(): HasMany
