@@ -11,6 +11,7 @@ use App\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\LocalityController;
 use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
+use App\Http\Controllers\GenderController;
 use App\Http\Controllers\EmployeeStatusController;
 
 Route::get('/user', function (Request $request) {
@@ -82,6 +83,14 @@ Route::prefix('calculation-modes')->group(function () {
     Route::put('/{calculationMode}', [CalculationModeController::class, 'update']);
     Route::delete('/{calculationMode}', [CalculationModeController::class, 'destroy']);
 });
+
+// Gender routes
+Route::prefix('genders')->group(function () {
+    Route::get('/', [GenderController::class, 'index']);
+    Route::post('/', [GenderController::class, 'store']);
+    Route::get('/{gender}', [GenderController::class, 'show']);
+    Route::put('/{gender}', [GenderController::class, 'update']);
+    Route::delete('/{gender}', [GenderController::class, 'destroy']);
 
 // Employee Status Routes
 Route::prefix('employee-statuses')->group(function () {
