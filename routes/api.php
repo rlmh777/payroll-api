@@ -8,8 +8,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
-
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -55,7 +55,16 @@ Route::prefix('deduction-types')->group(function () {
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
 });
 
-// Calculation Mode Routes
+// District routes
+Route::prefix('districts')->group(function () {
+    Route::get('/', [DistrictController::class, 'index']);
+    Route::post('/', [DistrictController::class, 'store']);
+    Route::get('/{district}', [DistrictController::class, 'show']);
+    Route::put('/{district}', [DistrictController::class, 'update']);
+    Route::delete('/{district}', [DistrictController::class, 'destroy']);
+    Route::get('/{district}/localities', [DistrictController::class, 'localities']);
+
+  // Calculation Mode Routes
 Route::prefix('calculation-modes')->group(function () {
     Route::get('/', [CalculationModeController::class, 'index']);
     Route::post('/', [CalculationModeController::class, 'store']);

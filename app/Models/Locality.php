@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Locality extends Model
@@ -20,23 +20,28 @@ class Locality extends Model
         'name',
     ];
 
-    public function district(): BelongsTo {
-        return $this->belongsTo(District::class);
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'districtId');
     }
 
-    public function worksites(): HasMany {
+    public function worksites(): HasMany
+    {
         return $this->hasMany(Worksite::class);
     }
 
-    public function employees(): HasMany {
+    public function employees(): HasMany
+    {
         return $this->hasMany(Employee::class);
     }
 
-    public function contacts(): HasMany {
+    public function contacts(): HasMany
+    {
         return $this->hasMany(EmployeeContacts::class);
     }
 
-    public function companies(): HasMany {
+    public function companies(): HasMany
+    {
         return $this->hasMany(Company::class);
     }
 }
