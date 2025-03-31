@@ -12,12 +12,13 @@ class Locality extends Model
     use HasUuids;
 
     protected $table = 'locality';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
     protected $fillable = [
         'name',
+        'districtId'
     ];
 
     public function district(): BelongsTo
@@ -27,21 +28,21 @@ class Locality extends Model
 
     public function worksites(): HasMany
     {
-        return $this->hasMany(Worksite::class);
+        return $this->hasMany(Worksite::class, 'localityId');
     }
 
     public function employees(): HasMany
     {
-        return $this->hasMany(Employee::class);
+        return $this->hasMany(Employee::class, 'localityId');
     }
 
     public function contacts(): HasMany
     {
-        return $this->hasMany(EmployeeContacts::class);
+        return $this->hasMany(EmployeeContact::class, 'localityId');
     }
 
     public function companies(): HasMany
     {
-        return $this->hasMany(Company::class);
+        return $this->hasMany(Company::class, 'localityId');
     }
 }

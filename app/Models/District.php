@@ -12,7 +12,7 @@ class District extends Model
     use HasUuids;
 
     protected $table = 'district';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
