@@ -22,6 +22,8 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
+use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\LeaveTypeController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -168,4 +170,22 @@ Route::prefix('employee-hours-worked')->group(function () {
     Route::get('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'show']);
     Route::put('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'update']);
     Route::delete('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'destroy']);
+});
+
+// Employment History Routes
+Route::prefix('employment-histories')->group(function () {
+    Route::get('/', [EmploymentHistoryController::class, 'index']);
+    Route::post('/', [EmploymentHistoryController::class, 'store']);
+    Route::get('/{employmentHistory}', [EmploymentHistoryController::class, 'show']);
+    Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
+    Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
+});
+
+// Leave Type Routes
+Route::prefix('leave-types')->group(function () {
+    Route::get('/', [LeaveTypeController::class, 'index']);
+    Route::post('/', [LeaveTypeController::class, 'store']);
+    Route::get('/{leaveType}', [LeaveTypeController::class, 'show']);
+    Route::put('/{leaveType}', [LeaveTypeController::class, 'update']);
+    Route::delete('/{leaveType}', [LeaveTypeController::class, 'destroy']);
 });
