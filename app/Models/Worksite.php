@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Worksite extends Model
@@ -23,11 +23,13 @@ class Worksite extends Model
         'localityId'
     ];
 
-    public function locality(): BelongsTo {
-        return $this->belongsTo(Locality::class);
+    public function locality(): BelongsTo
+    {
+        return $this->belongsTo(Locality::class, 'localityId');
     }
 
-    public function employmentDetails(): HasMany {
+    public function employmentDetails(): HasMany
+    {
         return $this->hasMany(EmploymentDetail::class);
     }
 }
