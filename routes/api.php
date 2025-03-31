@@ -81,6 +81,7 @@ Route::prefix('honorifics')->group(function () {
     Route::get('/{honorific}', [HonorificController::class, 'show']);
     Route::put('/{honorific}', [HonorificController::class, 'update']);
     Route::delete('/{honorific}', [HonorificController::class, 'destroy']);
+});
 
 // Country routes
 Route::prefix('countries')->group(function () {
@@ -90,7 +91,7 @@ Route::prefix('countries')->group(function () {
     Route::put('/{country}', [CountryController::class, 'update']);
     Route::delete('/{country}', [CountryController::class, 'destroy']);
     Route::get('/{country}/districts', [CountryController::class, 'districts']);
-
+});
 
 // Department Routes
 Route::prefix('departments')->group(function () {
@@ -108,16 +109,18 @@ Route::prefix('degrees')->group(function () {
     Route::get('/{degree}', [DegreeController::class, 'show']);
     Route::put('/{degree}', [DegreeController::class, 'update']);
     Route::delete('/{degree}', [DegreeController::class, 'destroy']);
+});
 
- // Locality routes
+// Locality routes
 Route::prefix('localities')->group(function () {
     Route::get('/', [LocalityController::class, 'index']);
     Route::post('/', [LocalityController::class, 'store']);
     Route::get('/{locality}', [LocalityController::class, 'show']);
     Route::put('/{locality}', [LocalityController::class, 'update']);
     Route::delete('/{locality}', [LocalityController::class, 'destroy']);
+});
 
-  // District routes
+// District routes
 Route::prefix('districts')->group(function () {
     Route::get('/', [DistrictController::class, 'index']);
     Route::post('/', [DistrictController::class, 'store']);
@@ -125,8 +128,9 @@ Route::prefix('districts')->group(function () {
     Route::put('/{district}', [DistrictController::class, 'update']);
     Route::delete('/{district}', [DistrictController::class, 'destroy']);
     Route::get('/{district}/localities', [DistrictController::class, 'localities']);
+});
 
-  // Calculation Mode Routes
+// Calculation Mode Routes
 Route::prefix('calculation-modes')->group(function () {
     Route::get('/', [CalculationModeController::class, 'index']);
     Route::post('/', [CalculationModeController::class, 'store']);
@@ -142,6 +146,7 @@ Route::prefix('genders')->group(function () {
     Route::get('/{gender}', [GenderController::class, 'show']);
     Route::put('/{gender}', [GenderController::class, 'update']);
     Route::delete('/{gender}', [GenderController::class, 'destroy']);
+});
 
 // Employee Status Routes
 Route::prefix('employee-statuses')->group(function () {
