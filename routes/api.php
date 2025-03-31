@@ -22,6 +22,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
+use App\Http\Controllers\EmploymentHistoryController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -168,4 +169,13 @@ Route::prefix('employee-hours-worked')->group(function () {
     Route::get('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'show']);
     Route::put('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'update']);
     Route::delete('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'destroy']);
+});
+
+// Employment History Routes
+Route::prefix('employment-histories')->group(function () {
+    Route::get('/', [EmploymentHistoryController::class, 'index']);
+    Route::post('/', [EmploymentHistoryController::class, 'store']);
+    Route::get('/{employmentHistory}', [EmploymentHistoryController::class, 'show']);
+    Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
+    Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
 });
