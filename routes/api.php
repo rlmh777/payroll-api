@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DeductionTypeController;
+use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DegreeController;
@@ -60,6 +61,14 @@ Route::prefix('deduction-types')->group(function () {
     Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
 });
+
+// Honorific Routes
+Route::prefix('honorifics')->group(function () {
+    Route::get('/', [HonorificController::class, 'index']);
+    Route::post('/', [HonorificController::class, 'store']);
+    Route::get('/{honorific}', [HonorificController::class, 'show']);
+    Route::put('/{honorific}', [HonorificController::class, 'update']);
+    Route::delete('/{honorific}', [HonorificController::class, 'destroy']);
 
 // Country routes
 Route::prefix('countries')->group(function () {
