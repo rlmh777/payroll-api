@@ -21,9 +21,9 @@ class ChartOfAccountController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('code1', 'like', "%{$search}%")
-                  ->orWhere('code2', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('code1', 'like', "%{$search}%")
+                    ->orWhere('code2', 'like', "%{$search}%");
             });
         }
 
@@ -53,7 +53,7 @@ class ChartOfAccountController extends Controller
         // Sorting
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
-        
+
         if (in_array($sortField, ['name', 'code1', 'code2', 'type', 'balance', 'level'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
@@ -118,7 +118,7 @@ class ChartOfAccountController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $chartOfAccount
@@ -188,9 +188,11 @@ class ChartOfAccountController extends Controller
      */
     public function hierarchy(ChartOfAccount $chartOfAccount): JsonResponse
     {
-        $hierarchy = $chartOfAccount->load(['children' => function ($query) {
-            $query->orderBy('name');
-        }]);
+        $hierarchy = $chartOfAccount->load([
+            'children' => function ($query) {
+                $query->orderBy('name');
+            }
+        ]);
         return response()->json($hierarchy);
     }
 
@@ -205,4 +207,4 @@ class ChartOfAccountController extends Controller
             ->get();
         return response()->json($history);
     }
-} 
+}
