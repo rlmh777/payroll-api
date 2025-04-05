@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 use ParagonIE\CipherSweet\EncryptedRow;
@@ -34,15 +34,18 @@ class EmployeeContact extends Model
         'isProfessionalReference'
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
-    public function relationship(): BelongsTo {
+    public function relationship(): BelongsTo
+    {
         return $this->belongsTo(Relationship::class);
     }
 
-    public function locality(): BelongsTo {
+    public function locality(): BelongsTo
+    {
         return $this->belongsTo(Locality::class);
     }
 

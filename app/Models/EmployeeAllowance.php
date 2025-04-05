@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class EmployeeAllowance extends Model
@@ -24,19 +24,23 @@ class EmployeeAllowance extends Model
         'amount'
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
-    public function allowance(): BelongsTo {
+    public function allowance(): BelongsTo
+    {
         return $this->belongsTo(Allowance::class);
     }
 
-    public function payrateFrequency(): BelongsTo {
+    public function payrateFrequency(): BelongsTo
+    {
         return $this->belongsTo(PayrateFrequency::class);
     }
 
-    public function chartOfAccount(): BelongsTo {
+    public function chartOfAccount(): BelongsTo
+    {
         return $this->belongsTo(ChartOfAccount::class);
     }
 }

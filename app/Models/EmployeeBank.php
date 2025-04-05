@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use ParagonIE\CipherSweet\BlindIndex;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
@@ -26,11 +26,13 @@ class EmployeeBank extends Model
         'notes'
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
-    public function bank(): BelongsTo {
+    public function bank(): BelongsTo
+    {
         return $this->belongsTo(Bank::class);
     }
 
