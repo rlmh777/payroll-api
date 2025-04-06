@@ -111,7 +111,7 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function employeeDefaultDeductions(): HasMany
     {
-        return $this->hasMany(EmployeeDefaultDeduction::class);
+        return $this->hasMany(EmployeeDefaultDeduction::class, 'employeeId');
     }
 
     public function employmentDetails(): HasMany
