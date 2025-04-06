@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EmploymentDetails;
+use App\Models\EmploymentDetail;
 use App\Models\Employee;
 use App\Models\Department;
 use App\Models\EmployeeStatus;
@@ -16,7 +16,7 @@ class EmploymentDetailsController extends Controller
 {
     public function index(Request $request)
     {
-        $query = EmploymentDetails::with([
+        $query = EmploymentDetail::with([
             'employee',
             'department',
             'employeeStatus',
@@ -75,7 +75,7 @@ class EmploymentDetailsController extends Controller
         }
 
         // Check if employee already has employment details
-        $exists = EmploymentDetails::where('employeeId', $request->employeeId)
+        $exists = EmploymentDetail::where('employeeId', $request->employeeId)
             ->where('isActive', true)
             ->exists();
 
@@ -85,7 +85,7 @@ class EmploymentDetailsController extends Controller
             ], 422);
         }
 
-        $employmentDetails = EmploymentDetails::create($request->all());
+        $employmentDetails = EmploymentDetail::create($request->all());
 
         return response()->json($employmentDetails->load([
             'employee',
@@ -96,7 +96,7 @@ class EmploymentDetailsController extends Controller
         ]), 201);
     }
 
-    public function show(EmploymentDetails $employmentDetails)
+    public function show(EmploymentDetail $employmentDetails)
     {
         return $employmentDetails->load([
             'employee',
@@ -107,7 +107,7 @@ class EmploymentDetailsController extends Controller
         ]);
     }
 
-    public function update(Request $request, EmploymentDetails $employmentDetails)
+    public function update(Request $request, EmploymentDetail $employmentDetails)
     {
         if ($request->isMethod('put') && empty($request->all())) {
             return response()->json([
@@ -134,7 +134,7 @@ class EmploymentDetailsController extends Controller
 
         // If employee is being changed, check for active employment details
         if ($request->has('employeeId') && $request->employeeId !== $employmentDetails->employeeId) {
-            $exists = EmploymentDetails::where('employeeId', $request->employeeId)
+            $exists = EmploymentDetail::where('employeeId', $request->employeeId)
                 ->where('isActive', true)
                 ->exists();
 
@@ -156,9 +156,9 @@ class EmploymentDetailsController extends Controller
         ]));
     }
 
-    public function destroy(EmploymentDetails $employmentDetails)
+    public function destroy(EmploymentDetail $employmentDetails)
     {
         $employmentDetails->delete();
         return response()->json(null, 204);
     }
-} 
+}

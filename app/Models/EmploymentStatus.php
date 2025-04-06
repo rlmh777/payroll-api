@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmploymentStatus extends Model
 {
@@ -14,7 +14,8 @@ class EmploymentStatus extends Model
         'name'
     ];
 
-    public function employmentDetails(): HasMany {
+    public function employmentDetails(): HasMany
+    {
         return $this->hasMany(EmploymentDetail::class);
     }
 }
