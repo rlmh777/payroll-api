@@ -18,12 +18,7 @@ use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
 use App\Http\Controllers\EmployeeStatusController;
-use App\Http\Controllers\QualificationController;
-use App\Http\Controllers\RelationshipController;
-use App\Http\Controllers\EmployeeContactController;
 use App\Http\Controllers\InstitutionController;
-use App\Http\Controllers\EmployeeAllowanceController;
-
 use App\Http\Controllers\QualificationController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\EmployeeContactController;
@@ -174,6 +169,14 @@ Route::prefix('employee-statuses')->group(function () {
     Route::put('/{employeeStatus}', [EmployeeStatusController::class, 'update']);
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
+
+// Employee Routes
+Route::prefix('employees')->group(function () {
+    Route::get('/', [EmployeeController::class, 'index']);
+    Route::post('/', [EmployeeController::class, 'store']);
+    Route::get('/{employee}', [EmployeeController::class, 'show']);
+    Route::put('/{employee}', [EmployeeController::class, 'update']);
+    Route::delete('/{employee}', [EmployeeController::class, 'destroy']);
 
 // Institution Routes
 Route::prefix('institutions')->group(function () {

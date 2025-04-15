@@ -26,7 +26,7 @@ class Qualification extends Model
 
     public function employee(): BelongsTo
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
     public function institution(): BelongsTo
