@@ -173,6 +173,13 @@ Route::prefix('employee-statuses')->group(function () {
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
+// Relationship Routes
+Route::prefix('relationships')->group(function () {
+    Route::get('/', [RelationshipController::class, 'index']);
+    Route::post('/', [RelationshipController::class, 'store']);
+    Route::get('/{relationship}', [RelationshipController::class, 'show']);
+    Route::put('/{relationship}', [RelationshipController::class, 'update']);
+    Route::delete('/{relationship}', [RelationshipController::class, 'destroy']);
 
 // Qualification Routes
 Route::prefix('qualifications')->group(function () {
