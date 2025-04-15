@@ -3,18 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LoanType extends Model
 {
-    protected $table = 'loan_Type';
+    protected $table = 'loan_type';
     protected $primarykey = 'id';
 
     protected $fillable = [
         'name'
     ];
 
-    public function loans(): HasMany {
+    public function loans(): HasMany
+    {
         return $this->hasMany(Loan::class);
     }
 }
