@@ -22,6 +22,9 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
+use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\PaymentMethodController;
+use App\Http\Controllers\LoanTypeController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -168,4 +171,22 @@ Route::prefix('employee-hours-worked')->group(function () {
     Route::get('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'show']);
     Route::put('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'update']);
     Route::delete('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'destroy']);
+});
+
+// Payment Method Routes
+Route::prefix('payment-methods')->group(function () {
+    Route::get('/', [PaymentMethodController::class, 'index']);
+    Route::post('/', [PaymentMethodController::class, 'store']);
+    Route::get('/{paymentMethod}', [PaymentMethodController::class, 'show']);
+    Route::put('/{paymentMethod}', [PaymentMethodController::class, 'update']);
+    Route::delete('/{paymentMethod}', [PaymentMethodController::class, 'destroy']);
+});
+
+// Loan Type Routes
+Route::prefix('loan-types')->group(function () {
+    Route::get('/', [LoanTypeController::class, 'index']);
+    Route::post('/', [LoanTypeController::class, 'store']);
+    Route::get('/{loanType}', [LoanTypeController::class, 'show']);
+    Route::put('/{loanType}', [LoanTypeController::class, 'update']);
+    Route::delete('/{loanType}', [LoanTypeController::class, 'destroy']);
 });
