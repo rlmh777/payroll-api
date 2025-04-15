@@ -18,6 +18,9 @@ use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
 use App\Http\Controllers\EmployeeStatusController;
+use App\Http\Controllers\QualificationController;
+use App\Http\Controllers\RelationshipController;
+use App\Http\Controllers\EmployeeContactController;
 use App\Http\Controllers\EmployeeAllowanceController;
 
 use App\Http\Controllers\QualificationController;
@@ -169,6 +172,14 @@ Route::prefix('employee-statuses')->group(function () {
     Route::put('/{employeeStatus}', [EmployeeStatusController::class, 'update']);
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
+
+// Employee Contact Routes
+Route::prefix('employee-contacts')->group(function () {
+    Route::get('/', [EmployeeContactController::class, 'index']);
+    Route::post('/', [EmployeeContactController::class, 'store']);
+    Route::get('/{employeeContact}', [EmployeeContactController::class, 'show']);
+    Route::put('/{employeeContact}', [EmployeeContactController::class, 'update']);
+    Route::delete('/{employeeContact}', [EmployeeContactController::class, 'destroy']);
 
 Route::prefix('employee-allowances')->group(function () {
     Route::get('/', [EmployeeAllowanceController::class, 'index']);
