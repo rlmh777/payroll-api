@@ -22,6 +22,19 @@ use App\Http\Controllers\QualificationController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\EmployeeContactController;
 use App\Http\Controllers\InstitutionController;
+use App\Http\Controllers\EmployeeAllowanceController;
+
+use App\Http\Controllers\QualificationController;
+use App\Http\Controllers\RelationshipController;
+use App\Http\Controllers\EmployeeContactController;
+use App\Http\Controllers\EmployeeAllowanceController;
+use App\Http\Controllers\EmployeeBankController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeDefaultDeductionController;
+use App\Http\Controllers\EmploymentDetailsController;
+use App\Http\Controllers\EmployeeHoursWorkedController;
+use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\LoanController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -168,4 +181,69 @@ Route::prefix('institutions')->group(function () {
     Route::get('/{institution}', [InstitutionController::class, 'show']);
     Route::put('/{institution}', [InstitutionController::class, 'update']);
     Route::delete('/{institution}', [InstitutionController::class, 'destroy']);
+
+// Relationship Routes
+Route::prefix('relationships')->group(function () {
+    Route::get('/', [RelationshipController::class, 'index']);
+    Route::post('/', [RelationshipController::class, 'store']);
+    Route::get('/{relationship}', [RelationshipController::class, 'show']);
+    Route::put('/{relationship}', [RelationshipController::class, 'update']);
+    Route::delete('/{relationship}', [RelationshipController::class, 'destroy']);
+
+// Qualification Routes
+Route::prefix('qualifications')->group(function () {
+    Route::get('/', [QualificationController::class, 'index']);
+    Route::post('/', [QualificationController::class, 'store']);
+    Route::get('/{qualification}', [QualificationController::class, 'show']);
+    Route::put('/{qualification}', [QualificationController::class, 'update']);
+    Route::delete('/{qualification}', [QualificationController::class, 'destroy']);
+
+// Employee Contact Routes
+Route::prefix('employee-contacts')->group(function () {
+    Route::get('/', [EmployeeContactController::class, 'index']);
+    Route::post('/', [EmployeeContactController::class, 'store']);
+    Route::get('/{employeeContact}', [EmployeeContactController::class, 'show']);
+    Route::put('/{employeeContact}', [EmployeeContactController::class, 'update']);
+    Route::delete('/{employeeContact}', [EmployeeContactController::class, 'destroy']);
+
+Route::prefix('employee-allowances')->group(function () {
+    Route::get('/', [EmployeeAllowanceController::class, 'index']);
+    Route::post('/', [EmployeeAllowanceController::class, 'store']);
+    Route::get('/{employeeAllowance}', [EmployeeAllowanceController::class, 'show']);
+    Route::put('/{employeeAllowance}', [EmployeeAllowanceController::class, 'update']);
+    Route::delete('/{employeeAllowance}', [EmployeeAllowanceController::class, 'destroy']);
+
+ // Employee Bank Routes
+Route::prefix('employee-banks')->group(function () {
+    Route::get('/', [EmployeeBankController::class, 'index']);
+    Route::post('/', [EmployeeBankController::class, 'store']);
+    Route::get('/{employeeBank}', [EmployeeBankController::class, 'show']);
+    Route::put('/{employeeBank}', [EmployeeBankController::class, 'update']);
+    Route::delete('/{employeeBank}', [EmployeeBankController::class, 'destroy']);
+
+ // Employee Hours Worked Routes
+Route::prefix('employee-hours-worked')->group(function () {
+    Route::get('/', [EmployeeHoursWorkedController::class, 'index']);
+    Route::post('/', [EmployeeHoursWorkedController::class, 'store']);
+    Route::get('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'show']);
+    Route::put('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'update']);
+    Route::delete('/{hoursWorked}', [EmployeeHoursWorkedController::class, 'destroy']);
+});
+
+// Employment History Routes
+Route::prefix('employment-histories')->group(function () {
+    Route::get('/', [EmploymentHistoryController::class, 'index']);
+    Route::post('/', [EmploymentHistoryController::class, 'store']);
+    Route::get('/{employmentHistory}', [EmploymentHistoryController::class, 'show']);
+    Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
+    Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
+});
+
+// Loan Routes
+Route::prefix('loans')->group(function () {
+    Route::get('/', [LoanController::class, 'index']);
+    Route::post('/', [LoanController::class, 'store']);
+    Route::get('/{loan}', [LoanController::class, 'show']);
+    Route::put('/{loan}', [LoanController::class, 'update']);
+    Route::delete('/{loan}', [LoanController::class, 'destroy']);
 });
