@@ -31,6 +31,7 @@ use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
+use App\Http\Controllers\BankAccountTypeController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -258,4 +259,13 @@ Route::prefix('loans')->group(function () {
     Route::get('/{loan}', [LoanController::class, 'show']);
     Route::put('/{loan}', [LoanController::class, 'update']);
     Route::delete('/{loan}', [LoanController::class, 'destroy']);
+});
+
+// Bank Account Type Routes
+Route::prefix('bank-account-types')->group(function () {
+    Route::get('/', [BankAccountTypeController::class, 'index']);
+    Route::post('/', [BankAccountTypeController::class, 'store']);
+    Route::get('/{bankAccountType}', [BankAccountTypeController::class, 'show']);
+    Route::put('/{bankAccountType}', [BankAccountTypeController::class, 'update']);
+    Route::delete('/{bankAccountType}', [BankAccountTypeController::class, 'destroy']);
 });
