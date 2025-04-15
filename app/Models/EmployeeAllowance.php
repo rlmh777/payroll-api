@@ -31,16 +31,16 @@ class EmployeeAllowance extends Model
 
     public function allowance(): BelongsTo
     {
-        return $this->belongsTo(Allowance::class);
+        return $this->belongsTo(Allowance::class, 'allowanceId');
     }
 
     public function payrateFrequency(): BelongsTo
     {
-        return $this->belongsTo(PayrateFrequency::class);
+        return $this->belongsTo(PayrateFrequency::class, 'frequencyId');
     }
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class);
+        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
     }
 }

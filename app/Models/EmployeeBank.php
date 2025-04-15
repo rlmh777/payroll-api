@@ -33,7 +33,7 @@ class EmployeeBank extends Model
 
     public function bank(): BelongsTo
     {
-        return $this->belongsTo(Bank::class);
+        return $this->belongsTo(Bank::class, 'bankId');
     }
 
     public static function configureCipherSweet(EncryptedRow $encryptedRow): void

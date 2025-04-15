@@ -41,12 +41,12 @@ class EmployeeContact extends Model
 
     public function relationship(): BelongsTo
     {
-        return $this->belongsTo(Relationship::class);
+        return $this->belongsTo(Relationship::class, 'relationshipId');
     }
 
     public function locality(): BelongsTo
     {
-        return $this->belongsTo(Locality::class);
+        return $this->belongsTo(Locality::class, 'localityId');
     }
 
     public static function configureCipherSweet(EncryptedRow $encryptedRow): void

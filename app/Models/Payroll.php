@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payroll extends Model
 {
@@ -40,12 +41,12 @@ class Payroll extends Model
 
     public function taxCalculationMode(): BelongsTo
     {
-        return $this->belongsTo(CalculationMode::class);
+        return $this->belongsTo(CalculationMode::class, 'taxCalculationModeId');
     }
 
     public function socialSecurityCalculationMode(): BelongsTo
     {
-        return $this->belongsTo(CalculationMode::class);
+        return $this->belongsTo(CalculationMode::class, 'socialSecurityCalculationModeId');
     }
 
     public function historicalDeductions(): HasMany

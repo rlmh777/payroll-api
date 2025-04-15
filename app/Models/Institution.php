@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Institution extends Model
 {
@@ -14,8 +14,9 @@ class Institution extends Model
         'name'
     ];
 
-    public function qualifications(): HasMany {
-        return $this->hasMany(Qualification::class);
+    public function qualifications(): HasMany
+    {
+        return $this->hasMany(Qualification::class, 'institutionId');
     }
 
 }
