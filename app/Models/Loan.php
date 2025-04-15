@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Loan extends Model
 {
@@ -27,15 +27,18 @@ class Loan extends Model
         'chartOfAccountId'
     ];
 
-    public function employees(): BelongsTo {
+    public function employees(): BelongsTo
+    {
         return $this->BelongsTo(Employee::class);
     }
 
-    public function loanType(): BelongsTo {
+    public function loanType(): BelongsTo
+    {
         return $this->BelongsTo(LoanType::class);
     }
 
-    public function chartOfAccount(): BelongsTo {
+    public function chartOfAccount(): BelongsTo
+    {
         return $this->BelongsTo(ChartOfAccount::class);
     }
 }
