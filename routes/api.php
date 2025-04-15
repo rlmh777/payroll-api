@@ -31,6 +31,7 @@ use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
+use App\Http\Controllers\PaymentMethodController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -241,6 +242,15 @@ Route::prefix('employment-histories')->group(function () {
     Route::get('/{employmentHistory}', [EmploymentHistoryController::class, 'show']);
     Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
     Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
+});
+
+// Payment Method Routes
+Route::prefix('payment-methods')->group(function () {
+    Route::get('/', [PaymentMethodController::class, 'index']);
+    Route::post('/', [PaymentMethodController::class, 'store']);
+    Route::get('/{paymentMethod}', [PaymentMethodController::class, 'show']);
+    Route::put('/{paymentMethod}', [PaymentMethodController::class, 'update']);
+    Route::delete('/{paymentMethod}', [PaymentMethodController::class, 'destroy']);
 });
 
 // Leave Type Routes
