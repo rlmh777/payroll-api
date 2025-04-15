@@ -173,11 +173,11 @@ class ChartOfAccountController extends Controller
         }
 
         // Check if account has transactions
-        if ($chartOfAccount->transactions()->exists()) {
-            return response()->json([
-                'error' => 'Cannot delete account with associated transactions'
-            ], 422);
-        }
+        // if ($chartOfAccount->transactions()->exists()) {
+        //     return response()->json([
+        //         'error' => 'Cannot delete account with associated transactions'
+        //     ], 422);
+        // }
 
         $chartOfAccount->delete();
         return response()->json(['message' => 'Chart of Account deleted successfully.']);
