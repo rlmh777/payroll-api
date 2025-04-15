@@ -18,6 +18,7 @@ use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
 use App\Http\Controllers\EmployeeStatusController;
+use App\Http\Controllers\EmployeeAllowanceController;
 
 use App\Http\Controllers\QualificationController;
 use App\Http\Controllers\RelationshipController;
@@ -169,7 +170,14 @@ Route::prefix('employee-statuses')->group(function () {
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
-// Employee Bank Routes
+Route::prefix('employee-allowances')->group(function () {
+    Route::get('/', [EmployeeAllowanceController::class, 'index']);
+    Route::post('/', [EmployeeAllowanceController::class, 'store']);
+    Route::get('/{employeeAllowance}', [EmployeeAllowanceController::class, 'show']);
+    Route::put('/{employeeAllowance}', [EmployeeAllowanceController::class, 'update']);
+    Route::delete('/{employeeAllowance}', [EmployeeAllowanceController::class, 'destroy']);
+
+ // Employee Bank Routes
 Route::prefix('employee-banks')->group(function () {
     Route::get('/', [EmployeeBankController::class, 'index']);
     Route::post('/', [EmployeeBankController::class, 'store']);
