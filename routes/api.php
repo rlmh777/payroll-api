@@ -34,6 +34,7 @@ use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
 
 Route::get('/user', function (Request $request) {
@@ -238,6 +239,14 @@ Route::prefix('employment-histories')->group(function () {
     Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
     Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
 });
+
+// Leave Type Routes
+Route::prefix('leave-types')->group(function () {
+    Route::get('/', [LeaveTypeController::class, 'index']);
+    Route::post('/', [LeaveTypeController::class, 'store']);
+    Route::get('/{leaveType}', [LeaveTypeController::class, 'show']);
+    Route::put('/{leaveType}', [LeaveTypeController::class, 'update']);
+    Route::delete('/{leaveType}', [LeaveTypeController::class, 'destroy']);
 
 // Loan Routes
 Route::prefix('loans')->group(function () {
