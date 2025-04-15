@@ -18,6 +18,12 @@ use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
 use App\Http\Controllers\EmployeeStatusController;
+
+use App\Http\Controllers\QualificationController;
+use App\Http\Controllers\RelationshipController;
+use App\Http\Controllers\EmployeeContactController;
+use App\Http\Controllers\EmployeeAllowanceController;
+use App\Http\Controllers\EmployeeBankController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
@@ -163,7 +169,15 @@ Route::prefix('employee-statuses')->group(function () {
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
-// Employee Hours Worked Routes
+// Employee Bank Routes
+Route::prefix('employee-banks')->group(function () {
+    Route::get('/', [EmployeeBankController::class, 'index']);
+    Route::post('/', [EmployeeBankController::class, 'store']);
+    Route::get('/{employeeBank}', [EmployeeBankController::class, 'show']);
+    Route::put('/{employeeBank}', [EmployeeBankController::class, 'update']);
+    Route::delete('/{employeeBank}', [EmployeeBankController::class, 'destroy']);
+
+ // Employee Hours Worked Routes
 Route::prefix('employee-hours-worked')->group(function () {
     Route::get('/', [EmployeeHoursWorkedController::class, 'index']);
     Route::post('/', [EmployeeHoursWorkedController::class, 'store']);
