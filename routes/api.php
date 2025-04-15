@@ -21,6 +21,7 @@ use App\Http\Controllers\EmployeeStatusController;
 use App\Http\Controllers\QualificationController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\EmployeeContactController;
+use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\EmployeeAllowanceController;
 
 use App\Http\Controllers\QualificationController;
@@ -172,6 +173,14 @@ Route::prefix('employee-statuses')->group(function () {
     Route::put('/{employeeStatus}', [EmployeeStatusController::class, 'update']);
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
+
+// Institution Routes
+Route::prefix('institutions')->group(function () {
+    Route::get('/', [InstitutionController::class, 'index']);
+    Route::post('/', [InstitutionController::class, 'store']);
+    Route::get('/{institution}', [InstitutionController::class, 'show']);
+    Route::put('/{institution}', [InstitutionController::class, 'update']);
+    Route::delete('/{institution}', [InstitutionController::class, 'destroy']);
 
 // Relationship Routes
 Route::prefix('relationships')->group(function () {
