@@ -11,7 +11,7 @@ class EmployeeDefaultDeduction extends Model
     use HasUuids;
 
     protected $table = 'employee_default_deduction';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -45,7 +45,7 @@ class EmployeeDefaultDeduction extends Model
         return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
     }
 
-    public function deductionType(): BelongsTo
+    public function deduction(): BelongsTo
     {
         return $this->belongsTo(DeductionType::class, 'deductionTypeId');
     }

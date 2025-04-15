@@ -44,11 +44,13 @@ class EmployeeDefaultDeductionController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'employeeId' => ['required', 'uuid', 'exists:employees,id'],
-            'deductionId' => ['required', 'uuid', 'exists:deductions,id'],
+            'employeeId' => ['required', 'uuid', 'exists:employee,id'],
+            'deductionTypeId' => ['required', 'numeric', 'exists:deduction_type,id'],
+            'paymentToId' => ['required', 'uuid', 'exists:vendor,id'],
+            'frequencyId' => ['required', 'numeric', 'exists:payrate_frequency,id'],
+            'chartOfAccountId' => ['required', 'uuid', 'exists:chart_of_account,id'],
             'amount' => ['required', 'numeric', 'min:0'],
-            'isActive' => ['boolean'],
-            'notes' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -57,7 +59,7 @@ class EmployeeDefaultDeductionController extends Controller
 
         // Check if the deduction is already assigned to the employee
         $exists = EmployeeDefaultDeduction::where('employeeId', $request->employeeId)
-            ->where('deductionId', $request->deductionId)
+            ->where('deductionTypeId', $request->deductionTypeId)
             ->exists();
 
         if ($exists) {
@@ -87,9 +89,11 @@ class EmployeeDefaultDeductionController extends Controller
         $validator = Validator::make($request->all(), [
             'employeeId' => ['sometimes', 'uuid', 'exists:employees,id'],
             'deductionId' => ['sometimes', 'uuid', 'exists:deductions,id'],
+            'paymentToId' => ['sometimes', 'uuid', 'exists:vendor,id'],
+            'frequencyId' => ['sometimes', 'uuid', 'exists:payrateFrequency,id'],
+            'chartOfAccountId' => ['sometimes', 'uuid', 'exists:chartOfAccount,id'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
-            'isActive' => ['sometimes', 'boolean'],
-            'notes' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -123,4 +127,4 @@ class EmployeeDefaultDeductionController extends Controller
         $defaultDeduction->delete();
         return response()->json(null, 204);
     }
-} 
+}
