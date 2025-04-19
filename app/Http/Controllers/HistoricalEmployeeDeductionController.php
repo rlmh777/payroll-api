@@ -17,7 +17,7 @@ class HistoricalEmployeeDeductionController extends Controller
     {
         $query = HistoricalEmployeeDeduction::with([
             'employee',
-            'paymentTo',
+            'vendor',
             'payroll',
             'chartOfAccount',
             'deductionType'
@@ -79,7 +79,7 @@ class HistoricalEmployeeDeductionController extends Controller
 
         return response()->json($historicalEmployeeDeduction->load([
             'employee',
-            'paymentTo',
+            'vendor',
             'payroll',
             'chartOfAccount',
             'deductionType'
@@ -90,7 +90,7 @@ class HistoricalEmployeeDeductionController extends Controller
     {
         return $historicalEmployeeDeduction->load([
             'employee',
-            'paymentTo',
+            'vendor',
             'payroll',
             'chartOfAccount',
             'deductionType'
@@ -123,7 +123,7 @@ class HistoricalEmployeeDeductionController extends Controller
 
         return response()->json($historicalEmployeeDeduction->load([
             'employee',
-            'paymentTo',
+            'vendor',
             'payroll',
             'chartOfAccount',
             'deductionType'
@@ -135,4 +135,4 @@ class HistoricalEmployeeDeductionController extends Controller
         $historicalEmployeeDeduction->delete();
         return response()->json(null, 204);
     }
-} 
+}
