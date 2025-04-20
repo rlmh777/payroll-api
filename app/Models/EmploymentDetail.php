@@ -31,7 +31,8 @@ class EmploymentDetail extends Model
         'contractAgreementPath',
         'employmentStatusId',
         'departmentId',
-        'worksiteId'
+        'worksiteId',
+        'employeeStatusId'
     ];
 
     public function employee(): BelongsTo

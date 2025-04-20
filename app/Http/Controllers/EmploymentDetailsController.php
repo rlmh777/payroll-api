@@ -21,7 +21,6 @@ class EmploymentDetailsController extends Controller
             'department',
             'employeeStatus',
             'payrateFrequency',
-            'paymentMethod'
         ]);
 
         // Filter by employee
@@ -58,16 +57,24 @@ class EmploymentDetailsController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'employeeId' => ['required', 'uuid', 'exists:employees,id'],
-            'departmentId' => ['required', 'uuid', 'exists:departments,id'],
-            'employeeStatusId' => ['required', 'uuid', 'exists:employee_statuses,id'],
-            'payrateFrequencyId' => ['required', 'uuid', 'exists:payrate_frequencies,id'],
-            'paymentMethodId' => ['required', 'uuid', 'exists:payment_methods,id'],
+            'employeeId' => ['required', 'uuid', 'exists:employee,id'],
+            'departmentId' => ['required', 'integer', 'exists:department,id'],
+            'employeeStatusId' => ['required', 'integer', 'exists:employee_status,id'],
+            'payrateFrequencyId' => ['required', 'integer', 'exists:payrate_frequency,id'],
+            'worksiteId' => ['required', 'integer', 'exists:worksite,id'],
+            'employmentStatusId' => ['required', 'integer', 'exists:employment_status,id'],
+            'chartOfAccountId' => ['required', 'uuid', 'exists:chart_of_account,id'],
+            'contractTypeId' => ['required', 'integer'],
+            'employmentPolicies' => ['required', 'string'],
+            'contractAgreementPath' => ['required', 'string', 'max: 1024'],
             'payrate' => ['required', 'numeric', 'min:0'],
+            'hourlyRate' => ['required', 'numeric'],
+            'totalRate' => ['required', 'numeric'],
             'startDate' => ['required', 'date'],
             'endDate' => ['nullable', 'date', 'after:startDate'],
             'isActive' => ['boolean'],
-            'notes' => ['nullable', 'string', 'max:255'],
+            'payscalePoint' => ['required', 'string'],
+            'benefits' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -92,7 +99,6 @@ class EmploymentDetailsController extends Controller
             'department',
             'employeeStatus',
             'payrateFrequency',
-            'paymentMethod'
         ]), 201);
     }
 
@@ -103,7 +109,6 @@ class EmploymentDetailsController extends Controller
             'department',
             'employeeStatus',
             'payrateFrequency',
-            'paymentMethod'
         ]);
     }
 
@@ -116,16 +121,24 @@ class EmploymentDetailsController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'employeeId' => ['sometimes', 'uuid', 'exists:employees,id'],
-            'departmentId' => ['sometimes', 'uuid', 'exists:departments,id'],
-            'employeeStatusId' => ['sometimes', 'uuid', 'exists:employee_statuses,id'],
-            'payrateFrequencyId' => ['sometimes', 'uuid', 'exists:payrate_frequencies,id'],
-            'paymentMethodId' => ['sometimes', 'uuid', 'exists:payment_methods,id'],
-            'payrate' => ['sometimes', 'numeric', 'min:0'],
-            'startDate' => ['sometimes', 'date'],
+            'employeeId' => ['sometimes', 'required', 'uuid', 'exists:employee,id'],
+            'departmentId' => ['sometimes', 'required', 'integer', 'exists:department,id'],
+            'employeeStatusId' => ['sometimes', 'required', 'integer', 'exists:employee_status,id'],
+            'payrateFrequencyId' => ['sometimes', 'required', 'integer', 'exists:payrate_frequency,id'],
+            'worksiteId' => ['sometimes', 'required', 'integer', 'exists:worksite,id'],
+            'employmentStatusId' => ['sometimes', 'required', 'integer', 'exists:employment_status,id'],
+            'chartOfAccountId' => ['sometimes', 'required', 'uuid', 'exists:chart_of_account,id'],
+            'contractTypeId' => ['sometimes', 'required', 'integer'],
+            'employmentPolicies' => ['sometimes', 'required', 'string'],
+            'contractAgreementPath' => ['sometimes', 'required', 'string', 'max:1024'],
+            'payrate' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'hourlyRate' => ['sometimes', 'required', 'numeric'],
+            'totalRate' => ['sometimes', 'required', 'numeric'],
+            'startDate' => ['sometimes', 'required', 'date'],
             'endDate' => ['nullable', 'date', 'after:startDate'],
             'isActive' => ['sometimes', 'boolean'],
-            'notes' => ['nullable', 'string', 'max:255'],
+            'payscalePoint' => ['sometimes', 'required', 'string'],
+            'benefits' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -152,7 +165,6 @@ class EmploymentDetailsController extends Controller
             'department',
             'employeeStatus',
             'payrateFrequency',
-            'paymentMethod'
         ]));
     }
 
