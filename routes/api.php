@@ -25,6 +25,7 @@ use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\LoanTypeController;
+use App\Http\Controllers\PermissionController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -189,4 +190,24 @@ Route::prefix('loan-types')->group(function () {
     Route::get('/{loanType}', [LoanTypeController::class, 'show']);
     Route::put('/{loanType}', [LoanTypeController::class, 'update']);
     Route::delete('/{loanType}', [LoanTypeController::class, 'destroy']);
+});
+
+// Role Routes
+Route::prefix('roles')->group(function () {
+    Route::get('/', [RoleController::class, 'index']);
+    Route::post('/', [RoleController::class, 'store']);
+    Route::get('/{role}', [RoleController::class, 'show']);
+    Route::put('/{role}', [RoleController::class, 'update']);
+    Route::delete('/{role}', [RoleController::class, 'destroy']);
+    Route::post('/{role}/permissions', [RoleController::class, 'assignPermissions']);
+    Route::delete('/{role}/permissions', [RoleController::class, 'removePermissions']);
+});
+
+// Permission Routes
+Route::prefix('permissions')->group(function () {
+    Route::get('/', [PermissionController::class, 'index']);
+    Route::post('/', [PermissionController::class, 'store']);
+    Route::get('/{permission}', [PermissionController::class, 'show']);
+    Route::put('/{permission}', [PermissionController::class, 'update']);
+    Route::delete('/{permission}', [PermissionController::class, 'destroy']);
 });
