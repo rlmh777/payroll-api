@@ -171,7 +171,15 @@ Route::prefix('employee-statuses')->group(function () {
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
-// Employee Routes
+// Employment Details Routes
+Route::prefix('employment-details')->group(function () {
+    Route::get('/', [EmploymentDetailsController::class, 'index']);
+    Route::post('/', [EmploymentDetailsController::class, 'store']);
+    Route::get('/{employmentDetails}', [EmploymentDetailsController::class, 'show']);
+    Route::put('/{employmentDetails}', [EmploymentDetailsController::class, 'update']);
+    Route::delete('/{employmentDetails}', [EmploymentDetailsController::class, 'destroy']);
+
+ // Employee Routes
 Route::prefix('employees')->group(function () {
     Route::get('/', [EmployeeController::class, 'index']);
     Route::post('/', [EmployeeController::class, 'store']);
