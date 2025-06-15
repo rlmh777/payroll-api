@@ -31,7 +31,8 @@ class EmploymentDetail extends Model
         'contractAgreementPath',
         'employmentStatusId',
         'departmentId',
-        'worksiteId'
+        'worksiteId',
+        'employeeStatusId'
     ];
 
     public function employee(): BelongsTo
@@ -41,37 +42,37 @@ class EmploymentDetail extends Model
 
     public function payrateFrequency(): BelongsTo
     {
-        return $this->belongsTo(PayrateFrequency::class);
+        return $this->belongsTo(PayrateFrequency::class, 'payrateFrequencyId');
     }
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class);
+        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
     }
 
     public function contractType(): BelongsTo
     {
-        return $this->belongsTo(ContractType::class);
+        return $this->belongsTo(ContractType::class, 'contractTypeId');
     }
 
     public function employmentStatus(): BelongsTo
     {
-        return $this->belongsTo(EmploymentStatus::class);
+        return $this->belongsTo(EmploymentStatus::class, 'employmentStatusId');
     }
 
     public function department(): BelongsTo
     {
-        return $this->belongsTo(Department::class);
+        return $this->belongsTo(Department::class, 'departmentId');
     }
 
     public function worksite(): BelongsTo
     {
-        return $this->belongsTo(Worksite::class);
+        return $this->belongsTo(Worksite::class, 'worksiteId');
     }
 
     public function employeeStatus(): BelongsTo
     {
-        return $this->belongsTo(EmployeeStatus::class);
+        return $this->belongsTo(EmployeeStatus::class, 'employmentStatusId');
     }
 
 
