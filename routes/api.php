@@ -29,6 +29,7 @@ use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\HistoricalEmployeeDeductionController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
@@ -267,6 +268,13 @@ Route::prefix('employment-histories')->group(function () {
     Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
 });
 
+// Historical Employee Deduction Routes
+Route::prefix('historical-employee-deductions')->group(function () {
+    Route::get('/', [HistoricalEmployeeDeductionController::class, 'index']);
+    Route::post('/', [HistoricalEmployeeDeductionController::class, 'store']);
+    Route::get('/{historicalEmployeeDeduction}', [HistoricalEmployeeDeductionController::class, 'show']);
+    Route::put('/{historicalEmployeeDeduction}', [HistoricalEmployeeDeductionController::class, 'update']);
+    Route::delete('/{historicalEmployeeDeduction}', [HistoricalEmployeeDeductionController::class, 'destroy']);
 
 // Payment Method Routes
 Route::prefix('payment-methods')->group(function () {
@@ -284,6 +292,7 @@ Route::prefix('employee-work-permits')->group(function () {
     Route::put('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'update']);
     Route::delete('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'destroy']);
 });
+
 
 // Leave Type Routes
 Route::prefix('leave-types')->group(function () {
