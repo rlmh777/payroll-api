@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 
 class CalculationMode extends Model
@@ -12,11 +12,17 @@ class CalculationMode extends Model
     protected $primarykey = 'id';
 
     protected $fillable = [
-       'name'
+        'name'
     ];
 
-    public function payrolls(): HasMany {
-        return $this->hasMany(Payroll::class);
+    public function payrolls(): HasMany
+    {
+        return $this->hasMany(Payroll::class, 'taxCalculationModeId');
+    }
+
+    public function payroll(): HasMany
+    {
+        return $this->hasMany(Payroll::class, 'socialSecurityCalculationModeId');
     }
 
 }
