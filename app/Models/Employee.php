@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relation\HasManyThrough;
 use ParagonIE\CipherSweet\BlindIndex;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 use ParagonIE\CipherSweet\EncryptedRow;
@@ -19,7 +18,7 @@ class Employee extends Model implements CipherSweetEncrypted
     use UsesCipherSweet;
 
     protected $table = 'employee';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -71,17 +70,17 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function citizenshipStatus(): BelongsTo
     {
-        return $this->belongsTo(CitizenshipSatus::class);
+        return $this->belongsTo(CitizenshipStatus::class, 'citizenshipStatusId');
     }
 
     public function nationality(): BelongsTo
     {
-        return $this->belongsTo(Country::class);
+        return $this->belongsTo(Country::class, 'nationalityId');
     }
 
     public function defaultPayrateFrequency(): BelongsTo
     {
-        return $this->belongsTo(PayrateFrequency::class);
+        return $this->belongsTo(PayrateFrequency::class, 'payrateFrequencyId');
     }
 
     public function employeeWorkPermit(): HasMany
@@ -91,27 +90,27 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function employmentHistory(): HasMany
     {
-        return $this->hasMany(EmployeeHistory::class);
+        return $this->hasMany(EmploymentHistory::class);
     }
 
     public function allowances(): HasMany
     {
-        return $this->hasMany(EmployeeAllowance::class);
+        return $this->hasMany(EmployeeAllowance::class, 'employeeId');
     }
 
     public function employeeBanks(): HasMany
     {
-        return $this->hasMany(EmployeeBank::class);
+        return $this->hasMany(EmployeeBank::class, 'employeeId');
     }
 
     public function contacts(): HasMany
     {
-        return $this->hasMany(EmployeeContact::class);
+        return $this->hasMany(EmployeeContact::class, 'employeeId');
     }
 
     public function employeeDefaultDeductions(): HasMany
     {
-        return $this->hasMany(EmployeeDefaultDeduction::class);
+        return $this->hasMany(EmployeeDefaultDeduction::class, 'employeeId');
     }
 
     public function employmentDetails(): HasMany
@@ -121,12 +120,12 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function loans(): HasMany
     {
-        return $this->hasMany(Loan::class);
+        return $this->hasMany(Loan::class, 'employeeId');
     }
 
     public function payrolls(): HasMany
     {
-        return $this->hasMany(Payroll::class);
+        return $this->hasMany(Payroll::class, 'employeeId');
     }
 
     public function historicalDeductions(): HasMany
@@ -136,17 +135,17 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function qualifications(): HasMany
     {
-        return $this->hasMany(Qualification::class);
+        return $this->hasMany(Qualification::class, 'employeeId');
     }
 
     public function leaves(): HasMany
     {
-        return $this->hasMany(TrackEmployeeLeave::class);
+        return $this->hasMany(TrackEmployeeLeave::class, 'employeeId');
     }
 
     public function paymentMethods(): BelongsTo
     {
-        return $this->belongsTo(PaymentMethod::class);
+        return $this->belongsTo(PaymentMethod::class, 'paymentMethodId');
     }
 
     public function historicalAllowances(): HasMany
