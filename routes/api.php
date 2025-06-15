@@ -183,6 +183,7 @@ Route::prefix('employee-default-deductions')->group(function () {
     Route::get('/{defaultDeduction}', [EmployeeDefaultDeductionController::class, 'show']);
     Route::put('/{defaultDeduction}', [EmployeeDefaultDeductionController::class, 'update']);
     Route::delete('/{defaultDeduction}', [EmployeeDefaultDeductionController::class, 'destroy']);
+});
 
 // Employment Details Routes
 Route::prefix('employment-details')->group(function () {
@@ -191,8 +192,9 @@ Route::prefix('employment-details')->group(function () {
     Route::get('/{employmentDetails}', [EmploymentDetailsController::class, 'show']);
     Route::put('/{employmentDetails}', [EmploymentDetailsController::class, 'update']);
     Route::delete('/{employmentDetails}', [EmploymentDetailsController::class, 'destroy']);
+});
 
- // Employee Routes
+// Employee Routes
 Route::prefix('employees')->group(function () {
     Route::get('/', [EmployeeController::class, 'index']);
     Route::post('/', [EmployeeController::class, 'store']);
@@ -200,7 +202,6 @@ Route::prefix('employees')->group(function () {
     Route::put('/{employee}', [EmployeeController::class, 'update']);
     Route::delete('/{employee}', [EmployeeController::class, 'destroy']);
 });
-
 
 // Institution Routes
 Route::prefix('institutions')->group(function () {
@@ -211,7 +212,6 @@ Route::prefix('institutions')->group(function () {
     Route::delete('/{institution}', [InstitutionController::class, 'destroy']);
 });
 
-
 // Relationship Routes
 Route::prefix('relationships')->group(function () {
     Route::get('/', [RelationshipController::class, 'index']);
@@ -221,7 +221,6 @@ Route::prefix('relationships')->group(function () {
     Route::delete('/{relationship}', [RelationshipController::class, 'destroy']);
 });
 
-  
 Route::prefix('qualifications')->group(function () {
     Route::get('/', [QualificationController::class, 'index']);
     Route::post('/', [QualificationController::class, 'store']);
@@ -229,7 +228,6 @@ Route::prefix('qualifications')->group(function () {
     Route::put('/{qualification}', [QualificationController::class, 'update']);
     Route::delete('/{qualification}', [QualificationController::class, 'destroy']);
 });
-
 
 // Employee Contact Routes
 Route::prefix('employee-contacts')->group(function () {
@@ -240,7 +238,6 @@ Route::prefix('employee-contacts')->group(function () {
     Route::delete('/{employeeContact}', [EmployeeContactController::class, 'destroy']);
 });
 
-
 Route::prefix('employee-allowances')->group(function () {
     Route::get('/', [EmployeeAllowanceController::class, 'index']);
     Route::post('/', [EmployeeAllowanceController::class, 'store']);
@@ -248,7 +245,6 @@ Route::prefix('employee-allowances')->group(function () {
     Route::put('/{employeeAllowance}', [EmployeeAllowanceController::class, 'update']);
     Route::delete('/{employeeAllowance}', [EmployeeAllowanceController::class, 'destroy']);
 });
-
 
 // Employee Bank Routes
 Route::prefix('employee-banks')->group(function () {
@@ -258,7 +254,6 @@ Route::prefix('employee-banks')->group(function () {
     Route::put('/{employeeBank}', [EmployeeBankController::class, 'update']);
     Route::delete('/{employeeBank}', [EmployeeBankController::class, 'destroy']);
 });
-
 
 // Employee Hours Worked Routes
 Route::prefix('employee-hours-worked')->group(function () {
@@ -285,6 +280,7 @@ Route::prefix('historical-employee-deductions')->group(function () {
     Route::get('/{historicalEmployeeDeduction}', [HistoricalEmployeeDeductionController::class, 'show']);
     Route::put('/{historicalEmployeeDeduction}', [HistoricalEmployeeDeductionController::class, 'update']);
     Route::delete('/{historicalEmployeeDeduction}', [HistoricalEmployeeDeductionController::class, 'destroy']);
+});
 
 // Payment Method Routes
 Route::prefix('payment-methods')->group(function () {
@@ -333,7 +329,6 @@ Route::prefix('employee-work-permits')->group(function () {
     Route::delete('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'destroy']);
 });
 
-
 // Leave Type Routes
 Route::prefix('leave-types')->group(function () {
     Route::get('/', [LeaveTypeController::class, 'index']);
@@ -342,7 +337,7 @@ Route::prefix('leave-types')->group(function () {
     Route::put('/{leaveType}', [LeaveTypeController::class, 'update']);
     Route::delete('/{leaveType}', [LeaveTypeController::class, 'destroy']);
 });
-  
+
 // Loan Routes
 Route::prefix('loans')->group(function () {
     Route::get('/', [LoanController::class, 'index']);
