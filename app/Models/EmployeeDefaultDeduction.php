@@ -50,4 +50,8 @@ class EmployeeDefaultDeduction extends Model
         return $this->belongsTo(DeductionType::class, 'deductionTypeId');
     }
 
+    public function deductionType(): BelongsTo
+    {
+        return $this->belongsTo(DeductionType::class);
+    }
 }

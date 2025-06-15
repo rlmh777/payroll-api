@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class HistoricalEmployeeDeduction extends Model
@@ -18,34 +18,36 @@ class HistoricalEmployeeDeduction extends Model
     protected $fillable = [
         'employeeId',
         'paymentToId',
-        'phoneNumber',
         'amount',
         'note',
         'payrollId',
-        'chartOfAccountId'   
+        'chartOfAccountId',
+        'deductionTypeId'
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
-    public function vendor(): BelongsTo {
-        return $this->belongsTo(Vendor::class);
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'paymentToId');
     }
 
-    public function payroll(): BelongsTo {
-        return $this->belongsTo(Payroll::class);
+    public function payroll(): BelongsTo
+    {
+        return $this->belongsTo(Payroll::class, 'payrollId');
     }
 
-    public function chartOfAccount(): BelongsTo {
-        return $this->belongsTo(ChartOfAccount::class);
+    public function chartOfAccount(): BelongsTo
+    {
+        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
     }
 
-    public function deductionType(): BelongsTo {
-        return $this->belongsTo(DeductionType::class);
+    public function deductionType(): BelongsTo
+    {
+        return $this->belongsTo(DeductionType::class, 'deductionTypeId');
     }
 
-
-
-    
 }
