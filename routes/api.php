@@ -29,6 +29,8 @@ use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
+use App\Http\Controllers\LoanTypeController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\HistoricalEmployeeDeductionController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
@@ -283,6 +285,36 @@ Route::prefix('payment-methods')->group(function () {
     Route::get('/{paymentMethod}', [PaymentMethodController::class, 'show']);
     Route::put('/{paymentMethod}', [PaymentMethodController::class, 'update']);
     Route::delete('/{paymentMethod}', [PaymentMethodController::class, 'destroy']);
+});
+
+// Loan Type Routes
+Route::prefix('loan-types')->group(function () {
+    Route::get('/', [LoanTypeController::class, 'index']);
+    Route::post('/', [LoanTypeController::class, 'store']);
+    Route::get('/{loanType}', [LoanTypeController::class, 'show']);
+    Route::put('/{loanType}', [LoanTypeController::class, 'update']);
+    Route::delete('/{loanType}', [LoanTypeController::class, 'destroy']);
+});
+
+// Role Routes
+Route::prefix('roles')->group(function () {
+    Route::get('/', [RoleController::class, 'index']);
+    Route::post('/', [RoleController::class, 'store']);
+    Route::get('/{role}', [RoleController::class, 'show']);
+    Route::put('/{role}', [RoleController::class, 'update']);
+    Route::delete('/{role}', [RoleController::class, 'destroy']);
+    Route::post('/{role}/permissions', [RoleController::class, 'assignPermissions']);
+    Route::delete('/{role}/permissions', [RoleController::class, 'removePermissions']);
+});
+
+// Permission Routes
+Route::prefix('permissions')->group(function () {
+    Route::get('/', [PermissionController::class, 'index']);
+    Route::post('/', [PermissionController::class, 'store']);
+    Route::get('/{permission}', [PermissionController::class, 'show']);
+    Route::put('/{permission}', [PermissionController::class, 'update']);
+    Route::delete('/{permission}', [PermissionController::class, 'destroy']);
+});
 
 // Employee Work Permit Routes
 Route::prefix('employee-work-permits')->group(function () {
@@ -302,6 +334,7 @@ Route::prefix('leave-types')->group(function () {
     Route::put('/{leaveType}', [LeaveTypeController::class, 'update']);
     Route::delete('/{leaveType}', [LeaveTypeController::class, 'destroy']);
 });
+  
 // Loan Routes
 Route::prefix('loans')->group(function () {
     Route::get('/', [LoanController::class, 'index']);

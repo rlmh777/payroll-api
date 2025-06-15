@@ -16,6 +16,6 @@ class LoanType extends Model
 
     public function loans(): HasMany
     {
-        return $this->hasMany(Loan::class);
+        return $this->hasMany(Loan::class, 'loanTypeId');
     }
 }
