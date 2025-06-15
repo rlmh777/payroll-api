@@ -31,6 +31,7 @@ use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
+use App\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
 
 Route::get('/user', function (Request $request) {
@@ -250,6 +251,15 @@ Route::prefix('employment-histories')->group(function () {
     Route::get('/{employmentHistory}', [EmploymentHistoryController::class, 'show']);
     Route::put('/{employmentHistory}', [EmploymentHistoryController::class, 'update']);
     Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
+});
+
+// Employee Work Permit Routes
+Route::prefix('employee-work-permits')->group(function () {
+    Route::get('/', [EmployeeWorkPermitController::class, 'index']);
+    Route::post('/', [EmployeeWorkPermitController::class, 'store']);
+    Route::get('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'show']);
+    Route::put('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'update']);
+    Route::delete('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'destroy']);
 });
 
 // Leave Type Routes
