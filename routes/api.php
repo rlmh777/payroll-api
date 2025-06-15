@@ -32,6 +32,7 @@ use App\Http\Controllers\EmploymentHistoryController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\EmployeeWorkPermitController;
+use App\Http\Controllers\BankAccountTypeController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -171,7 +172,15 @@ Route::prefix('employee-statuses')->group(function () {
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
-// Employee Routes
+// Employment Details Routes
+Route::prefix('employment-details')->group(function () {
+    Route::get('/', [EmploymentDetailsController::class, 'index']);
+    Route::post('/', [EmploymentDetailsController::class, 'store']);
+    Route::get('/{employmentDetails}', [EmploymentDetailsController::class, 'show']);
+    Route::put('/{employmentDetails}', [EmploymentDetailsController::class, 'update']);
+    Route::delete('/{employmentDetails}', [EmploymentDetailsController::class, 'destroy']);
+
+ // Employee Routes
 Route::prefix('employees')->group(function () {
     Route::get('/', [EmployeeController::class, 'index']);
     Route::post('/', [EmployeeController::class, 'store']);
@@ -268,4 +277,13 @@ Route::prefix('loans')->group(function () {
     Route::get('/{loan}', [LoanController::class, 'show']);
     Route::put('/{loan}', [LoanController::class, 'update']);
     Route::delete('/{loan}', [LoanController::class, 'destroy']);
+});
+
+// Bank Account Type Routes
+Route::prefix('bank-account-types')->group(function () {
+    Route::get('/', [BankAccountTypeController::class, 'index']);
+    Route::post('/', [BankAccountTypeController::class, 'store']);
+    Route::get('/{bankAccountType}', [BankAccountTypeController::class, 'show']);
+    Route::put('/{bankAccountType}', [BankAccountTypeController::class, 'update']);
+    Route::delete('/{bankAccountType}', [BankAccountTypeController::class, 'destroy']);
 });

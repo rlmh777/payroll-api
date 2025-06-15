@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PayrateFrequency extends Model
 {
@@ -14,19 +14,23 @@ class PayrateFrequency extends Model
         'name'
     ];
 
-    public function employees(): HasMany {
+    public function employees(): HasMany
+    {
         return $this->hasMany(Employee::class);
     }
-    
-    public function employeeAllowance(): HasMany {
+
+    public function employeeAllowance(): HasMany
+    {
         return $this->hasMany(EmployeeAllowance::class);
     }
 
-    public function employeeDefaultDeductions(): HasMany {
+    public function employeeDefaultDeductions(): HasMany
+    {
         return $this->hasMany(EmployeeDefaultDeduction::class);
     }
 
-    public function employmentDetails(): HasMany {
+    public function employmentDetails(): HasMany
+    {
         return $this->hasMany(EmploymentDetail::class);
     }
 }
