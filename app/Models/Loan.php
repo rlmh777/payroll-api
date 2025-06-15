@@ -11,7 +11,7 @@ class Loan extends Model
     use HasUuids;
 
     protected $table = 'loan';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -27,18 +27,18 @@ class Loan extends Model
         'chartOfAccountId'
     ];
 
-    public function employees(): BelongsTo
+    public function employee(): BelongsTo
     {
-        return $this->BelongsTo(Employee::class);
+        return $this->BelongsTo(Employee::class, 'employeeId');
     }
 
     public function loanType(): BelongsTo
     {
-        return $this->BelongsTo(LoanType::class);
+        return $this->BelongsTo(LoanType::class, 'loanTypeId');
     }
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->BelongsTo(ChartOfAccount::class);
+        return $this->BelongsTo(ChartOfAccount::class, 'chartOfAccountId');
     }
 }

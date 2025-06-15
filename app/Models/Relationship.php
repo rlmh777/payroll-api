@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Relationship extends Model
 {
@@ -14,7 +14,8 @@ class Relationship extends Model
         'name'
     ];
 
-    public function contacts(): HasMany {
-        return $this->hasMany(EmployeeContacts::class);
+    public function contacts(): HasMany
+    {
+        return $this->hasMany(EmployeeContact::class, 'relationshipId');
     }
 }
