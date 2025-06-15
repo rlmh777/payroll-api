@@ -176,6 +176,14 @@ Route::prefix('employee-statuses')->group(function () {
     Route::delete('/{employeeStatus}', [EmployeeStatusController::class, 'destroy']);
 });
 
+// Employee Default Deduction Routes
+Route::prefix('employee-default-deductions')->group(function () {
+    Route::get('/', [EmployeeDefaultDeductionController::class, 'index']);
+    Route::post('/', [EmployeeDefaultDeductionController::class, 'store']);
+    Route::get('/{defaultDeduction}', [EmployeeDefaultDeductionController::class, 'show']);
+    Route::put('/{defaultDeduction}', [EmployeeDefaultDeductionController::class, 'update']);
+    Route::delete('/{defaultDeduction}', [EmployeeDefaultDeductionController::class, 'destroy']);
+
 // Employment Details Routes
 Route::prefix('employment-details')->group(function () {
     Route::get('/', [EmploymentDetailsController::class, 'index']);
