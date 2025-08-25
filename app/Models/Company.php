@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use ParagonIE\CipherSweet\BlindIndex;
 use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 use ParagonIE\CipherSweet\EncryptedRow;
@@ -31,6 +32,11 @@ class Company extends Model
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Locality::class);
+    }
+
+    public function companyBankAccounts(): HasMany
+    {
+        return $this->hasMany(CompanyBankAccount::class, 'companyId');
     }
 
     public static function configureCipherSweet(EncryptedRow $encryptedRow): void

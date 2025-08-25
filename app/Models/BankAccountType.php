@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BankAccountType extends Model
 {
@@ -12,4 +13,9 @@ class BankAccountType extends Model
     protected $fillable = [
        'name'
     ];
+
+    public function companyBankAccounts(): HasMany
+    {
+        return $this->hasMany(CompanyBankAccount::class, 'accountTypeId');
+    }
 }

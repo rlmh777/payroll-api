@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Bank extends Model
@@ -27,6 +27,10 @@ class Bank extends Model
 
     public function vendors(): HasMany {
         return $this->hasMany(Vendor::class);
+    }
+
+    public function companyBankAccounts(): HasMany {
+        return $this->hasMany(CompanyBankAccount::class, 'bankId');
     }
 
 }
