@@ -24,8 +24,8 @@ return new class extends Migration
             $table->string('street', 255);
             $table->foreignUuid('localityId')->constrained('locality')->onDelete('cascade');
             $table->string('logo', 255);
-            $table->foreignUuid('wagesPayableAccountId')->constrained('chartOfAccounts')->onDelete('cascade');
-            $table->foreignUuid('defaultBankAccountId')->constrained('companyBankAccounts')->onDelete('cascade');
+            $table->foreignUuid('wagesPayableAccountId')->constrained('chart_of_accounts')->onDelete('cascade');
+            $table->foreignUuid('defaultBankAccountId')->nullable();
             $table->timestamps();
         });
     }

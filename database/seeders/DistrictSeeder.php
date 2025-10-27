@@ -15,10 +15,29 @@ class DistrictSeeder extends Seeder
      */
     public function run(): void
     {
+        // Ensure we have at least one country before creating districts
+        $countries = Country::all();
+        
+        if ($countries->isEmpty()) {
+            echo "No countries found. Creating a default country first...\n";
+            $defaultCountry = Country::create([
+                'id' => Str::uuid(),
+                'name' => 'Belize',
+                'code1' => 'BZ',
+                'code2' => 'BLZ',
+                'nationalityName' => 'Belizean',
+            ]);
+            $countryId = $defaultCountry->id;
+        } else {
+            $countryId = $countries->random()->id;
+        }
+
         District::create([
-            'id'=> Str::uuid(),
+            'id' => Str::uuid(),
             'name' => 'Cayo',
-            'countryId' => Country::all()->random()->id,
+            'countryId' => $countryId,
         ]);
+        
+        echo "District 'Cayo' created successfully!\n";
     }
 }

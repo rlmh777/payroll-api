@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('note');
             $table->foreignUuid('payrollId')->constrained('payroll')->onDelete('cascade');
             $table->foreignUuid('allowanceId')->constrained('allowance')->onDelete('cascade');
-            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_accounts')->onDelete('cascade');
             $table->timestamps();
         });
     }

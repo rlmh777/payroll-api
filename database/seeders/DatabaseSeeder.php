@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             DegreeSeeder::class,
             EmployeeStatusSeeder::class,
             RelationshipSeeder::class,
+            MenuSeeder::class,
         ]);
     }
 }

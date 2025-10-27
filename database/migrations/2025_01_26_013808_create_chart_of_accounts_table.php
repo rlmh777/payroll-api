@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('chart_of_account', function (Blueprint $table) {
+        Schema::create('chart_of_accounts', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name', 100);
             $table->string('description', 255);
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('chart_of_account');
+        Schema::dropIfExists('chart_of_accounts');
     }
 };

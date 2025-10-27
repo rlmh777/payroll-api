@@ -37,13 +37,21 @@ use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
+use App\Http\Controllers\MenuController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserRoleController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::post('/tokens/create', [AuthController::class, 'createToken']);
+Route::post('/tokens/create', [AuthController::class, 'createToken'])->middleware('auth:sanctum');
+Route::post('/tokens/revoke', [AuthController::class, 'revokeToken'])->middleware('auth:sanctum');
+Route::post('/tokens/revoke-all', [AuthController::class, 'revokeAllTokens'])->middleware('auth:sanctum');
+Route::delete('/tokens/{tokenId}', [AuthController::class, 'revokeSpecificToken'])->middleware('auth:sanctum');
+Route::get('/tokens', [AuthController::class, 'listTokens'])->middleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'authenticate']);
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 Route::get('banks', [BankController::class, 'index']);
 Route::get('banks/{id}', [BankController::class, 'show']);
@@ -354,4 +362,42 @@ Route::prefix('bank-account-types')->group(function () {
     Route::get('/{bankAccountType}', [BankAccountTypeController::class, 'show']);
     Route::put('/{bankAccountType}', [BankAccountTypeController::class, 'update']);
     Route::delete('/{bankAccountType}', [BankAccountTypeController::class, 'destroy']);
+});
+
+// Menu Routes (Self-referential hierarchical structure)
+Route::prefix('menus')->group(function () {
+    Route::get('/', [MenuController::class, 'index']);
+    Route::post('/', [MenuController::class, 'store']);
+    Route::get('/{menu}', [MenuController::class, 'show']);
+    Route::put('/{menu}', [MenuController::class, 'update']);
+    Route::delete('/{menu}', [MenuController::class, 'destroy']);
+});
+
+// User Routes
+Route::prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index']);
+    Route::post('/', [UserController::class, 'store']);
+    Route::get('/{user}', [UserController::class, 'show']);
+    Route::put('/{user}', [UserController::class, 'update']);
+    Route::delete('/{user}', [UserController::class, 'destroy']);
+    
+    // User role management
+    Route::post('/{user}/roles', [UserController::class, 'assignRoles']);
+    Route::put('/{user}/roles', [UserController::class, 'addRoles']);
+    Route::delete('/{user}/roles', [UserController::class, 'removeRoles']);
+    Route::delete('/{user}/roles/all', [UserController::class, 'removeAllRoles']);
+    Route::get('/{user}/roles/available', [UserController::class, 'availableRoles']);
+    Route::get('/by-role/{role}', [UserController::class, 'getUsersByRole']);
+});
+
+// User Role Management Routes (Alternative dedicated endpoints)
+Route::prefix('user-roles')->group(function () {
+    Route::get('/', [UserRoleController::class, 'index']);
+    Route::get('/{user}', [UserRoleController::class, 'show']);
+    Route::post('/{user}/assign', [UserRoleController::class, 'assignRoles']);
+    Route::post('/{user}/add', [UserRoleController::class, 'addRoles']);
+    Route::delete('/{user}/remove', [UserRoleController::class, 'removeRoles']);
+    Route::delete('/{user}/remove-all', [UserRoleController::class, 'removeAllRoles']);
+    Route::get('/roles/available', [UserRoleController::class, 'availableRoles']);
+    Route::get('/by-role/{role}', [UserRoleController::class, 'getUsersByRole']);
 });

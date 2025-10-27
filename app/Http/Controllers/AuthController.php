@@ -56,10 +56,135 @@ class AuthController extends Controller
 
     }
 
-    public function getToken(Request $request)
+    public function createToken(Request $request): JsonResponse
     {
-        $token = $request->user()->createToken($request->token_name);
-        return ['token' => $token->plainTextToken];
+        $request->validate([
+            'token_name' => 'required|string|max:255'
+        ]);
+
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        $token = $user->createToken($request->token_name);
+        
+        return response()->json([
+            'message' => 'Token created successfully',
+            'token' => $token->plainTextToken
+        ], 201);
+    }
+
+    public function revokeToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        // Get the current token before revoking it
+        $currentToken = $request->user()->currentAccessToken();
+        
+        if ($currentToken) {
+            // Revoke the current token
+            $currentToken->delete();
+        }
+        
+        return response()->json([
+            'message' => 'Token revoked successfully'
+        ], 200);
+    }
+
+    public function revokeAllTokens(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        // Revoke all tokens for the user
+        $user->tokens()->delete();
+        
+        return response()->json([
+            'message' => 'All tokens revoked successfully'
+        ], 200);
+    }
+
+    public function revokeSpecificToken(Request $request, $tokenId): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        // Find and revoke the specific token
+        $token = $user->tokens()->where('id', $tokenId)->first();
+        
+        if (!$token) {
+            return response()->json([
+                'message' => 'Token not found'
+            ], 404);
+        }
+
+        $token->delete();
+        
+        return response()->json([
+            'message' => 'Token revoked successfully'
+        ], 200);
+    }
+
+    public function listTokens(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        $tokens = $user->tokens()->select('id', 'name', 'created_at', 'last_used_at')->get();
+        
+        return response()->json([
+            'tokens' => $tokens
+        ], 200);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
+        // Revoke the current token
+        $currentToken = $request->user()->currentAccessToken();
+        if ($currentToken) {
+            $currentToken->delete();
+        }
+
+        // Clear the session
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ], 200);
     }
 
 }

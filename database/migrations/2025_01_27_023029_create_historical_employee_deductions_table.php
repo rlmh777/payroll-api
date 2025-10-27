@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('amount', total: 6, places: 2);
             $table->text('note');
             $table->foreignUuid('payrollId')->constrained('payroll')->onDelete('cascade');
-            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_accounts')->onDelete('cascade');
             $table->foreignId('deductionTypeId')->constrained('deduction_type')->onDelete('cascade');
             $table->timestamps();
         });

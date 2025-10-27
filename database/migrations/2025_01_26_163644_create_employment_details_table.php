@@ -22,7 +22,7 @@ return new class extends Migration
             $table->decimal('totalRate', total: 12, places: 2);
             $table->foreignId('payrateFrequencyId')->constrained('payrate_frequency')->onDelete('cascade');
             $table->text('benefits');
-            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_accounts')->onDelete('cascade');
             $table->foreignId('contractTypeId')->constrained('contract_type')->onDelete('cascade');
             $table->text('employmentPolicies');
             $table->string('contractAgreementPath', 1024);
