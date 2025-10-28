@@ -20,8 +20,8 @@ class MenuSeeder extends Seeder
         // Create main navigation menus
         $dashboard = $this->createMenu('Dashboard', '/dashboard', 'fas fa-tachometer-alt', 'view-dashboard', 1);
         $accounts = $this->createMenu('Accounts', '/accounts', 'fas fa-wallet', 'view-accounts', 2);
-        $reports = $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'list-reports', 3);
-        $settings = $this->createMenu('Settings', null, 'fas fa-cog', 'list-settings', 4);
+        $reports = $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'view-reports', 3);
+        $settings = $this->createMenu('Settings', null, 'fas fa-cog', 'view-settings', 4);
         
         // Create Settings submenus
         $organization = $this->createSubMenu($settings->id, 'Organization', '/settings/organization', 'fas fa-building', 'view-organization', 1);
@@ -32,33 +32,33 @@ class MenuSeeder extends Seeder
         $payItems = $this->createSubMenu($settings->id, 'Pay Items', '/settings/pay-items', 'fas fa-money-bill-wave', 'view-pay-items', 6);
         
         // Create General submenus (under Settings > General)
-        $this->createSubMenu($general->id, 'Country', '/settings/general/country', 'fas fa-globe', 'country-crud', 1);
-        $this->createSubMenu($general->id, 'District', '/settings/general/district', 'fas fa-map-marker-alt', 'district-crud', 2);
-        $this->createSubMenu($general->id, 'Locality', '/settings/general/locality', 'fas fa-map-pin', 'locality-crud', 3);
-        $this->createSubMenu($general->id, 'Institution', '/settings/general/institution', 'fas fa-university', 'institution-crud', 4);
-        $this->createSubMenu($general->id, 'Honorific', '/settings/general/honorific', 'fas fa-user-tie', 'honorific-crud', 5);
-        $this->createSubMenu($general->id, 'Relationship', '/settings/general/relationship', 'fas fa-users', 'relationship-crud', 6);
-        $this->createSubMenu($general->id, 'Bank Account Type', '/settings/general/bank-account-type', 'fas fa-credit-card', 'bank-account-type-crud', 7);
-        $this->createSubMenu($general->id, 'Calendar', '/settings/general/calendar', 'fas fa-calendar-alt', 'calendar-crud', 8);
-        $this->createSubMenu($general->id, 'Calculation Mode', '/settings/general/calculation-mode', 'fas fa-calculator', 'calculation-mode-crud', 9);
-        $this->createSubMenu($general->id, 'Degree', '/settings/general/degree', 'fas fa-graduation-cap', 'degree-crud', 10);
-        $this->createSubMenu($general->id, 'Department', '/settings/general/department', 'fas fa-sitemap', 'department-crud', 11);
-        $this->createSubMenu($general->id, 'Gender', '/settings/general/gender', 'fas fa-venus-mars', 'gender-crud', 12);
-        $this->createSubMenu($general->id, 'Work Site', '/settings/general/worksite', 'fas fa-map', 'worksite-crud', 13);
+        $this->createSubMenu($general->id, 'Country', '/settings/general/country', 'fas fa-globe', 'view-country', 1);
+        $this->createSubMenu($general->id, 'District', '/settings/general/district', 'fas fa-map-marker-alt', 'view-district', 2);
+        $this->createSubMenu($general->id, 'Locality', '/settings/general/locality', 'fas fa-map-pin', 'view-locality', 3);
+        $this->createSubMenu($general->id, 'Institution', '/settings/general/institution', 'fas fa-university', 'view-institution', 4);
+        $this->createSubMenu($general->id, 'Honorific', '/settings/general/honorific', 'fas fa-user-tie', 'view-honorific', 5);
+        $this->createSubMenu($general->id, 'Relationship', '/settings/general/relationship', 'fas fa-users', 'view-relationship', 6);
+        $this->createSubMenu($general->id, 'Bank Account Type', '/settings/general/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7);
+        $this->createSubMenu($general->id, 'Calendar', '/settings/general/calendar', 'fas fa-calendar-alt', 'view-calendar', 8);
+        $this->createSubMenu($general->id, 'Calculation Mode', '/settings/general/calculation-mode', 'fas fa-calculator', 'view-calculation-mode', 9);
+        $this->createSubMenu($general->id, 'Degree', '/settings/general/degree', 'fas fa-graduation-cap', 'view-degree', 10);
+        $this->createSubMenu($general->id, 'Department', '/settings/general/department', 'fas fa-sitemap', 'view-department', 11);
+        $this->createSubMenu($general->id, 'Gender', '/settings/general/gender', 'fas fa-venus-mars', 'view-gender', 12);
+        $this->createSubMenu($general->id, 'Work Site', '/settings/general/worksite', 'fas fa-map', 'view-worksite', 13);
         
         // Create Payroll menu with submenus
         $payroll = $this->createMenu('Payroll', null, 'fas fa-money-check-alt', 'view-payroll', 5);
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
-        $this->createSubMenu($payroll->id, 'Employees', '/payroll/employees', 'fas fa-users', 'employees-crud', 2);
-        $this->createSubMenu($payroll->id, 'Leave', '/payroll/leave', 'fas fa-calendar-check', 'leave-crud', 3);
-        $this->createSubMenu($payroll->id, 'Timesheets', '/payroll/timesheets', 'fas fa-clock', 'timesheets-crud', 4);
-        $this->createSubMenu($payroll->id, 'Pay Employees', '/payroll/pay-employees', 'fas fa-money-bill', 'pay-employees-crud', 5);
+        $this->createSubMenu($payroll->id, 'Employees', '/payroll/employees', 'fas fa-users', 'view-employees', 2);
+        $this->createSubMenu($payroll->id, 'Leave', '/payroll/leave', 'fas fa-calendar-check', 'view-leave', 3);
+        $this->createSubMenu($payroll->id, 'Timesheets', '/payroll/timesheets', 'fas fa-clock', 'view-timesheets', 4);
+        $this->createSubMenu($payroll->id, 'Pay Employees', '/payroll/pay-employees', 'fas fa-money-bill', 'view-pay-employees', 5);
         $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 6);
         
         // Create Roles and Menus submenus
-        $this->createSubMenu($rolesAndMenus->id, 'Roles', '/settings/roles-menus/roles', 'fas fa-user-shield', 'roles-crud', 1);
-        $this->createSubMenu($rolesAndMenus->id, 'Menu', '/settings/roles-menus/menu', 'fas fa-bars', 'menu-crud', 2);
-        $this->createSubMenu($rolesAndMenus->id, 'Permissions', '/settings/roles-menus/permissions', 'fas fa-key', 'permissions-crud', 3);
+        $this->createSubMenu($rolesAndMenus->id, 'Roles', '/settings/roles-menus/roles', 'fas fa-user-shield', 'view-roles', 1);
+        $this->createSubMenu($rolesAndMenus->id, 'Menu', '/settings/roles-menus/menu', 'fas fa-bars', 'view-menu', 2);
+        $this->createSubMenu($rolesAndMenus->id, 'Permissions', '/settings/roles-menus/permissions', 'fas fa-key', 'view-permissions', 3);
     }
     
     /**
