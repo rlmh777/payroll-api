@@ -145,7 +145,10 @@ class MenuSeeder extends Seeder
         ];
         
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::firstOrCreate(
+                ['name' => $permission],
+                ['id' => \Illuminate\Support\Str::uuid()]
+            );
         }
     }
 }
