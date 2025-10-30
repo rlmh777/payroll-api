@@ -31,7 +31,6 @@ class DatabaseSeeder extends Seeder
             DistrictSeeder::class,
             localitiesSeeder::class,
             EmployeeModelSeeder::class,
-            UserSeeder::class,
             RoleAndPermissionSeeder::class,
             UserRoleSeeder::class,
             DegreeSeeder::class,
