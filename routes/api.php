@@ -86,10 +86,6 @@ Route::prefix('chart-of-accounts')->group(function () {
     Route::get('/{chartOfAccount}', [ChartOfAccountController::class, 'show']);
     Route::put('/{chartOfAccount}', [ChartOfAccountController::class, 'update']);
     Route::delete('/{chartOfAccount}', [ChartOfAccountController::class, 'destroy']);
-
-    // Custom endpoints
-    Route::get('/{chartOfAccount}/hierarchy', [ChartOfAccountController::class, 'hierarchy']);
-    Route::get('/{chartOfAccount}/balance-history', [ChartOfAccountController::class, 'balanceHistory']);
 });
 
 // Deduction Type Routes
@@ -380,7 +376,8 @@ Route::prefix('users')->group(function () {
     Route::get('/{user}', [UserController::class, 'show']);
     Route::put('/{user}', [UserController::class, 'update']);
     Route::delete('/{user}', [UserController::class, 'destroy']);
-    
+
+    Route::get('/user/menu', [UserController::class, 'topLevelMenus']);
     // User role management
     Route::post('/{user}/roles', [UserController::class, 'assignRoles']);
     Route::put('/{user}/roles', [UserController::class, 'addRoles']);
@@ -388,16 +385,4 @@ Route::prefix('users')->group(function () {
     Route::delete('/{user}/roles/all', [UserController::class, 'removeAllRoles']);
     Route::get('/{user}/roles/available', [UserController::class, 'availableRoles']);
     Route::get('/by-role/{role}', [UserController::class, 'getUsersByRole']);
-});
-
-// User Role Management Routes (Alternative dedicated endpoints)
-Route::prefix('user-roles')->group(function () {
-    Route::get('/', [UserRoleController::class, 'index']);
-    Route::get('/{user}', [UserRoleController::class, 'show']);
-    Route::post('/{user}/assign', [UserRoleController::class, 'assignRoles']);
-    Route::post('/{user}/add', [UserRoleController::class, 'addRoles']);
-    Route::delete('/{user}/remove', [UserRoleController::class, 'removeRoles']);
-    Route::delete('/{user}/remove-all', [UserRoleController::class, 'removeAllRoles']);
-    Route::get('/roles/available', [UserRoleController::class, 'availableRoles']);
-    Route::get('/by-role/{role}', [UserRoleController::class, 'getUsersByRole']);
 });

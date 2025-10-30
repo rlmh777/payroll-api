@@ -15,7 +15,7 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with('roles');
+        $query = User::with('rolesManyToMany');
 
         // Search by name or email
         if ($request->has('search')) {
@@ -28,7 +28,7 @@ class UserController extends Controller
 
         // Filter by role
         if ($request->has('role_id')) {
-            $query->whereHas('roles', function ($q) use ($request) {
+            $query->whereHas('rolesManyToMany', function ($q) use ($request) {
                 $q->where('roles.id', $request->input('role_id'));
             });
         }
@@ -68,10 +68,11 @@ class UserController extends Controller
         ]);
 
         if ($request->has('roles')) {
+            $user->rolesManyToMany()->syncWithoutDetaching($request->input('roles'));
             $user->assignRole($request->input('roles'));
         }
 
-        return response()->json($user->load('roles'), 201);
+        return response()->json($user->load('rolesManyToMany'), 201);
     }
 
     /**
@@ -79,7 +80,7 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        return $user->load('roles');
+        return $user->load('rolesManyToMany');
     }
 
     /**
@@ -114,10 +115,13 @@ class UserController extends Controller
         $user->update($updateData);
 
         if ($request->has('roles')) {
-            $user->syncRoles($request->input('roles'));
+            $user->rolesManyToMany()->sync($request->input('roles'));
+            $existingRoles = $user->getRoleNames();
+            $newRoles = array_diff($request->input('roles'), $existingRoles->toArray());
+            $user->assignRole($newRoles);
         }
 
-        return response()->json($user->load('roles'));
+        return response()->json($user->load('rolesManyToMany'));
     }
 
     /**
@@ -143,34 +147,12 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->syncRoles($request->input('roles'));
+        $user->rolesManyToMany()->syncWithoutDetaching($request->input('roles'));
+        $existingRoles = $user->getRoleNames();
+        $newRoles = array_diff($request->input('roles'), $existingRoles->toArray());
+        $user->assignRole($newRoles, 'syncWithoutDetaching');
 
-        return response()->json([
-            'message' => 'Roles assigned successfully',
-            'user' => $user->load('roles')
-        ], 200);
-    }
-
-    /**
-     * Add roles to a user (without removing existing ones).
-     */
-    public function addRoles(Request $request, User $user)
-    {
-        $validator = Validator::make($request->all(), [
-            'roles' => ['required', 'array'],
-            'roles.*' => ['exists:roles,id']
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $user->assignRole($request->input('roles'));
-
-        return response()->json([
-            'message' => 'Roles added successfully',
-            'user' => $user->load('roles')
-        ], 200);
+        return response()->json($user->load('rolesManyToMany'), 200);
     }
 
     /**
@@ -187,11 +169,12 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $user->rolesManyToMany()->detach($request->input('roles'));
         $user->removeRole($request->input('roles'));
 
         return response()->json([
             'message' => 'Roles removed successfully',
-            'user' => $user->load('roles')
+            'user' => $user->load('rolesManyToMany')
         ], 200);
     }
 
@@ -200,11 +183,12 @@ class UserController extends Controller
      */
     public function removeAllRoles(User $user)
     {
-        $user->syncRoles([]);
+        $user->rolesManyToMany()->sync([]);
+        $user->removeAllRoles();
 
         return response()->json([
             'message' => 'All roles removed successfully',
-            'user' => $user->load('roles')
+            'user' => $user->load('rolesManyToMany')
         ], 200);
     }
 
@@ -213,8 +197,7 @@ class UserController extends Controller
      */
     public function availableRoles()
     {
-        $roles = Role::orderBy('name', 'asc')->get();
-        
+        $roles = Role::orderBy('name', 'asc')->get(['id', 'name']);
         return response()->json($roles);
     }
 
@@ -223,11 +206,33 @@ class UserController extends Controller
      */
     public function getUsersByRole(Role $role)
     {
-        $users = $role->users()->with('roles')->get();
+        $users = $role->usersManyToMany()->with('rolesManyToMany')->get();
         
         return response()->json([
             'role' => $role,
             'users' => $users
         ]);
+    }
+
+    /**
+     * Get top-level menus accessible to the authenticated user based on permissions.
+     */
+    public function topLevelMenus(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $permissionNames = $user->getAllPermissions()->pluck('name');
+
+        $menus = \App\Models\Menu::active()
+            ->rootMenus()
+            ->whereIn('permission', $permissionNames)
+            ->orderBy('order')
+            ->get(['id', 'title', 'route', 'icon', 'order']);
+
+        return response()->json($menus);
     }
 }

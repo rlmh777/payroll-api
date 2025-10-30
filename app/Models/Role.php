@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Role extends SpatieRole
 {
@@ -37,5 +39,22 @@ class Role extends SpatieRole
     public function getKeyType()
     {
         return 'string';
+    }
+
+    /**
+     * Many-to-many users via explicit pivot table user_roles.
+     */
+    public function usersManyToMany(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Direct relationship to user_roles pivot rows.
+     */
+    public function userRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class, 'role_id');
     }
 }
