@@ -52,6 +52,7 @@ Route::delete('/tokens/{tokenId}', [AuthController::class, 'revokeSpecificToken'
 Route::get('/tokens', [AuthController::class, 'listTokens'])->middleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'authenticate']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::get('/user/menu', [UserController::class, 'topLevelMenus'])->middleware('auth:sanctum');
 
 Route::get('banks', [BankController::class, 'index']);
 Route::get('banks/{id}', [BankController::class, 'show']);
@@ -377,7 +378,6 @@ Route::prefix('users')->group(function () {
     Route::put('/{user}', [UserController::class, 'update']);
     Route::delete('/{user}', [UserController::class, 'destroy']);
 
-    Route::get('/user/menu', [UserController::class, 'topLevelMenus']);
     // User role management
     Route::post('/{user}/roles', [UserController::class, 'assignRoles']);
     Route::put('/{user}/roles', [UserController::class, 'addRoles']);

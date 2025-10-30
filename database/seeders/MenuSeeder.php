@@ -4,8 +4,8 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Menu;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use App\Models\Permission;
+use App\Models\Role;
 
 class MenuSeeder extends Seeder
 {
@@ -145,10 +145,10 @@ class MenuSeeder extends Seeder
         ];
         
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(
-                ['name' => $permission],
-                ['id' => \Illuminate\Support\Str::uuid()]
-            );
+            Permission::firstOrCreate(['name' => $permission]);
         }
+
+        $role = Role::firstOrCreate(['name' => 'super-admin']);
+        $role->givePermissionTo(Permission::all());
     }
 }
