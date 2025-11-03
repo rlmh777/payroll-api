@@ -21,7 +21,7 @@ return new class extends Migration
             $table->decimal('annualInterestRate', total: 6, places: 2)->default(0.0);
             $table->integer('loanPeriods');
             $table->decimal('optionalExtraPayment', total: 12, places: 2);
-            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_accounts')->onDelete('cascade');
+            $table->foreignUuid('accountId')->constrained('accounts')->onDelete('cascade');
             $table->timestamps();
         });
     }

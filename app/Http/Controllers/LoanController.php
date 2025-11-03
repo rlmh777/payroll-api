@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Loan;
 use App\Models\Employee;
 use App\Models\LoanType;
-use App\Models\ChartOfAccount;
+use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -30,8 +30,8 @@ class LoanController extends Controller
         }
 
         // Filter by chart of account
-        if ($request->has('chartOfAccountId')) {
-            $query->where('chartOfAccountId', $request->input('chartOfAccountId'));
+        if ($request->has('accountId')) {
+            $query->where('accountId', $request->input('accountId'));
         }
 
         // Filter by interest type
@@ -60,7 +60,7 @@ class LoanController extends Controller
             'annualInterestRate' => ['required', 'numeric', 'min:0'],
             'loanPeriods' => ['required', 'integer', 'min:1'],
             'optionalExtraPayment' => ['required', 'numeric', 'min:0'],
-            'chartOfAccountId' => ['required', 'uuid', 'exists:chart_of_account,id'],
+            'accountId' => ['required', 'uuid', 'exists:accounts,id'],
             'note' => ['required', 'string'],
         ]);
 
@@ -102,7 +102,7 @@ class LoanController extends Controller
             'annualInterestRate' => ['sometimes', 'numeric', 'min:0'],
             'loanPeriods' => ['sometimes', 'integer', 'min:1'],
             'optionalExtraPayment' => ['sometimes', 'numeric', 'min:0'],
-            'chartOfAccountId' => ['sometimes', 'uuid', 'exists:chart_of_account,id'],
+            'accountId' => ['sometimes', 'uuid', 'exists:accounts,id'],
             'note' => ['sometimes', 'string'],
         ]);
 

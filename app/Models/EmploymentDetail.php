@@ -25,7 +25,7 @@ class EmploymentDetail extends Model
         'totalRate',
         'payrateFrequencyId',
         'benefits',
-        'chartOfAccountId',
+        'accountId',
         'contractTypeId',
         'employmentPolicies',
         'contractAgreementPath',
@@ -47,7 +47,7 @@ class EmploymentDetail extends Model
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
+        return $this->belongsTo(Account::class, 'accountId');
     }
 
     public function contractType(): BelongsTo

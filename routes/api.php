@@ -7,7 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ContactTypeController;
-use App\Http\Controllers\ChartOfAccountController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
@@ -39,7 +39,11 @@ use App\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\UserRoleController;
+use App\Http\Controllers\PayPeriodController;
+use App\Http\Controllers\PayrollRunController;
+use App\Http\Controllers\PayrollContributionController;
+use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\JournalLineController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -80,13 +84,15 @@ Route::prefix('contact-type')->group(function () {
 });
 //End Contact Type
 
-// Chart of Accounts Routes
-Route::prefix('chart-of-accounts')->group(function () {
-    Route::get('/', [ChartOfAccountController::class, 'index']);
-    Route::post('/', [ChartOfAccountController::class, 'store']);
-    Route::get('/{chartOfAccount}', [ChartOfAccountController::class, 'show']);
-    Route::put('/{chartOfAccount}', [ChartOfAccountController::class, 'update']);
-    Route::delete('/{chartOfAccount}', [ChartOfAccountController::class, 'destroy']);
+// Accounts Routes
+Route::prefix('accounts')->group(function () {
+    Route::get('/', [AccountController::class, 'index']);
+    Route::get('/tree', [AccountController::class, 'tree']);
+    Route::post('/', [AccountController::class, 'store']);
+    Route::get('/{account}', [AccountController::class, 'show']);
+    Route::put('/{account}', [AccountController::class, 'update']);
+    Route::delete('/{account}', [AccountController::class, 'destroy']);
+    Route::get('/{account}/sub-accounts', [AccountController::class, 'subAccounts']);
 });
 
 // Deduction Type Routes
@@ -385,4 +391,49 @@ Route::prefix('users')->group(function () {
     Route::delete('/{user}/roles/all', [UserController::class, 'removeAllRoles']);
     Route::get('/{user}/roles/available', [UserController::class, 'availableRoles']);
     Route::get('/by-role/{role}', [UserController::class, 'getUsersByRole']);
+});
+
+// Pay Period Routes
+Route::prefix('pay-periods')->group(function () {
+    Route::get('/', [PayPeriodController::class, 'index']);
+    Route::post('/', [PayPeriodController::class, 'store']);
+    Route::get('/{payPeriod}', [PayPeriodController::class, 'show']);
+    Route::put('/{payPeriod}', [PayPeriodController::class, 'update']);
+    Route::delete('/{payPeriod}', [PayPeriodController::class, 'destroy']);
+});
+
+// Payroll Run Routes
+Route::prefix('payroll-runs')->group(function () {
+    Route::get('/', [PayrollRunController::class, 'index']);
+    Route::post('/', [PayrollRunController::class, 'store']);
+    Route::get('/{payrollRun}', [PayrollRunController::class, 'show']);
+    Route::put('/{payrollRun}', [PayrollRunController::class, 'update']);
+    Route::delete('/{payrollRun}', [PayrollRunController::class, 'destroy']);
+});
+
+// Payroll Contribution Routes
+Route::prefix('payroll-contributions')->group(function () {
+    Route::get('/', [PayrollContributionController::class, 'index']);
+    Route::post('/', [PayrollContributionController::class, 'store']);
+    Route::get('/{payrollContribution}', [PayrollContributionController::class, 'show']);
+    Route::put('/{payrollContribution}', [PayrollContributionController::class, 'update']);
+    Route::delete('/{payrollContribution}', [PayrollContributionController::class, 'destroy']);
+});
+
+// Journal Entry Routes
+Route::prefix('journal-entries')->group(function () {
+    Route::get('/', [JournalEntryController::class, 'index']);
+    Route::post('/', [JournalEntryController::class, 'store']);
+    Route::get('/{journalEntry}', [JournalEntryController::class, 'show']);
+    Route::put('/{journalEntry}', [JournalEntryController::class, 'update']);
+    Route::delete('/{journalEntry}', [JournalEntryController::class, 'destroy']);
+});
+
+// Journal Line Routes
+Route::prefix('journal-lines')->group(function () {
+    Route::get('/', [JournalLineController::class, 'index']);
+    Route::post('/', [JournalLineController::class, 'store']);
+    Route::get('/{journalLine}', [JournalLineController::class, 'show']);
+    Route::put('/{journalLine}', [JournalLineController::class, 'update']);
+    Route::delete('/{journalLine}', [JournalLineController::class, 'destroy']);
 });

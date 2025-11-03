@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('accounts', function (Blueprint $table) {
+        Schema::create('pay_periods', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('name', 100);
-            $table->string('description', 255);
-            $table->string('code1',24);
-            $table->string('code2', 24);
-            $table->decimal('balance', 12, 2);
+            $table->date('start_date');
+            $table->date('end_date');
+            $table->date('pay_date');
             $table->timestamps();
+
+            $table->index(['start_date', 'end_date']);
         });
     }
 
@@ -27,6 +27,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('accounts');
+        Schema::dropIfExists('pay_periods');
     }
 };
+

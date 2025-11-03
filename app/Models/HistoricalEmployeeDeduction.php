@@ -20,8 +20,8 @@ class HistoricalEmployeeDeduction extends Model
         'paymentToId',
         'amount',
         'note',
-        'payrollId',
-        'chartOfAccountId',
+        'payroll_run_id',
+        'accountId',
         'deductionTypeId'
     ];
 
@@ -35,14 +35,14 @@ class HistoricalEmployeeDeduction extends Model
         return $this->belongsTo(Vendor::class, 'paymentToId');
     }
 
-    public function payroll(): BelongsTo
+    public function payrollRun(): BelongsTo
     {
-        return $this->belongsTo(Payroll::class, 'payrollId');
+        return $this->belongsTo(PayrollRun::class, 'payroll_run_id');
     }
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
+        return $this->belongsTo(Account::class, 'accountId');
     }
 
     public function deductionType(): BelongsTo

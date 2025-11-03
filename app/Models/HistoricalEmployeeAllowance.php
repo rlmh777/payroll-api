@@ -20,9 +20,9 @@ class HistoricalEmployeeAllowance extends Model
         'amount',
         'note',
         'amount',
-        'payrollId',
+        'payroll_run_id',
         'allowanceId',
-        'chartOfAccountId'   
+        'accountId'   
     ];
     public function employee(): BelongsTo {
         return $this->belongsTo(Employee::class);
@@ -32,12 +32,12 @@ class HistoricalEmployeeAllowance extends Model
         return $this->belongsTo(Allowance::class);
     }
 
-    public function payroll(): BelongsTo {
-        return $this->belongsTo(Payroll::class);
+    public function payrollRun(): BelongsTo {
+        return $this->belongsTo(PayrollRun::class, 'payroll_run_id');
     }
 
     public function chartOfAccount(): BelongsTo {
-        return $this->belongsTo(ChartOfAccount::class);
+        return $this->belongsTo(Account::class, 'accountId');
     }
 
 }

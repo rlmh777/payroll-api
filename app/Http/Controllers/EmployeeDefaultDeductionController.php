@@ -48,7 +48,7 @@ class EmployeeDefaultDeductionController extends Controller
             'deductionTypeId' => ['required', 'numeric', 'exists:deduction_type,id'],
             'paymentToId' => ['required', 'uuid', 'exists:vendor,id'],
             'frequencyId' => ['required', 'numeric', 'exists:payrate_frequency,id'],
-            'chartOfAccountId' => ['required', 'uuid', 'exists:chart_of_account,id'],
+            'accountId' => ['required', 'uuid', 'exists:accounts,id'],
             'amount' => ['required', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
@@ -91,7 +91,7 @@ class EmployeeDefaultDeductionController extends Controller
             'deductionId' => ['sometimes', 'uuid', 'exists:deductions,id'],
             'paymentToId' => ['sometimes', 'uuid', 'exists:vendor,id'],
             'frequencyId' => ['sometimes', 'uuid', 'exists:payrateFrequency,id'],
-            'chartOfAccountId' => ['sometimes', 'uuid', 'exists:chartOfAccount,id'],
+            'accountId' => ['sometimes', 'uuid', 'exists:accounts,id'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);

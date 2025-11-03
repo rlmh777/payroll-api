@@ -21,7 +21,7 @@ class EmployeeDefaultDeduction extends Model
         'amount',
         'note',
         'frequencyId',
-        'chartOfAccountId',
+        'accountId',
         'deductionTypeId'
     ];
 
@@ -42,7 +42,7 @@ class EmployeeDefaultDeduction extends Model
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
+        return $this->belongsTo(Account::class, 'accountId');
     }
 
     public function deduction(): BelongsTo

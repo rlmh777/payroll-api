@@ -3,11 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\HistoricalEmployeeDeduction;
-use App\Models\Employee;
-use App\Models\Vendor;
-use App\Models\Payroll;
-use App\Models\ChartOfAccount;
-use App\Models\DeductionType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -18,7 +13,7 @@ class HistoricalEmployeeDeductionController extends Controller
         $query = HistoricalEmployeeDeduction::with([
             'employee',
             'vendor',
-            'payroll',
+            'payrollRun',
             'chartOfAccount',
             'deductionType'
         ]);
@@ -33,14 +28,14 @@ class HistoricalEmployeeDeductionController extends Controller
             $query->where('paymentToId', $request->input('paymentToId'));
         }
 
-        // Filter by payroll
-        if ($request->has('payrollId')) {
-            $query->where('payrollId', $request->input('payrollId'));
+        // Filter by payroll run
+        if ($request->has('payroll_run_id')) {
+            $query->where('payroll_run_id', $request->input('payroll_run_id'));
         }
 
         // Filter by chart of account
-        if ($request->has('chartOfAccountId')) {
-            $query->where('chartOfAccountId', $request->input('chartOfAccountId'));
+        if ($request->has('accountId')) {
+            $query->where('accountId', $request->input('accountId'));
         }
 
         // Filter by deduction type
@@ -66,8 +61,8 @@ class HistoricalEmployeeDeductionController extends Controller
             'paymentToId' => ['required', 'uuid', 'exists:vendor,id'],
             'amount' => ['required', 'numeric', 'min:0'],
             'note' => ['required', 'string'],
-            'payrollId' => ['required', 'uuid', 'exists:payroll,id'],
-            'chartOfAccountId' => ['required', 'uuid', 'exists:chart_of_account,id'],
+            'payroll_run_id' => ['required', 'uuid', 'exists:payroll_runs,id'],
+            'accountId' => ['required', 'uuid', 'exists:accounts,id'],
             'deductionTypeId' => ['required', 'exists:deduction_type,id'],
         ]);
 
@@ -80,7 +75,7 @@ class HistoricalEmployeeDeductionController extends Controller
         return response()->json($historicalEmployeeDeduction->load([
             'employee',
             'vendor',
-            'payroll',
+            'payrollRun',
             'chartOfAccount',
             'deductionType'
         ]), 201);
@@ -91,7 +86,7 @@ class HistoricalEmployeeDeductionController extends Controller
         return $historicalEmployeeDeduction->load([
             'employee',
             'vendor',
-            'payroll',
+            'payrollRun',
             'chartOfAccount',
             'deductionType'
         ]);
@@ -110,8 +105,8 @@ class HistoricalEmployeeDeductionController extends Controller
             'paymentToId' => ['sometimes', 'uuid', 'exists:vendor,id'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
             'note' => ['sometimes', 'string'],
-            'payrollId' => ['sometimes', 'uuid', 'exists:payroll,id'],
-            'chartOfAccountId' => ['sometimes', 'uuid', 'exists:chart_of_account,id'],
+            'payroll_run_id' => ['sometimes', 'uuid', 'exists:payroll_runs,id'],
+            'accountId' => ['sometimes', 'uuid', 'exists:accounts,id'],
             'deductionTypeId' => ['sometimes', 'exists:deduction_type,id'],
         ]);
 
@@ -124,7 +119,7 @@ class HistoricalEmployeeDeductionController extends Controller
         return response()->json($historicalEmployeeDeduction->load([
             'employee',
             'vendor',
-            'payroll',
+            'payrollRun',
             'chartOfAccount',
             'deductionType'
         ]));

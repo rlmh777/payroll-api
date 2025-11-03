@@ -24,7 +24,7 @@ class Loan extends Model
         'annualInterestRate',
         'loanPeriods',
         'optionalExtraPayment',
-        'chartOfAccountId'
+        'accountId'
     ];
 
     public function employee(): BelongsTo
@@ -39,6 +39,6 @@ class Loan extends Model
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->BelongsTo(ChartOfAccount::class, 'chartOfAccountId');
+        return $this->BelongsTo(Account::class, 'accountId');
     }
 }

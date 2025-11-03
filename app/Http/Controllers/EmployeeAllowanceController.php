@@ -31,8 +31,8 @@ class EmployeeAllowanceController extends Controller
         }
 
         // Filter by chart of account
-        if ($request->has('chart_of_account_id')) {
-            $query->where('chartOfAccountId', $request->input('chart_of_account_id'));
+        if ($request->has('account_id')) {
+            $query->where('accountId', $request->input('account_id'));
         }
 
         // Search by note
@@ -62,7 +62,7 @@ class EmployeeAllowanceController extends Controller
             'employeeId' => 'required|uuid|exists:employee,id',
             'allowanceId' => 'required|uuid|exists:allowance,id',
             'frequencyId' => 'required|exists:payrate_frequency,id',
-            'chartOfAccountId' => 'required|uuid|exists:chart_of_account,id',
+            'accountId' => 'required|uuid|exists:accounts,id',
             'note' => 'required|string|max:1024',
             'amount' => 'required|numeric|min:0|max:999999999999.99'
         ]);
@@ -100,7 +100,7 @@ class EmployeeAllowanceController extends Controller
             'employeeId' => 'uuid|exists:employee,id',
             'allowanceId' => 'uuid|exists:allowance,id',
             'frequencyId' => 'exists:payrate_frequency,id',
-            'chartOfAccountId' => 'uuid|exists:chart_of_account,id',
+            'accountId' => 'uuid|exists:accounts,id',
             'note' => 'string|max:1024',
             'amount' => 'numeric|min:0|max:999999999999.99'
         ]);

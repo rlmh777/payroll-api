@@ -19,7 +19,7 @@ class EmployeeAllowance extends Model
         'employeeId',
         'allowanceId',
         'frequencyId',
-        'chartOfAccountId',
+        'accountId',
         'note',
         'amount'
     ];
@@ -41,6 +41,6 @@ class EmployeeAllowance extends Model
 
     public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class, 'chartOfAccountId');
+        return $this->belongsTo(Account::class, 'accountId');
     }
 }
