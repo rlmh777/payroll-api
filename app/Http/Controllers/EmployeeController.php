@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
@@ -24,24 +25,24 @@ class EmployeeController extends Controller
             'employmentDetails.department'
         ]);
 
-        // Search by name or code
+        // Search by name or code (case-insensitive)
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where(function($q) use ($search) {
-                // Exact matches
-                $q->where('code', 'like', "%{$search}%")
-                  ->orWhere('firstName', 'like', "%{$search}%")
-                  ->orWhere('lastName', 'like', "%{$search}%")
-                  ->orWhere('middleName', 'like', "%{$search}%")
-                  ->orWhere('maidenName', 'like', "%{$search}%");
+                // Exact matches (case-insensitive)
+                $q->whereRaw('"code" ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('"firstName" ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('"lastName" ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('"middleName" ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('"maidenName" ILIKE ?', ["%{$search}%"]);
                 
-                // Full name search with Levenshtein distance
-                $q->orWhereRaw("CONCAT(firstName, ' ', lastName) LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("CONCAT(lastName, ', ', firstName) LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("CONCAT(firstName, ' ', middleName, ' ', lastName) LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("CONCAT(lastName, ', ', firstName, ' ', middleName) LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("CONCAT(firstName, ' ', middleName, ' ', lastName, ' ', maidenName) LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("CONCAT(lastName, ', ', firstName, ' ', middleName, ' ', maidenName) LIKE ?", ["%{$search}%"]);
+                // Full name search (case-insensitive)
+                $q->orWhereRaw('CONCAT("firstName", \' \', "lastName") ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('CONCAT("lastName", \', \', "firstName") ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('CONCAT("firstName", \' \', "middleName", \' \', "lastName") ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('CONCAT("lastName", \', \', "firstName", \' \', "middleName") ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('CONCAT("firstName", \' \', "middleName", \' \', "lastName", \' \', "maidenName") ILIKE ?', ["%{$search}%"])
+                  ->orWhereRaw('CONCAT("lastName", \', \', "firstName", \' \', "middleName", \' \', "maidenName") ILIKE ?', ["%{$search}%"]);
             });
         }
 
@@ -69,6 +70,31 @@ class EmployeeController extends Controller
         $sortBy = $request->input('sort_by', 'lastName');
         $sortDirection = $request->input('sort_direction', 'asc');
         $query->orderBy($sortBy, $sortDirection);
+
+        // Log the query
+        try {
+            $sql = method_exists($query, 'toRawSql') 
+                ? $query->toRawSql() 
+                : $query->toSql() . ' | Bindings: ' . json_encode($query->getBindings());
+        } catch (\Exception $e) {
+            $sql = $query->toSql() . ' | Bindings: ' . json_encode($query->getBindings());
+        }
+        
+        Log::info('Employee search query', [
+            'sql' => $sql,
+            'search' => $request->input('search'),
+            'filters' => [
+                'gender_id' => $request->input('gender_id'),
+                'locality_id' => $request->input('locality_id'),
+                'nationality_id' => $request->input('nationality_id'),
+                'citizenship_status_id' => $request->input('citizenship_status_id'),
+            ],
+            'sort' => [
+                'by' => $sortBy,
+                'direction' => $sortDirection,
+            ],
+            'per_page' => $request->input('per_page', 10),
+        ]);
 
         // Paginate
         $perPage = $request->input('per_page', 10);
