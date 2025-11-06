@@ -20,7 +20,8 @@ class EmployeeController extends Controller
             'citizenshipStatus',
             'nationality',
             'defaultPayrateFrequency',
-            'paymentMethods'
+            'paymentMethods',
+            'employmentDetails.department'
         ]);
 
         // Search by name or code

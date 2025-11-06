@@ -157,10 +157,10 @@ class Employee extends Model implements CipherSweetEncrypted
     {
         $encryptedRow
             // add the columns you want to encrypt the values ​​for
-            ->addField('socialSecurityNumber')
-            ->addField('taxIdentificationNumber')
-            ->addField('passportNumber')
-            ->addField('votersId')
+            ->addField('socialSecurityNumber', Constants::TYPE_OPTIONAL_TEXT)
+            ->addField('taxIdentificationNumber', Constants::TYPE_OPTIONAL_TEXT)
+            ->addField('passportNumber', Constants::TYPE_OPTIONAL_TEXT)
+            ->addField('votersId', Constants::TYPE_OPTIONAL_TEXT)
             ->addField('firstName')
             ->addField('middleName', Constants::TYPE_OPTIONAL_TEXT)
             ->addField('lastName')
