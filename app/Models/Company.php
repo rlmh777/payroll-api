@@ -14,7 +14,7 @@ use ParagonIE\CipherSweet\Constants;
 class Company extends Model
 {
     protected $table = 'company';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'legalName',

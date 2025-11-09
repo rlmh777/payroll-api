@@ -11,7 +11,7 @@ class EmployeeWorkPermit extends Model
     use HasUuids;
 
     protected $table = 'employee_work_permit';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

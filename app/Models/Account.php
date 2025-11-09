@@ -12,7 +12,7 @@ class Account extends Model
     use HasUuids;
 
     protected $table = 'accounts';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

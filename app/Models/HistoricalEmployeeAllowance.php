@@ -11,7 +11,7 @@ class HistoricalEmployeeAllowance extends Model
     use HasUuids;
 
     protected $table = 'historical_employee_allowance';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

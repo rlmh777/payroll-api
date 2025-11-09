@@ -15,7 +15,7 @@ class EmployeeBank extends Model
     use HasUuids;
 
     protected $table = 'employee_bank';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

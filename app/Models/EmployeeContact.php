@@ -14,7 +14,7 @@ class EmployeeContact extends Model
     use HasUuids;
 
     protected $table = 'employee_contact';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

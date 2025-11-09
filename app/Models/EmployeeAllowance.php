@@ -11,7 +11,7 @@ class EmployeeAllowance extends Model
     use HasUuids;
 
     protected $table = 'default_employee_allowance';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

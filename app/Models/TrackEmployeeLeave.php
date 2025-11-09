@@ -11,7 +11,7 @@ class TrackEmployeeLeave extends Model
     use HasUuids;
 
     protected $table = 'track_employee_leave';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

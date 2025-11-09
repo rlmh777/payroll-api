@@ -11,7 +11,7 @@ class EmploymentDetail extends Model
     use HasUuids;
 
     protected $table = 'employment_detail';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

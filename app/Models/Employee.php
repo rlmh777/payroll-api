@@ -65,7 +65,7 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function gender(): BelongsTo
     {
-        return $this->belongsTo(Gender::class);
+        return $this->belongsTo(Gender::class, 'genderId');
     }
 
     public function citizenshipStatus(): BelongsTo

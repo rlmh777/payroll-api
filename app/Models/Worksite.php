@@ -12,7 +12,7 @@ class Worksite extends Model
     use HasUuids;
 
     protected $table = 'worksite';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

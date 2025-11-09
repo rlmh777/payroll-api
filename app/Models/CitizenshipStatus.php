@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relation\HasMany;
 class CitizenshipStatus extends Model
 {
     protected $table = 'citizenship_status';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name'

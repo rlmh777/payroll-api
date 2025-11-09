@@ -15,7 +15,7 @@ class EmploymentHistory extends Model
     use HasUuids;
 
     protected $table = 'employment_history';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

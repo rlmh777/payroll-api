@@ -12,7 +12,7 @@ class Payroll extends Model
     use HasUuids;
 
     protected $table = 'payroll';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

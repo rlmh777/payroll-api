@@ -15,7 +15,7 @@ class Vendor extends Model
     use HasUuids;
 
     protected $table = 'vendor';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

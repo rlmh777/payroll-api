@@ -10,7 +10,7 @@ class Calendar extends Model
     use HasUuids;
 
     protected $table = 'calendar';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

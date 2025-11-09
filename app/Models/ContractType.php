@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relation\HasMany;
 class ContractType extends Model
 {
     protected $table = 'contract_type';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name'
