@@ -20,10 +20,10 @@ class CountryController extends Controller
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code1', 'like', "%{$search}%")
-                    ->orWhere('code2', 'like', "%{$search}%")
-                    ->orWhere('nationalityName', 'like', "%{$search}%");
+                $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('code1', 'ilike', "%{$search}%")
+                    ->orWhere('code2', 'ilike', "%{$search}%")
+                    ->orWhere('nationalityName', 'ilike', "%{$search}%");
             });
         }
 
@@ -139,7 +139,7 @@ class CountryController extends Controller
         // Search by name
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where('name', 'like', "%{$search}%");
+            $query->where('name', 'ilike', "%{$search}%");
         }
 
         // Sorting

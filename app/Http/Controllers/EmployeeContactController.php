@@ -18,9 +18,9 @@ class EmployeeContactController extends Controller
         // Search by name or email
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where('firstName', 'like', "%{$search}%")
-                ->orWhere('lastName', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%");
+            $query->where('firstName', 'ilike', "%{$search}%")
+                ->orWhere('lastName', 'ilike', "%{$search}%")
+                ->orWhere('email', 'ilike', "%{$search}%");
         }
 
         // Filter by employee

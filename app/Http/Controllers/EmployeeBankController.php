@@ -28,8 +28,8 @@ class EmployeeBankController extends Controller
         // Search by account number or notes
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where('accountNumber', 'like', "%{$search}%")
-                ->orWhere('notes', 'like', "%{$search}%");
+            $query->where('accountNumber', 'ilike', "%{$search}%")
+                ->orWhere('notes', 'ilike', "%{$search}%");
         }
 
         // Sort

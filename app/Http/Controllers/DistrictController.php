@@ -20,7 +20,7 @@ class DistrictController extends Controller
         // Search by name
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where('name', 'like', "%{$search}%");
+            $query->where('name', 'ilike', "%{$search}%");
         }
 
         // Filter by country
@@ -130,7 +130,7 @@ class DistrictController extends Controller
         // Search by name
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where('name', 'like', "%{$search}%");
+            $query->where('name', 'ilike', "%{$search}%");
         }
 
         // Sorting

@@ -21,12 +21,12 @@ class EmployeeWorkPermitController extends Controller
 
         // Filter by work permit number
         if ($request->has('workPermitNumber')) {
-            $query->where('workPermitNumber', 'like', '%' . $request->input('workPermitNumber') . '%');
+            $query->where('workPermitNumber', 'ilike', '%' . $request->input('workPermitNumber') . '%');
         }
 
         // Filter by social security number
         if ($request->has('socialSecurityNumber')) {
-            $query->where('socialSecurityNumber', 'like', '%' . $request->input('socialSecurityNumber') . '%');
+            $query->where('socialSecurityNumber', 'ilike', '%' . $request->input('socialSecurityNumber') . '%');
         }
 
         // Filter by expiration status

@@ -18,7 +18,8 @@ class HonorificController extends Controller
 
         // Search by name
         if ($request->has('search')) {
-            $query->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($request->search) . '%']);
+            $search = $request->input('search');
+            $query->where('name', 'ilike', "%{$search}%");
         }
 
         // Sorting

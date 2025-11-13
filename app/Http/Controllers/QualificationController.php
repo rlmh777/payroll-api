@@ -19,9 +19,9 @@ class QualificationController extends Controller
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->whereHas('employee', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%");
+                $q->where('name', 'ilike', "%{$search}%");
             })->orWhereHas('institution', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%");
+                $q->where('name', 'ilike', "%{$search}%");
             });
         }
 

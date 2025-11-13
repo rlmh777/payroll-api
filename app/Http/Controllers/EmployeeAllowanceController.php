@@ -38,7 +38,7 @@ class EmployeeAllowanceController extends Controller
         // Search by note
         if ($request->has('search')) {
             $search = $request->input('search');
-            $query->where('note', 'like', "%{$search}%");
+            $query->where('note', 'ilike', "%{$search}%");
         }
 
         // Sort
