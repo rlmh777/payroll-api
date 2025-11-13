@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
@@ -264,6 +265,54 @@ class EmployeeController extends Controller
         return response()->json([
             'message' => 'Employee deleted successfully'
         ]);
+    }
+
+    /**
+     * Upload a picture for the specified employee.
+     */
+    public function uploadPicture(Request $request, Employee $employee)
+    {
+        $validator = Validator::make($request->all(), [
+            'picture' => 'required|image|mimes:jpeg,jpg,png,gif,webp|max:5120', // Max 5MB
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            // Delete old picture if exists
+            if ($employee->picturePath && Storage::disk('public')->exists($employee->picturePath)) {
+                Storage::disk('public')->delete($employee->picturePath);
+            }
+
+            // Store the new picture
+            $file = $request->file('picture');
+            $fileName = 'employee_' . $employee->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('employees/pictures', $fileName, 'public');
+
+            // Update employee's picturePath
+            $employee->update(['picturePath' => $path]);
+
+            // Return the full URL path
+            $url = asset('storage/' . $path);
+
+            return response()->json([
+                'message' => 'Picture uploaded successfully',
+                'path' => $path,
+                'url' => $url
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error uploading employee picture', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to upload picture',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
  

@@ -212,6 +212,7 @@ Route::prefix('employees')->group(function () {
     Route::get('/{employee}', [EmployeeController::class, 'show']);
     Route::put('/{employee}', [EmployeeController::class, 'update']);
     Route::delete('/{employee}', [EmployeeController::class, 'destroy']);
+    Route::post('/{employee}/picture', [EmployeeController::class, 'uploadPicture']);
 });
 
 // Institution Routes
