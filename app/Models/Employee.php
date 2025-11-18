@@ -60,7 +60,7 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function honorific(): BelongsTo
     {
-        return $this->belongsTo(Honorific::class);
+        return $this->belongsTo(Honorific::class, 'honorificId');
     }
 
     public function gender(): BelongsTo
