@@ -21,7 +21,7 @@ class MenuSeeder extends Seeder
         $dashboard = $this->createMenu('Dashboard', '/dashboard', 'fas fa-tachometer-alt', 'view-dashboard', 1);
         $accounts = $this->createMenu('Accounts', '/accounts', 'fas fa-wallet', 'view-accounts', 2);
         $reports = $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'view-reports', 3);
-        $settings = $this->createMenu('Settings', null, 'fas fa-cog', 'view-settings', 4);
+        $settings = $this->createMenu('Settings', '/settings', 'fas fa-cog', 'view-settings', 4);
         $employee = $this->createMenu('Employees', '/employees', 'fas fa-user-friends', 'view-employees', 5);
         // Create Settings submenus
         $organization = $this->createSubMenu($settings->id, 'Organization', '/settings/organization', 'fas fa-building', 'view-organization', 1);
@@ -47,7 +47,7 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($general->id, 'Work Site', '/settings/general/worksite', 'fas fa-map', 'view-worksite', 13);
 
         // Create Payroll menu with submenus
-        $payroll = $this->createMenu('Payroll', null, 'fas fa-money-check-alt', 'view-payroll', 5);
+        $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 6);
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
         $this->createSubMenu($payroll->id, 'Leave', '/payroll/leave', 'fas fa-calendar-check', 'view-leave', 3);
         $this->createSubMenu($payroll->id, 'Timesheets', '/payroll/timesheets', 'fas fa-clock', 'view-timesheets', 4);
