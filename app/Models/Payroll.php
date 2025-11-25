@@ -54,11 +54,6 @@ class Payroll extends Model
         return $this->hasMany(HistoricalEmployeeDeduction::class);
     }
 
-    public function paymentMethods(): BelongsTo
-    {
-        return $this->belongsTo(PaymentMethod::class);
-    }
-
     public function historicalAllowances(): HasMany
     {
         return $this->hasMany(HistoricalEmployeeAllowance::class);

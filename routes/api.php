@@ -17,6 +17,7 @@ use App\Http\Controllers\LocalityController;
 use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
+use App\Http\Controllers\CitizenshipStatusController;
 use App\Http\Controllers\EmployeeStatusController;
 use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\QualificationController;
@@ -176,6 +177,15 @@ Route::prefix('genders')->group(function () {
     Route::get('/{gender}', [GenderController::class, 'show']);
     Route::put('/{gender}', [GenderController::class, 'update']);
     Route::delete('/{gender}', [GenderController::class, 'destroy']);
+});
+
+// Citizenship Status routes
+Route::prefix('citizenship-statuses')->group(function () {
+    Route::get('/', [CitizenshipStatusController::class, 'index']);
+    Route::post('/', [CitizenshipStatusController::class, 'store']);
+    Route::get('/{citizenshipStatus}', [CitizenshipStatusController::class, 'show']);
+    Route::put('/{citizenshipStatus}', [CitizenshipStatusController::class, 'update']);
+    Route::delete('/{citizenshipStatus}', [CitizenshipStatusController::class, 'destroy']);
 });
 
 // Employee Status Routes

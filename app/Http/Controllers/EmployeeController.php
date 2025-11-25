@@ -21,8 +21,6 @@ class EmployeeController extends Controller
             'gender',
             'citizenshipStatus',
             'nationality',
-            'defaultPayrateFrequency',
-            'paymentMethods',
             'employmentDetails.department'
         ]);
 
@@ -153,8 +151,6 @@ class EmployeeController extends Controller
                 'gender',
                 'citizenshipStatus',
                 'nationality',
-                'defaultPayrateFrequency',
-                'paymentMethods'
             ])
         ], 201);
     }
@@ -170,8 +166,6 @@ class EmployeeController extends Controller
             'gender',
             'citizenshipStatus',
             'nationality',
-            'defaultPayrateFrequency',
-            'paymentMethods',
             'allowances',
             'employeeBanks',
             'contacts',
@@ -233,9 +227,7 @@ class EmployeeController extends Controller
                 'honorific',
                 'gender',
                 'citizenshipStatus',
-                'nationality',
-                'defaultPayrateFrequency',
-                'paymentMethods'
+                'nationality'
             ])
         ]);
     }

@@ -16,6 +16,6 @@ class LeaveType extends Model
 
     public function leaves(): HasMany
     {
-        return $this->hasMany(TrackEmployeeLeave::class);
+        return $this->hasMany(EmployeeLeave::class);
     }
 }

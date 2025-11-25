@@ -14,9 +14,21 @@ class CitizenshipStatusSeeder extends Seeder
      */
     public function run(): void
     {
-        CitizenshipStatus::create([
-            'name' => 'Belizean Citizen'
-        ]);
+        $statuses = [
+            'Belizean Citizen',
+            'Permanent Resident',
+            'Work Permit Holder',
+            'Temporary Resident',
+            'Visitor',
+            'Non-Resident',
+            'Refugee',
+            'Stateless',
+        ];
 
+        foreach ($statuses as $status) {
+            CitizenshipStatus::create([
+                'name' => $status
+            ]);
+        }
     }
 }

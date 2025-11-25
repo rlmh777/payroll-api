@@ -44,8 +44,6 @@ class Employee extends Model implements CipherSweetEncrypted
         'votersId',
         'citizenshipStatusId',
         'nationalityId',
-        'payrateFrequencyId',
-        'paymentMethodId',
         'notes',
         'picturePath',
         'health',
@@ -76,11 +74,6 @@ class Employee extends Model implements CipherSweetEncrypted
     public function nationality(): BelongsTo
     {
         return $this->belongsTo(Country::class, 'nationalityId');
-    }
-
-    public function defaultPayrateFrequency(): BelongsTo
-    {
-        return $this->belongsTo(PayrateFrequency::class, 'payrateFrequencyId');
     }
 
     public function employeeWorkPermit(): HasMany
@@ -140,12 +133,7 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function leaves(): HasMany
     {
-        return $this->hasMany(TrackEmployeeLeave::class, 'employeeId');
-    }
-
-    public function paymentMethods(): BelongsTo
-    {
-        return $this->belongsTo(PaymentMethod::class, 'paymentMethodId');
+        return $this->hasMany(EmployeeLeave::class, 'employeeId');
     }
 
     public function historicalAllowances(): HasMany

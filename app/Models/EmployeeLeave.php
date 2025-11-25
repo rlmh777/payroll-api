@@ -4,13 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class TrackEmployeeLeave extends Model
+class EmployeeLeave extends Model
 {
     use HasUuids;
 
-    protected $table = 'track_employee_leave';
+    protected $table = 'employee_leave';
     protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
@@ -20,9 +20,10 @@ class TrackEmployeeLeave extends Model
         'leaveTypeId',
         'startDate',
         'endDate',
-        'notes'   
+        'notes',
+        'multiplier'
     ];
-
+,
     public function employee(): BelongsTo {
         return $this->belongsTo(Employee::class);
     }
@@ -30,7 +31,5 @@ class TrackEmployeeLeave extends Model
     public function leaveType(): BelongsTo {
         return $this->belongsTo(LeaveType::class);
     }
-
-
-
 }
+
