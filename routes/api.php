@@ -23,7 +23,7 @@ use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\QualificationController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\EmployeeContactController;
-use App\Http\Controllers\EmployeeAllowanceController;
+use App\Http\Controllers\EmployeeDefaultAllowanceController;
 use App\Http\Controllers\EmployeeBankController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDefaultDeductionController;
@@ -260,12 +260,12 @@ Route::prefix('employee-contacts')->group(function () {
     Route::delete('/{employeeContact}', [EmployeeContactController::class, 'destroy']);
 });
 
-Route::prefix('employee-allowances')->group(function () {
-    Route::get('/', [EmployeeAllowanceController::class, 'index']);
-    Route::post('/', [EmployeeAllowanceController::class, 'store']);
-    Route::get('/{employeeAllowance}', [EmployeeAllowanceController::class, 'show']);
-    Route::put('/{employeeAllowance}', [EmployeeAllowanceController::class, 'update']);
-    Route::delete('/{employeeAllowance}', [EmployeeAllowanceController::class, 'destroy']);
+Route::prefix('employee-default-allowances')->group(function () {
+    Route::get('/', [EmployeeDefaultAllowanceController::class, 'index']);
+    Route::post('/', [EmployeeDefaultAllowanceController::class, 'store']);
+    Route::get('/{employeeDefaultAllowance}', [EmployeeDefaultAllowanceController::class, 'show']);
+    Route::put('/{employeeDefaultAllowance}', [EmployeeDefaultAllowanceController::class, 'update']);
+    Route::delete('/{employeeDefaultAllowance}', [EmployeeDefaultAllowanceController::class, 'destroy']);
 });
 
 // Employee Bank Routes

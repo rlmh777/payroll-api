@@ -23,7 +23,7 @@ class EmployeeLeave extends Model
         'notes',
         'multiplier'
     ];
-,
+
     public function employee(): BelongsTo {
         return $this->belongsTo(Employee::class);
     }

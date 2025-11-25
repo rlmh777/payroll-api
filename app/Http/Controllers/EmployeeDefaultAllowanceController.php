@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EmployeeAllowance;
+use App\Models\EmployeeDefaultAllowance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class EmployeeAllowanceController extends Controller
+class EmployeeDefaultAllowanceController extends Controller
 {
     /**
-     * Display a listing of employee allowances.
+     * Display a listing of employee default allowances.
      */
     public function index(Request $request)
     {
-        $query = EmployeeAllowance::with(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount']);
+        $query = EmployeeDefaultAllowance::with(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount']);
 
         // Filter by employee
         if ($request->has('employee_id')) {
@@ -54,7 +54,7 @@ class EmployeeAllowanceController extends Controller
     }
 
     /**
-     * Store a newly created employee allowance.
+     * Store a newly created employee default allowance.
      */
     public function store(Request $request)
     {
@@ -71,26 +71,26 @@ class EmployeeAllowanceController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $allowance = EmployeeAllowance::create($request->all());
+        $allowance = EmployeeDefaultAllowance::create($request->all());
 
         return response()->json([
-            'message' => 'Employee allowance created successfully',
+            'message' => 'Employee default allowance created successfully',
             'data' => $allowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount'])
         ], 201);
     }
 
     /**
-     * Display the specified employee allowance.
+     * Display the specified employee default allowance.
      */
-    public function show(EmployeeAllowance $employeeAllowance)
+    public function show(EmployeeDefaultAllowance $employeeDefaultAllowance)
     {
-        return response()->json($employeeAllowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount']));
+        return response()->json($employeeDefaultAllowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount']));
     }
 
     /**
-     * Update the specified employee allowance.
+     * Update the specified employee default allowance.
      */
-    public function update(Request $request, EmployeeAllowance $employeeAllowance)
+    public function update(Request $request, EmployeeDefaultAllowance $employeeDefaultAllowance)
     {
         if ($request->isMethod('put') && empty($request->all())) {
             return response()->json(['message' => 'No data provided for update'], 422);
@@ -109,23 +109,24 @@ class EmployeeAllowanceController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $employeeAllowance->update($request->all());
+        $employeeDefaultAllowance->update($request->all());
 
         return response()->json([
-            'message' => 'Employee allowance updated successfully',
-            'data' => $employeeAllowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount'])
+            'message' => 'Employee default allowance updated successfully',
+            'data' => $employeeDefaultAllowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount'])
         ]);
     }
 
     /**
-     * Remove the specified employee allowance.
+     * Remove the specified employee default allowance.
      */
-    public function destroy(EmployeeAllowance $employeeAllowance)
+    public function destroy(EmployeeDefaultAllowance $employeeDefaultAllowance)
     {
-        $employeeAllowance->delete();
+        $employeeDefaultAllowance->delete();
 
         return response()->json([
-            'message' => 'Employee allowance deleted successfully'
+            'message' => 'Employee default allowance deleted successfully'
         ]);
     }
-} 
+}
+

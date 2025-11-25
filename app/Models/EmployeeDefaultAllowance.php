@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
-class EmployeeAllowance extends Model
+class EmployeeDefaultAllowance extends Model
 {
     use HasUuids;
 
-    protected $table = 'default_employee_allowance';
+    protected $table = 'employee_default_allowance';
     protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
@@ -44,3 +44,4 @@ class EmployeeAllowance extends Model
         return $this->belongsTo(Account::class, 'accountId');
     }
 }
+

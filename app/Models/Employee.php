@@ -88,7 +88,7 @@ class Employee extends Model implements CipherSweetEncrypted
 
     public function allowances(): HasMany
     {
-        return $this->hasMany(EmployeeAllowance::class, 'employeeId');
+        return $this->hasMany(EmployeeDefaultAllowance::class, 'employeeId');
     }
 
     public function employeeBanks(): HasMany

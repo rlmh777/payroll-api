@@ -39,7 +39,7 @@ class Account extends Model
     }
 
     public function allowances(): HasMany {
-        return $this->hasMany(EmployeeAllowance::class, 'accountId');
+        return $this->hasMany(EmployeeDefaultAllowance::class, 'accountId');
     }
 
     public function historicalAllowances(): HasMany {
