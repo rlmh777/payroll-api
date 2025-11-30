@@ -25,11 +25,11 @@ class EmployeeLeave extends Model
     ];
 
     public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
     public function leaveType(): BelongsTo {
-        return $this->belongsTo(LeaveType::class);
+        return $this->belongsTo(LeaveType::class, 'leaveTypeId');
     }
 }
 

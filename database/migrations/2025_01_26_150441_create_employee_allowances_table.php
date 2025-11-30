@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('default_employee_allowance', function (Blueprint $table) {
+        Schema::create('employee_default_allowance', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->foreignUuid('allowanceId')->constrained('allowance')->onDelete('cascade');
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('default_employee_allowance');
+        Schema::dropIfExists('employee_default_allowance');
     }
 };

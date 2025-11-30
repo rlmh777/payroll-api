@@ -9,6 +9,8 @@ class LeaveType extends Model
 {
     protected $table = 'leave_type';
     protected $primaryKey = 'id';
+    public $incrementing = false;
+    protected $keyType = 'integer';
 
     protected $fillable = [
         'name'
@@ -16,6 +18,6 @@ class LeaveType extends Model
 
     public function leaves(): HasMany
     {
-        return $this->hasMany(EmployeeLeave::class);
+        return $this->hasMany(EmployeeLeave::class, 'leaveTypeId');
     }
 }

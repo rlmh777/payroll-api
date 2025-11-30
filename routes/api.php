@@ -34,6 +34,7 @@ use App\Http\Controllers\LoanTypeController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\HistoricalEmployeeDeductionController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\EmployeeWorkPermitController;
@@ -358,6 +359,15 @@ Route::prefix('leave-types')->group(function () {
     Route::get('/{leaveType}', [LeaveTypeController::class, 'show']);
     Route::put('/{leaveType}', [LeaveTypeController::class, 'update']);
     Route::delete('/{leaveType}', [LeaveTypeController::class, 'destroy']);
+});
+
+// Employee Leave Routes
+Route::prefix('employee-leaves')->group(function () {
+    Route::get('/', [EmployeeLeaveController::class, 'index']);
+    Route::post('/', [EmployeeLeaveController::class, 'store']);
+    Route::get('/{employeeLeave}', [EmployeeLeaveController::class, 'show']);
+    Route::put('/{employeeLeave}', [EmployeeLeaveController::class, 'update']);
+    Route::delete('/{employeeLeave}', [EmployeeLeaveController::class, 'destroy']);
 });
 
 // Loan Routes
