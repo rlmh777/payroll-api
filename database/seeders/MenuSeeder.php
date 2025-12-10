@@ -36,14 +36,14 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($general->id, 'District', '/settings/general/district', 'fas fa-map-marker-alt', 'view-district', 2);
         $this->createSubMenu($general->id, 'Locality', '/settings/general/locality', 'fas fa-map-pin', 'view-locality', 3);
         $this->createSubMenu($general->id, 'Institution', '/settings/general/institution', 'fas fa-university', 'view-institution', 4);
-        $this->createSubMenu($general->id, 'Honorific', '/settings/general/honorific', 'fas fa-user-tie', 'view-honorific', 5);
+        // $this->createSubMenu($general->id, 'Honorific', '/settings/general/honorific', 'fas fa-user-tie', 'view-honorific', 5);
         $this->createSubMenu($general->id, 'Relationship', '/settings/general/relationship', 'fas fa-users', 'view-relationship', 6);
         $this->createSubMenu($general->id, 'Bank Account Type', '/settings/general/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7);
         $this->createSubMenu($general->id, 'Calendar', '/settings/general/calendar', 'fas fa-calendar-alt', 'view-calendar', 8);
         $this->createSubMenu($general->id, 'Calculation Mode', '/settings/general/calculation-mode', 'fas fa-calculator', 'view-calculation-mode', 9);
         $this->createSubMenu($general->id, 'Degree', '/settings/general/degree', 'fas fa-graduation-cap', 'view-degree', 10);
         $this->createSubMenu($general->id, 'Department', '/settings/general/department', 'fas fa-sitemap', 'view-department', 11);
-        $this->createSubMenu($general->id, 'Gender', '/settings/general/gender', 'fas fa-venus-mars', 'view-gender', 12);
+        // $this->createSubMenu($general->id, 'Gender', '/settings/general/gender', 'fas fa-venus-mars', 'view-gender', 12);
         $this->createSubMenu($general->id, 'Work Site', '/settings/general/worksite', 'fas fa-map', 'view-worksite', 13);
 
         // Create Payroll menu with submenus
