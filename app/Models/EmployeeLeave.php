@@ -20,6 +20,10 @@ class EmployeeLeave extends Model
         'leaveTypeId',
         'startDate',
         'endDate',
+        'fromTime',
+        'toTime',
+        'duration',
+        'totalDays',
         'notes',
         'multiplier'
     ];

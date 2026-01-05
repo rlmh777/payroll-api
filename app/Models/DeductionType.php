@@ -11,7 +11,9 @@ class DeductionType extends Model
     protected $primarykey = 'id';
 
     protected $fillable = [
-        'name'
+        'name',
+        'note',
+        'defaultAmount'
     ];
 
     public function deductions(): HasMany

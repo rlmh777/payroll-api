@@ -8,6 +8,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
 use App\Http\Controllers\ContactTypeController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AccountTypeController;
 use App\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
@@ -37,6 +38,7 @@ use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
+use App\Http\Controllers\PayrateFrequencyController;
 use App\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
 use App\Http\Controllers\MenuController;
@@ -46,6 +48,7 @@ use App\Http\Controllers\PayrollRunController;
 use App\Http\Controllers\PayrollContributionController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\JournalLineController;
+use App\Http\Controllers\VendorController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -70,9 +73,9 @@ Route::post('roles', [RoleController::class, 'store']);
 
 //Allowance
 Route::get('allowances', [AllowanceController::class, 'index']);
-Route::get('allowances/{allowance}', action: [AllowanceController::class, 'show']);
+Route::get('allowances/{allowance}', [AllowanceController::class, 'show']);
 Route::post('allowances', [AllowanceController::class, 'store']);
-Route::patch('allowances/{allowance}', [AllowanceController::class, 'update']);
+Route::put('allowances/{allowance}', [AllowanceController::class, 'update']);
 Route::delete('allowances/{allowance}', [AllowanceController::class, 'destroy']);
 //End Allowance
 
@@ -97,6 +100,15 @@ Route::prefix('accounts')->group(function () {
     Route::get('/{account}/sub-accounts', [AccountController::class, 'subAccounts']);
 });
 
+// Account Type Routes
+Route::prefix('account-types')->group(function () {
+    Route::get('/', [AccountTypeController::class, 'index']);
+    Route::post('/', [AccountTypeController::class, 'store']);
+    Route::get('/{accountType}', [AccountTypeController::class, 'show']);
+    Route::put('/{accountType}', [AccountTypeController::class, 'update']);
+    Route::delete('/{accountType}', [AccountTypeController::class, 'destroy']);
+});
+
 // Deduction Type Routes
 Route::prefix('deduction-types')->group(function () {
     Route::get('/', [DeductionTypeController::class, 'index']);
@@ -104,6 +116,15 @@ Route::prefix('deduction-types')->group(function () {
     Route::get('/{deductionType}', [DeductionTypeController::class, 'show']);
     Route::put('/{deductionType}', [DeductionTypeController::class, 'update']);
     Route::delete('/{deductionType}', [DeductionTypeController::class, 'destroy']);
+});
+
+// Payment To Routes
+Route::prefix('vendors')->group(function () {
+    Route::get('/', [VendorController::class, 'index']);
+    Route::post('/', [VendorController::class, 'store']);
+    Route::get('/{vendor}', [VendorController::class, 'show']);
+    Route::put('/{vendor}', [VendorController::class, 'update']);
+    Route::delete('/{vendor}', [VendorController::class, 'destroy']);
 });
 
 // Honorific Routes
@@ -312,6 +333,15 @@ Route::prefix('payment-methods')->group(function () {
     Route::get('/{paymentMethod}', [PaymentMethodController::class, 'show']);
     Route::put('/{paymentMethod}', [PaymentMethodController::class, 'update']);
     Route::delete('/{paymentMethod}', [PaymentMethodController::class, 'destroy']);
+});
+
+// Payrate Frequency Routes
+Route::prefix('payrate-frequencies')->group(function () {
+    Route::get('/', [PayrateFrequencyController::class, 'index']);
+    Route::post('/', [PayrateFrequencyController::class, 'store']);
+    Route::get('/{payrateFrequency}', [PayrateFrequencyController::class, 'show']);
+    Route::put('/{payrateFrequency}', [PayrateFrequencyController::class, 'update']);
+    Route::delete('/{payrateFrequency}', [PayrateFrequencyController::class, 'destroy']);
 });
 
 // Loan Type Routes

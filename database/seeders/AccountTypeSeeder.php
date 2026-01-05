@@ -13,11 +13,31 @@ class AccountTypeSeeder extends Seeder
     public function run(): void
     {
         $accountTypes = [
-            ['name' => 'ASSET'],
-            ['name' => 'LIABILITY'],
-            ['name' => 'EQUITY'],
-            ['name' => 'REVENUE'],
-            ['name' => 'EXPENSE'],
+            [
+                'name' => 'ASSET',
+                'normal_balance' => 'DEBIT',
+                'statement' => 'Balance Sheet',
+            ],
+            [
+                'name' => 'LIABILITY',
+                'normal_balance' => 'CREDIT',
+                'statement' => 'Balance Sheet',
+            ],
+            [
+                'name' => 'EQUITY',
+                'normal_balance' => 'CREDIT',
+                'statement' => 'Balance Sheet',
+            ],
+            [
+                'name' => 'REVENUE',
+                'normal_balance' => 'CREDIT',
+                'statement' => 'Income Statement',
+            ],
+            [
+                'name' => 'EXPENSE',
+                'normal_balance' => 'DEBIT',
+                'statement' => 'Income Statement',
+            ],
         ];
 
         foreach ($accountTypes as $accountType) {

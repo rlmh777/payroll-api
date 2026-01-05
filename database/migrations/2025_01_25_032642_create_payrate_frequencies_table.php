@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -23,6 +24,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('payrate_frequency');
+        // Use CASCADE to drop dependent foreign key constraints
+        if (Schema::hasTable('payrate_frequency')) {
+            DB::statement('DROP TABLE IF EXISTS payrate_frequency CASCADE');
+        }
     }
 };

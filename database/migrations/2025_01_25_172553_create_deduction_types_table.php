@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('deduction_type', function (Blueprint $table) {
             $table->id('id')->primary();
             $table->string('name', 64);
+            $table->decimal('defaultAmount', total: 12, places: 2)->nullable();
+            $table->string('note', 1024)->nullable();
             $table->timestamps();
         });
     }

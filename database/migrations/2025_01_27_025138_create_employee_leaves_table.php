@@ -23,6 +23,10 @@ return new class extends Migration
                     $table->foreignId('leaveTypeId')->constrained('leave_type')->onDelete('cascade');
                     $table->date('startDate');
                     $table->date('endDate');
+                    $table->time('fromTime');
+                    $table->time('toTime');
+                    $table->enum('duration', ['Full Day', 'All Days', 'Morning', 'Afternoon', 'Custom'])->default('Full Day');
+                    $table->float('totalDays');
                     $table->text('notes')->nullable();
                     $table->float('multiplier')->default(1);
                     $table->timestamps();

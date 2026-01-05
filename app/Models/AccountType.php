@@ -11,6 +11,8 @@ class AccountType extends Model
 
     protected $fillable = [
         'name',
+        'normal_balance',
+        'statement'
     ];
 
     /**
@@ -18,7 +20,7 @@ class AccountType extends Model
      */
     public function chartOfAccounts(): HasMany
     {
-        return $this->hasMany(Account::class, 'category_id');
+        return $this->hasMany(Account::class, 'account_type_id');
     }
 }
 

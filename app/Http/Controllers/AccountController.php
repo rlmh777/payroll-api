@@ -23,9 +23,9 @@ class AccountController extends Controller
             $query->subAccounts();
         }
         
-        // Filter by category_id (account type)
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
+        // Filter by account_type_id (account type)
+        if ($request->has('account_type_id')) {
+            $query->where('account_type_id', $request->input('account_type_id'));
         }
         
         // Optionally filter by parent_id to get root accounts or sub-accounts
@@ -60,7 +60,7 @@ class AccountController extends Controller
             'code1' => ['nullable', 'string', 'max:255'],
             'code2' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'uuid', 'exists:accounts,id'],
-            'category_id' => ['nullable', 'integer', 'exists:account_types,id'],
+            'account_type_id' => ['nullable', 'integer', 'exists:account_types,id'],
         ]);
 
         if ($validator->fails()) {
@@ -108,7 +108,7 @@ class AccountController extends Controller
             'code1' => ['nullable', 'string', 'max:255'],
             'code2' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'uuid', 'exists:accounts,id'],
-            'category_id' => ['nullable', 'integer', 'exists:account_types,id'],
+            'account_type_id' => ['nullable', 'integer', 'exists:account_types,id'],
         ]);
 
         if ($validator->fails()) {

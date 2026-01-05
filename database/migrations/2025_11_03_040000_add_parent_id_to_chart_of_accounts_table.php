@@ -11,10 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('accounts', function (Blueprint $table) {
-            $table->uuid('parent_id')->nullable()->after('category_id');
-            $table->foreign('parent_id')->references('id')->on('accounts')->onDelete('cascade');
-        });
+        // Check if parent_id column already exists (it may have been created in the original migration)
+        if (!Schema::hasColumn('accounts', 'parent_id')) {
+            Schema::table('accounts', function (Blueprint $table) {
+                $table->uuid('parent_id')->nullable()->after('account_type_id');
+            });
+        }
+
+        // Add foreign key constraint if it doesn't already exist
+        try {
+            Schema::table('accounts', function (Blueprint $table) {
+                $table->foreign('parent_id')->references('id')->on('accounts')->onDelete('cascade');
+            });
+        } catch (\Exception $e) {
+            // Foreign key constraint might already exist, continue
+        }
     }
 
     /**

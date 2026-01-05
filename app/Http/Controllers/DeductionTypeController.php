@@ -22,16 +22,6 @@ class DeductionTypeController extends Controller
             $query->where('name', 'ilike', "%{$search}%");
         }
 
-        // Filter by isTaxable
-        if ($request->has('isTaxable')) {
-            $query->where('isTaxable', $request->boolean('isTaxable'));
-        }
-
-        // Filter by isSocialSecurityDeductable
-        if ($request->has('isSocialSecurityDeductable')) {
-            $query->where('isSocialSecurityDeductable', $request->boolean('isSocialSecurityDeductable'));
-        }
-
         // Filter by defaultAmount range
         if ($request->has('min_amount')) {
             $query->where('defaultAmount', '>=', $request->min_amount);
@@ -44,7 +34,7 @@ class DeductionTypeController extends Controller
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
         
-        if (in_array($sortField, ['name', 'isTaxable', 'isSocialSecurityDeductable', 'defaultAmount'])) {
+        if (in_array($sortField, ['name', 'defaultAmount'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
             $query->orderBy('name', 'asc');
@@ -65,8 +55,6 @@ class DeductionTypeController extends Controller
         try {
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
-                'isTaxable' => 'nullable|boolean',
-                'isSocialSecurityDeductable' => 'nullable|boolean',
                 'note' => 'nullable|string|max:1024',
                 'defaultAmount' => 'required|numeric|min:0|max:9999999999.99',
             ]);
@@ -96,7 +84,7 @@ class DeductionTypeController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $deductionType
@@ -105,8 +93,6 @@ class DeductionTypeController extends Controller
 
             $validatedData = $request->validate([
                 'name' => 'sometimes|string|max:255',
-                'isTaxable' => 'sometimes|nullable|boolean',
-                'isSocialSecurityDeductable' => 'sometimes|nullable|boolean',
                 'note' => 'sometimes|nullable|string|max:1024',
                 'defaultAmount' => 'sometimes|numeric|min:0|max:9999999999.99',
             ]);

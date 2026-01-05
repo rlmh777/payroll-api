@@ -23,7 +23,7 @@ class Account extends Model
         'code2',
         'balance',
         'parent_id',
-        'category_id'
+        'account_type_id'
     ];
 
     public function deductions(): HasMany {
@@ -51,7 +51,7 @@ class Account extends Model
     }
 
     public function accountType(): BelongsTo {
-        return $this->belongsTo(AccountType::class, 'category_id');
+        return $this->belongsTo(AccountType::class, 'account_type_id');
     }
 
     public function parent(): BelongsTo {

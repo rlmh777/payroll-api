@@ -63,7 +63,7 @@ class EmployeeDefaultAllowanceController extends Controller
             'allowanceId' => 'required|uuid|exists:allowance,id',
             'frequencyId' => 'required|exists:payrate_frequency,id',
             'accountId' => 'required|uuid|exists:accounts,id',
-            'note' => 'required|string|max:1024',
+            'note' => 'nullable|string|max:1024',
             'amount' => 'required|numeric|min:0|max:999999999999.99'
         ]);
 
@@ -101,7 +101,7 @@ class EmployeeDefaultAllowanceController extends Controller
             'allowanceId' => 'uuid|exists:allowance,id',
             'frequencyId' => 'exists:payrate_frequency,id',
             'accountId' => 'uuid|exists:accounts,id',
-            'note' => 'string|max:1024',
+            'note' => 'nullable|string|max:1024',
             'amount' => 'numeric|min:0|max:999999999999.99'
         ]);
 

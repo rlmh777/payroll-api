@@ -23,7 +23,7 @@ class HistoricalEmployeeDeductionController extends Controller
             $query->where('employeeId', $request->input('employeeId'));
         }
 
-        // Filter by payment to vendor
+        // Filter by payment to
         if ($request->has('paymentToId')) {
             $query->where('paymentToId', $request->input('paymentToId'));
         }

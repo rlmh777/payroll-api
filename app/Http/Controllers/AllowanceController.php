@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Allowance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class AllowanceController extends Controller
@@ -63,6 +64,13 @@ class AllowanceController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
+            // Convert empty string to null for note before validation
+            $requestData = $request->all();
+            if (isset($requestData['note']) && $requestData['note'] === '') {
+                $requestData['note'] = null;
+                $request->merge($requestData);
+            }
+
             $validatedData = $request->validate([
                 'name' => 'required|string|max:255',
                 'isTaxable' => 'nullable|boolean',
@@ -96,11 +104,18 @@ class AllowanceController extends Controller
     {
         try {
             // If request is empty, return early with current data
-            if ($request->isEmpty()) {
+            if (empty($request->all())) {
                 return response()->json([
                     'message' => 'No data provided for update',
                     'data' => $allowance
                 ], 200);
+            }
+
+            // Convert empty string to null for note before validation
+            $requestData = $request->all();
+            if (isset($requestData['note']) && $requestData['note'] === '') {
+                $requestData['note'] = null;
+                $request->merge($requestData);
             }
 
             $validatedData = $request->validate([
