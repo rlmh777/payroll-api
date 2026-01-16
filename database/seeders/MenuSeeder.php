@@ -27,7 +27,7 @@ class MenuSeeder extends Seeder
         $organization = $this->createSubMenu($settings->id, 'Organization', '/settings/organization', 'fas fa-building', 'view-organization', 1);
         $general = $this->createSubMenu($settings->id, 'General', '/settings/general', 'fas fa-sliders-h', 'view-general', 2);
         $calendars = $this->createSubMenu($settings->id, 'Calendars', '/settings/calendars', 'fas fa-calendar', 'view-calendars', 3);
-        $holidays = $this->createSubMenu($settings->id, 'Holidays', '/settings/holidays', 'fas fa-calendar-times', 'view-holidays', 4);
+        //$holidays = $this->createSubMenu($settings->id, title: 'Holidays', '/settings/holidays', 'fas fa-calendar-times', 'view-holidays', 4);
         $rolesAndMenus = $this->createSubMenu($settings->id, 'Roles and Menus', '/settings/roles-menus', 'fas fa-users-cog', 'view-roles-menus', 5);
         $payItems = $this->createSubMenu($settings->id, 'Pay Items', '/settings/pay-items', 'fas fa-money-bill-wave', 'view-pay-items', 6);
 
@@ -110,7 +110,7 @@ class MenuSeeder extends Seeder
             'view-organization',
             'view-general',
             'view-calendars',
-            'view-holidays',
+            //'view-holidays',
             'view-roles-menus',
             'view-pay-items',
 
