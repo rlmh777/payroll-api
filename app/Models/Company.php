@@ -29,6 +29,10 @@ class Company extends Model
         'localityId'
     ];
 
+    protected $hidden = [
+        'socialSecurityNumber',
+    ];
+
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Locality::class);

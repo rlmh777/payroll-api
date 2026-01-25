@@ -49,6 +49,7 @@ use App\Http\Controllers\PayrollContributionController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\JournalLineController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\CompanyController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -488,3 +489,14 @@ Route::prefix('journal-lines')->group(function () {
     Route::put('/{journalLine}', [JournalLineController::class, 'update']);
     Route::delete('/{journalLine}', [JournalLineController::class, 'destroy']);
 });
+
+
+// Company Routes
+Route::prefix('company')->group(function () {
+    Route::get('/', [CompanyController::class, 'index']);
+    Route::post('/', [CompanyController::class, 'store']);
+    Route::get('/{company}', [CompanyController::class, 'show']);
+    Route::put('/{company}', [CompanyController::class, 'update']);
+    Route::delete('/{company}', [CompanyController::class, 'destroy']);
+});
+
