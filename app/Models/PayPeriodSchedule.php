@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class PayPeriod extends Model
+class PayPeriodSchedule extends Model
 {
     use HasFactory;
 
@@ -14,7 +14,7 @@ class PayPeriod extends Model
 
     protected $keyType = 'string';
 
-    protected $table = 'pay_periods';
+    protected $table = 'pay_period_schedule';
 
     protected $fillable = [
         'id',

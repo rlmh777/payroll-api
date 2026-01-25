@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PayPeriod;
+use App\Models\PayPeriodSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -10,7 +10,7 @@ class PayPeriodController extends Controller
 {
     public function index()
     {
-        return response()->json(PayPeriod::query()->latest('start_date')->paginate());
+        return response()->json(PayPeriodSchedule::query()->latest('start_date')->paginate());
     }
 
     public function store(Request $request)
@@ -22,17 +22,17 @@ class PayPeriodController extends Controller
             'pay_date' => ['required','date','after_or_equal:end_date'],
         ]);
 
-        $payPeriod = PayPeriod::create($data);
+        $payPeriodSchedule = PayPeriodSchedule::create($data);
 
-        return response()->json($payPeriod, Response::HTTP_CREATED);
+        return response()->json($payPeriodSchedule, Response::HTTP_CREATED);
     }
 
-    public function show(PayPeriod $payPeriod)
+    public function show(PayPeriodSchedule $payPeriodSchedule)
     {
-        return response()->json($payPeriod);
+        return response()->json($payPeriodSchedule);
     }
 
-    public function update(Request $request, PayPeriod $payPeriod)
+    public function update(Request $request, PayPeriodSchedule $payPeriodSchedule)
     {
         $data = $request->validate([
             'start_date' => ['sometimes','required','date'],
@@ -40,14 +40,14 @@ class PayPeriodController extends Controller
             'pay_date' => ['sometimes','required','date','after_or_equal:end_date'],
         ]);
 
-        $payPeriod->update($data);
+        $payPeriodSchedule->update($data);
 
-        return response()->json($payPeriod);
+        return response()->json($payPeriodSchedule);
     }
 
-    public function destroy(PayPeriod $payPeriod)
+    public function destroy(PayPeriodSchedule $payPeriodSchedule)
     {
-        $payPeriod->delete();
+        $payPeriodSchedule->delete();
         return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }

@@ -18,7 +18,7 @@ class PayrollRun extends Model
 
     protected $fillable = [
         'id',
-        'pay_period_id',
+        'pay_period_schedule_id',
         'status',
     ];
 
@@ -33,9 +33,9 @@ class PayrollRun extends Model
         });
     }
 
-    public function payPeriod()
+    public function payPeriodSchedule()
     {
-        return $this->belongsTo(PayPeriod::class, 'pay_period_id');
+        return $this->belongsTo(PayPeriodSchedule::class, 'pay_period_schedule_id');
     }
 }
 

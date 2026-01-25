@@ -16,6 +16,7 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $query = Employee::with([
+            'user',
             'locality',
             'honorific',
             'gender',
@@ -108,6 +109,7 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|uuid|exists:users,id|unique:employee,user_id',
             'code' => 'required|string|max:64|unique:employee,code',
             'internalId1' => 'nullable|string|max:64',
             'internalId2' => 'nullable|string|max:64',
@@ -146,6 +148,7 @@ class EmployeeController extends Controller
         return response()->json([
             'message' => 'Employee created successfully',
             'data' => $employee->load([
+                'user',
                 'locality',
                 'honorific',
                 'gender',
@@ -161,6 +164,7 @@ class EmployeeController extends Controller
     public function show(Employee $employee)
     {
         return response()->json($employee->load([
+            'user',
             'locality',
             'honorific',
             'gender',
@@ -185,6 +189,7 @@ class EmployeeController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|uuid|exists:users,id|unique:employee,user_id,' . $employee->id,
             'code' => 'string|max:64|unique:employee,code,' . $employee->id,
             'internalId1' => 'nullable|string|max:64',
             'internalId2' => 'nullable|string|max:64',
@@ -223,6 +228,7 @@ class EmployeeController extends Controller
         return response()->json([
             'message' => 'Employee updated successfully',
             'data' => $employee->load([
+                'user',
                 'locality',
                 'honorific',
                 'gender',

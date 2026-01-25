@@ -48,6 +48,8 @@ use App\Http\Controllers\PayrollRunController;
 use App\Http\Controllers\PayrollContributionController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\JournalLineController;
+use App\Http\Controllers\SocialSecurityController;
+use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
 
 Route::get('/user', function (Request $request) {
@@ -68,6 +70,24 @@ Route::get('banks/{id}', [BankController::class, 'show']);
 Route::post('banks', [BankController::class, 'store']);
 Route::put('banks/{id}', [BankController::class, 'update']);
 Route::delete('banks/{id}', [BankController::class, 'delete']);
+
+// Social Security Routes
+Route::prefix('social-security')->group(function () {
+    Route::get('/', [SocialSecurityController::class, 'index']);
+    Route::post('/', [SocialSecurityController::class, 'store']);
+    Route::get('/{id}', [SocialSecurityController::class, 'show']);
+    Route::put('/{id}', [SocialSecurityController::class, 'update']);
+    Route::delete('/{id}', [SocialSecurityController::class, 'destroy']);
+});
+
+// Personal Relief Routes
+Route::prefix('personal-relief')->group(function () {
+    Route::get('/', [PersonalReliefController::class, 'index']);
+    Route::post('/', [PersonalReliefController::class, 'store']);
+    Route::get('/{id}', [PersonalReliefController::class, 'show']);
+    Route::put('/{id}', [PersonalReliefController::class, 'update']);
+    Route::delete('/{id}', [PersonalReliefController::class, 'destroy']);
+});
 
 Route::post('roles', [RoleController::class, 'store']);
 
@@ -435,6 +455,14 @@ Route::prefix('users')->group(function () {
     Route::put('/{user}', [UserController::class, 'update']);
     Route::delete('/{user}', [UserController::class, 'destroy']);
 
+    // User password management
+    Route::put('/{user}/password', [UserController::class, 'updatePassword']);
+    Route::post('/{user}/send-password-reset', [UserController::class, 'sendPasswordResetEmail']);
+    Route::post('/reset-password', [UserController::class, 'resetPassword']);
+    
+    // User employee linking
+    Route::put('/{user}/employee', [UserController::class, 'linkEmployee']);
+
     // User role management
     Route::post('/{user}/roles', [UserController::class, 'assignRoles']);
     Route::put('/{user}/roles', [UserController::class, 'addRoles']);
@@ -445,12 +473,12 @@ Route::prefix('users')->group(function () {
 });
 
 // Pay Period Routes
-Route::prefix('pay-periods')->group(function () {
+Route::prefix('pay-period-schedules')->group(function () {
     Route::get('/', [PayPeriodController::class, 'index']);
     Route::post('/', [PayPeriodController::class, 'store']);
-    Route::get('/{payPeriod}', [PayPeriodController::class, 'show']);
-    Route::put('/{payPeriod}', [PayPeriodController::class, 'update']);
-    Route::delete('/{payPeriod}', [PayPeriodController::class, 'destroy']);
+    Route::get('/{payPeriodSchedule}', [PayPeriodController::class, 'show']);
+    Route::put('/{payPeriodSchedule}', [PayPeriodController::class, 'update']);
+    Route::delete('/{payPeriodSchedule}', [PayPeriodController::class, 'destroy']);
 });
 
 // Payroll Run Routes

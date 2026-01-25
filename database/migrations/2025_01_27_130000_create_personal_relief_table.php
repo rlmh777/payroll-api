@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pay_period_schedule', function (Blueprint $table) {
+        Schema::create('personal_relief', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->date('start_date');
-            $table->date('end_date');
-            $table->date('pay_date');
+            $table->decimal('startRange', 10, 2);
+            $table->decimal('endRange', 10, 2);
+            $table->decimal('personalRelief', 10, 2);
             $table->timestamps();
-
-            $table->index(['start_date', 'end_date']);
         });
     }
 
@@ -27,7 +25,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('pay_period_schedule');
+        Schema::dropIfExists('personal_relief');
     }
 };
 

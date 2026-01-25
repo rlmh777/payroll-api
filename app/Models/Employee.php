@@ -23,6 +23,7 @@ class Employee extends Model implements CipherSweetEncrypted
     public $incrementing = false;
 
     protected $fillable = [
+        'user_id',
         'code',
         'internalId1',
         'internalId2',
@@ -50,6 +51,11 @@ class Employee extends Model implements CipherSweetEncrypted
         'unionMembership'
     ];
 
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     public function locality(): BelongsTo
     {
