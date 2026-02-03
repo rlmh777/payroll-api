@@ -51,6 +51,7 @@ use App\Http\Controllers\JournalLineController;
 use App\Http\Controllers\SocialSecurityController;
 use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\CalendarController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -90,6 +91,15 @@ Route::prefix('personal-relief')->group(function () {
 });
 
 Route::post('roles', [RoleController::class, 'store']);
+
+// Calendar Routes
+Route::prefix('calendars')->group(function () {
+    Route::get('/', [CalendarController::class, 'index']);
+    Route::post('/', [CalendarController::class, 'store']);
+    Route::get('/{calendar}', [CalendarController::class, 'show']);
+    Route::put('/{calendar}', [CalendarController::class, 'update']);
+    Route::delete('/{calendar}', [CalendarController::class, 'destroy']);
+});
 
 //Allowance
 Route::get('allowances', [AllowanceController::class, 'index']);

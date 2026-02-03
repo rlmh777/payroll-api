@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             RelationshipSeeder::class,
             MenuSeeder::class,
             AccountTypeSeeder::class,
+            BelizePublicHolidays2026Seeder::class,
         ]);
     }
 }

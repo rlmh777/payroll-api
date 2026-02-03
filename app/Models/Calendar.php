@@ -15,7 +15,14 @@ class Calendar extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'date',
+        'type',
         'description',
         'multiplier',
+    ];
+
+    protected $casts = [
+        'date' => 'date:Y-m-d',
+        'multiplier' => 'decimal:2',
     ];
 }
