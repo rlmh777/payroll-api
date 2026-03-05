@@ -4,26 +4,32 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Calendar extends Model
+class Timesheet extends Model
 {
     use HasUuids;
 
-    protected $table = 'calendar';
+    protected $table = 'timesheet';
     protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
     protected $fillable = [
+        'employeeId',
         'calendar_group_id',
         'date',
-        'type',
-        'description',
-        'rate',
+        'hoursWorked',
+        'approvalStatus',
     ];
 
     protected $casts = [
         'date' => 'date:Y-m-d',
-        'rate' => 'decimal:2',
+        'hoursWorked' => 'decimal:2',
     ];
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Calendar;
+use App\Models\CalendarGroup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -29,10 +30,14 @@ class CalendarController extends Controller
             $query->where('description', 'ilike', "%{$search}%");
         }
 
+        if ($request->filled('calendar_group_id')) {
+            $query->where('calendar_group_id', $request->string('calendar_group_id'));
+        }
+
         $sortField = $request->get('sort_by', 'date');
         $sortDirection = $request->get('sort_direction', 'asc');
 
-        if (in_array($sortField, ['date', 'description', 'multiplier'])) {
+        if (in_array($sortField, ['date', 'description', 'rate'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
             $query->orderBy('date', 'asc');
@@ -52,16 +57,20 @@ class CalendarController extends Controller
         try {
             $validatedData = $request->validate([
                 'date' => 'required|date',
-                'type' => 'nullable|string|in:holiday,vacation,sick,other',
+                'calendar_group_id' => 'nullable|uuid|exists:calendar_groups,id',
+                'type' => 'nullable|string|in:holiday,vacation,sick,other,timesheet,schedule',
                 'description' => 'required|string|max:1024',
-                'multiplier' => 'nullable|numeric|min:0|max:9.99',
+                'rate' => 'nullable|numeric|min:0|max:9.99',
             ]);
+
+            $defaultGroup = CalendarGroup::where('key', 'general')->first();
 
             $calendar = Calendar::create([
                 'date' => $validatedData['date'],
+                'calendar_group_id' => $validatedData['calendar_group_id'] ?? $defaultGroup?->id,
                 'type' => $validatedData['type'] ?? 'other',
                 'description' => $validatedData['description'],
-                'multiplier' => $validatedData['multiplier'] ?? 1,
+                'rate' => $validatedData['rate'] ?? 1,
             ]);
 
             return response()->json([
@@ -96,9 +105,10 @@ class CalendarController extends Controller
 
             $validatedData = $request->validate([
                 'date' => 'sometimes|date',
-                'type' => 'sometimes|string|in:holiday,vacation,sick,other',
+                'calendar_group_id' => 'sometimes|uuid|exists:calendar_groups,id',
+                'type' => 'sometimes|string|in:holiday,vacation,sick,other,timesheet,schedule',
                 'description' => 'sometimes|string|max:1024',
-                'multiplier' => 'sometimes|numeric|min:0|max:9.99',
+                'rate' => 'sometimes|numeric|min:0|max:9.99',
             ]);
 
             $calendar->update($validatedData);

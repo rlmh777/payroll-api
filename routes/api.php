@@ -52,6 +52,8 @@ use App\Http\Controllers\SocialSecurityController;
 use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\CalendarGroupController;
+use App\Http\Controllers\CalendarEventController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -71,6 +73,10 @@ Route::get('banks/{id}', [BankController::class, 'show']);
 Route::post('banks', [BankController::class, 'store']);
 Route::put('banks/{id}', [BankController::class, 'update']);
 Route::delete('banks/{id}', [BankController::class, 'delete']);
+
+// Employee calendar helpers
+Route::get('employees/by-user/{userId}', [EmployeeController::class, 'byUser']);
+Route::get('employees/{employeeId}/subordinates', [EmployeeController::class, 'subordinates']);
 
 // Social Security Routes
 Route::prefix('social-security')->group(function () {
@@ -92,6 +98,11 @@ Route::prefix('personal-relief')->group(function () {
 
 Route::post('roles', [RoleController::class, 'store']);
 
+// Calendar Group Routes
+Route::prefix('calendar-groups')->group(function () {
+    Route::get('/', [CalendarGroupController::class, 'index']);
+});
+
 // Calendar Routes
 Route::prefix('calendars')->group(function () {
     Route::get('/', [CalendarController::class, 'index']);
@@ -99,6 +110,17 @@ Route::prefix('calendars')->group(function () {
     Route::get('/{calendar}', [CalendarController::class, 'show']);
     Route::put('/{calendar}', [CalendarController::class, 'update']);
     Route::delete('/{calendar}', [CalendarController::class, 'destroy']);
+});
+
+// Calendar Events (merged calendar + timesheets)
+Route::prefix('calendar-events')->group(function () {
+    Route::get('/', [CalendarEventController::class, 'index']);
+});
+
+// Calendar Approvals (pending timesheets)
+Route::prefix('calendar-approvals')->group(function () {
+    Route::get('/', [CalendarEventController::class, 'approvals']);
+    Route::patch('/{type}/{id}', [CalendarEventController::class, 'updateApproval']);
 });
 
 //Allowance

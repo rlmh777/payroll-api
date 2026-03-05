@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+//Employee Department and Hierarchy - Employee Department Assignment - Employee Department Transfer - Employee Department History
+// start date, end date, current department, previous department, transfer reason, transfer approval status, transfer approval date, transfer approver, transfer notes
+// Link to Employee model via employment details - Employee and Supervisor Relationship - 
 class Department extends Model
 {
     protected $table = 'department';

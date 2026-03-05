@@ -11,6 +11,37 @@ use Illuminate\Support\Facades\Validator;
 class EmployeeController extends Controller
 {
     /**
+     * Display employee record for a user.
+     */
+    public function byUser(string $userId)
+    {
+        $employee = Employee::query()
+            ->with(['employmentDetails.department'])
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        return response()->json($employee);
+    }
+
+    /**
+     * Display employees that report to a supervisor or lead.
+     */
+    public function subordinates(string $employeeId)
+    {
+        $employees = Employee::query()
+            ->with(['employmentDetails.department'])
+            ->where('supervisorId', $employeeId)
+            ->orWhere('leadId', $employeeId)
+            ->orderBy('lastName', 'asc')
+            ->get();
+
+        return response()->json($employees);
+    }
+    /**
      * Display a listing of employees.
      */
     public function index(Request $request)

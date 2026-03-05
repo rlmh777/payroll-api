@@ -5,25 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
-class Calendar extends Model
+class CalendarGroup extends Model
 {
     use HasUuids;
 
-    protected $table = 'calendar';
+    protected $table = 'calendar_groups';
     protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
     protected $fillable = [
-        'calendar_group_id',
-        'date',
-        'type',
-        'description',
-        'rate',
-    ];
-
-    protected $casts = [
-        'date' => 'date:Y-m-d',
-        'rate' => 'decimal:2',
+        'key',
+        'name',
+        'color',
     ];
 }

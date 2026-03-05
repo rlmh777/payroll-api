@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Calendar;
+use App\Models\CalendarGroup;
 use Illuminate\Database\Seeder;
 
 class BelizePublicHolidays2026Seeder extends Seeder
@@ -29,10 +30,16 @@ class BelizePublicHolidays2026Seeder extends Seeder
             ['date' => '2026-12-26', 'description' => 'Boxing Day'],
         ];
 
+        $holidayGroup = CalendarGroup::where('key', 'holidays')->first();
+
         foreach ($holidays as $holiday) {
             Calendar::updateOrCreate(
                 ['date' => $holiday['date'], 'description' => $holiday['description']],
-                ['type' => 'holiday', 'multiplier' => 1],
+                [
+                    'type' => 'holiday',
+                    'rate' => 1,
+                    'calendar_group_id' => $holidayGroup?->id,
+                ],
             );
         }
     }

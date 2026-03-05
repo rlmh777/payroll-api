@@ -2,29 +2,22 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
+use App\Models\Employee;
 use App\Models\Role;
+use App\Models\User;
 use App\Models\UserRole;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-class UserRoleSeeder extends Seeder
+class SupervisorUserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        $adminUser = User::firstOrCreate(
-            ['email' => 'johndoe@gmail.com'],
-            [
-                'name' => 'John Doe',
-                'password' => Hash::make('Password123!'),
-            ]
-        );
-
-        $supervisorUser = User::firstOrCreate(
+        $supervisorUser = User::updateOrCreate(
             ['email' => 'supervisor@example.com'],
             [
                 'name' => 'Supervisor User',
@@ -32,7 +25,7 @@ class UserRoleSeeder extends Seeder
             ]
         );
 
-        $employeeUser = User::firstOrCreate(
+        $employeeUser = User::updateOrCreate(
             ['email' => 'employee@example.com'],
             [
                 'name' => 'Employee User',
@@ -40,31 +33,15 @@ class UserRoleSeeder extends Seeder
             ]
         );
 
-        $adminRole = Role::firstOrCreate(['name' => 'super-admin']);
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor']);
         $employeeRole = Role::firstOrCreate(['name' => 'employee']);
 
-        // Assign via Spatie for permission resolution
-        if (!$adminUser->hasRole($adminRole->name)) {
-            $adminUser->assignRole($adminRole->name);
-        }
         if (!$supervisorUser->hasRole($supervisorRole->name)) {
             $supervisorUser->assignRole($supervisorRole->name);
         }
         if (!$employeeUser->hasRole($employeeRole->name)) {
             $employeeUser->assignRole($employeeRole->name);
         }
-
-        // Ensure explicit pivot row exists in user_roles
-        UserRole::firstOrCreate(
-            [
-                'user_id' => $adminUser->id,
-                'role_id' => $adminRole->id,
-            ],
-            [
-                'id' => (string) Str::uuid(),
-            ]
-        );
 
         UserRole::firstOrCreate(
             [
@@ -85,6 +62,29 @@ class UserRoleSeeder extends Seeder
                 'id' => (string) Str::uuid(),
             ]
         );
+
+        $supervisorEmployee = Employee::query()->first();
+        if ($supervisorEmployee) {
+            $supervisorEmployee->update([
+                'user_id' => $supervisorUser->id,
+            ]);
+        }
+
+        $employeeRecord = Employee::query()->skip(1)->first();
+        if ($employeeRecord) {
+            $employeeRecord->update([
+                'user_id' => $employeeUser->id,
+                'supervisorId' => $supervisorEmployee?->id,
+                'leadId' => $supervisorEmployee?->id,
+            ]);
+        }
+
+        Employee::query()
+            ->skip(2)
+            ->take(5)
+            ->update([
+                'supervisorId' => $supervisorEmployee?->id,
+                'leadId' => $supervisorEmployee?->id,
+            ]);
     }
 }
-
