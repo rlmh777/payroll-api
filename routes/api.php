@@ -35,7 +35,6 @@ use App\Http\Controllers\LoanTypeController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\HistoricalEmployeeDeductionController;
 use App\Http\Controllers\LeaveTypeController;
-use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\PayrateFrequencyController;
@@ -54,6 +53,11 @@ use App\Http\Controllers\VendorController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CalendarGroupController;
 use App\Http\Controllers\CalendarEventController;
+use App\Http\Controllers\ScheduleEmployeeTimesheetController;
+use App\Http\Controllers\WorkTimesheetController;
+use App\Http\Controllers\WorkTimesheetDepartmentController;
+use App\Http\Controllers\EmployeeLeaveController;
+use App\Http\Controllers\EmployeeReportingController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -98,6 +102,11 @@ Route::prefix('personal-relief')->group(function () {
 
 Route::post('roles', [RoleController::class, 'store']);
 
+// Employee reporting relationships
+Route::get('employee-reporting', [EmployeeReportingController::class, 'index']);
+Route::post('employee-reporting', [EmployeeReportingController::class, 'store']);
+Route::delete('employee-reporting/{employeeReporting}', [EmployeeReportingController::class, 'destroy']);
+
 // Calendar Group Routes
 Route::prefix('calendar-groups')->group(function () {
     Route::get('/', [CalendarGroupController::class, 'index']);
@@ -111,6 +120,17 @@ Route::prefix('calendars')->group(function () {
     Route::put('/{calendar}', [CalendarController::class, 'update']);
     Route::delete('/{calendar}', [CalendarController::class, 'destroy']);
 });
+
+// Schedule Employee Timesheets
+Route::post('schedule-employee-timesheets', [ScheduleEmployeeTimesheetController::class, 'store']);
+
+// Work Timesheets
+Route::get('work-timesheets', [WorkTimesheetController::class, 'index']);
+Route::post('work-timesheets', [WorkTimesheetController::class, 'store']);
+
+// Work Timesheet Departments
+Route::get('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'index']);
+Route::post('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'store']);
 
 // Calendar Events (merged calendar + timesheets)
 Route::prefix('calendar-events')->group(function () {
@@ -450,6 +470,7 @@ Route::prefix('employee-leaves')->group(function () {
     Route::get('/{employeeLeave}', [EmployeeLeaveController::class, 'show']);
     Route::put('/{employeeLeave}', [EmployeeLeaveController::class, 'update']);
     Route::delete('/{employeeLeave}', [EmployeeLeaveController::class, 'destroy']);
+    Route::patch('/{employeeLeave}/approve', [EmployeeLeaveController::class, 'approve']);
 });
 
 // Loan Routes
@@ -491,7 +512,7 @@ Route::prefix('users')->group(function () {
     Route::put('/{user}/password', [UserController::class, 'updatePassword']);
     Route::post('/{user}/send-password-reset', [UserController::class, 'sendPasswordResetEmail']);
     Route::post('/reset-password', [UserController::class, 'resetPassword']);
-    
+
     // User employee linking
     Route::put('/{user}/employee', [UserController::class, 'linkEmployee']);
 

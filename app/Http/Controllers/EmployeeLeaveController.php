@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmployeeLeave;
+use App\Models\Employee;
 use App\Helpers\EmployeeLeaveHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -10,6 +11,34 @@ use Carbon\Carbon;
 
 class EmployeeLeaveController extends Controller
 {
+    public function approve(Request $request, EmployeeLeave $employeeLeave)
+    {
+        $status = strtolower((string) $request->input('status', ''));
+        $allowed = ['approved', 'rejected'];
+
+        if (!$status || !in_array($status, $allowed, true)) {
+            return response()->json(['error' => 'status must be approved or rejected'], 422);
+        }
+
+        if ($employeeLeave->approvalStatus !== 'pending') {
+            return response()->json(['error' => 'Leave already processed'], 409);
+        }
+
+        $employeeLeave->approvalStatus = $status;
+        $employeeLeave->approvalDate = Carbon::now();
+
+        $approver = $request->user()
+            ? Employee::query()->where('user_id', $request->user()->id)->first()
+            : null;
+
+        if ($approver) {
+            $employeeLeave->approverId = $approver->id;
+        }
+
+        $employeeLeave->save();
+
+        return response()->json($employeeLeave->load(['employee', 'leaveType']));
+    }
     public function index(Request $request)
     {
         $query = EmployeeLeave::with(['employee', 'leaveType']);
@@ -327,4 +356,3 @@ class EmployeeLeaveController extends Controller
         return $overlappingLeaves;
     }
 }
-

@@ -6,6 +6,7 @@ use App\Models\Calendar;
 use App\Models\CalendarGroup;
 use App\Models\Employee;
 use App\Models\EmployeeLeave;
+use App\Models\EmployeeReporting;
 use App\Models\EmploymentDetail;
 use App\Models\ScheduleEmployeeTimesheet;
 use App\Models\Timesheet;
@@ -37,9 +38,16 @@ class CalendarEventController extends Controller
         }
 
         if ($request->filled('lead_id')) {
-            $leadEmployees = Employee::query()
-                ->where('leadId', $request->string('lead_id'))
-                ->pluck('id');
+            $leadEmployees = EmployeeReporting::query()
+                ->where('supervisor_id', $request->string('lead_id'))
+                ->where('is_active', true)
+                ->pluck('subordinate_id');
+
+            if ($leadEmployees->isEmpty()) {
+                $leadEmployees = Employee::query()
+                    ->where('leadId', $request->string('lead_id'))
+                    ->pluck('id');
+            }
 
             $employeeIds = $employeeIds->isNotEmpty()
                 ? $employeeIds->intersect($leadEmployees)
@@ -47,9 +55,16 @@ class CalendarEventController extends Controller
         }
 
         if ($request->filled('supervisor_id')) {
-            $supervisorEmployees = Employee::query()
-                ->where('supervisorId', $request->string('supervisor_id'))
-                ->pluck('id');
+            $supervisorEmployees = EmployeeReporting::query()
+                ->where('supervisor_id', $request->string('supervisor_id'))
+                ->where('is_active', true)
+                ->pluck('subordinate_id');
+
+            if ($supervisorEmployees->isEmpty()) {
+                $supervisorEmployees = Employee::query()
+                    ->where('supervisorId', $request->string('supervisor_id'))
+                    ->pluck('id');
+            }
 
             $employeeIds = $employeeIds->isNotEmpty()
                 ? $employeeIds->intersect($supervisorEmployees)

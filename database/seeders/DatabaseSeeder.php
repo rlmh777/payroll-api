@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
             RelationshipSeeder::class,
             MenuSeeder::class,
             AccountTypeSeeder::class,
+            DepartmentSeeder::class,
             CalendarGroupSeeder::class,
             BelizePublicHolidays2026Seeder::class,
             BirthdayCalendarSeeder::class,

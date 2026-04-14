@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Employee;
+use App\Models\EmployeeReporting;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
@@ -74,17 +75,28 @@ class SupervisorUserSeeder extends Seeder
         if ($employeeRecord) {
             $employeeRecord->update([
                 'user_id' => $employeeUser->id,
-                'supervisorId' => $supervisorEmployee?->id,
-                'leadId' => $supervisorEmployee?->id,
             ]);
         }
 
-        Employee::query()
-            ->skip(2)
-            ->take(5)
-            ->update([
-                'supervisorId' => $supervisorEmployee?->id,
-                'leadId' => $supervisorEmployee?->id,
-            ]);
+        if ($supervisorEmployee) {
+            $subordinates = Employee::query()
+                ->skip(1)
+                ->take(6)
+                ->pluck('id');
+
+            foreach ($subordinates as $subordinateId) {
+                EmployeeReporting::firstOrCreate(
+                    [
+                        'supervisor_id' => $supervisorEmployee->id,
+                        'subordinate_id' => $subordinateId,
+                        'reporting_method' => 'direct',
+                    ],
+                    [
+                        'id' => (string) Str::uuid(),
+                        'is_active' => true,
+                    ]
+                );
+            }
+        }
     }
 }

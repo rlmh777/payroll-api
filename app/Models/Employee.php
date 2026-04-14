@@ -119,6 +119,16 @@ class Employee extends Model implements CipherSweetEncrypted
         return $this->hasMany(EmploymentDetail::class, 'employeeId');
     }
 
+    public function reportingSupervisors(): HasMany
+    {
+        return $this->hasMany(EmployeeReporting::class, 'subordinate_id');
+    }
+
+    public function reportingSubordinates(): HasMany
+    {
+        return $this->hasMany(EmployeeReporting::class, 'supervisor_id');
+    }
+
     public function loans(): HasMany
     {
         return $this->hasMany(Loan::class, 'employeeId');

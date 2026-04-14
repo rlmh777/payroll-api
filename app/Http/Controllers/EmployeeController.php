@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\EmployeeReporting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -32,10 +33,19 @@ class EmployeeController extends Controller
      */
     public function subordinates(string $employeeId)
     {
+        $reportingIds = EmployeeReporting::query()
+            ->where('supervisor_id', $employeeId)
+            ->where('is_active', true)
+            ->pluck('subordinate_id');
+
         $employees = Employee::query()
             ->with(['employmentDetails.department'])
-            ->where('supervisorId', $employeeId)
-            ->orWhere('leadId', $employeeId)
+            ->when($reportingIds->isNotEmpty(), function ($query) use ($reportingIds) {
+                $query->whereIn('id', $reportingIds);
+            }, function ($query) use ($employeeId) {
+                $query->where('supervisorId', $employeeId)
+                    ->orWhere('leadId', $employeeId);
+            })
             ->orderBy('lastName', 'asc')
             ->get();
 
