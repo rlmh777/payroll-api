@@ -46,4 +46,31 @@ class WorkTimesheetController extends Controller
 
         return response()->json($timesheet, 201);
     }
+
+    /**
+     * Update an existing work timesheet.
+     */
+    public function update(Request $request, WorkTimesheet $workTimesheet): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i'],
+            'break_minutes' => ['nullable', 'integer', 'min:0', 'max:480'],
+            'days' => ['nullable', 'array'],
+            'days.*' => ['string'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $workTimesheet->update([
+            'name' => $validated['name'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
+            'break_minutes' => $validated['break_minutes'] ?? 0,
+            'days' => $validated['days'] ?? [],
+            'is_active' => $validated['is_active'] ?? $workTimesheet->is_active,
+        ]);
+
+        return response()->json($workTimesheet);
+    }
 }

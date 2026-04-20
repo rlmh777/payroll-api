@@ -127,6 +127,7 @@ Route::post('schedule-employee-timesheets', [ScheduleEmployeeTimesheetController
 // Work Timesheets
 Route::get('work-timesheets', [WorkTimesheetController::class, 'index']);
 Route::post('work-timesheets', [WorkTimesheetController::class, 'store']);
+Route::put('work-timesheets/{workTimesheet}', [WorkTimesheetController::class, 'update']);
 
 // Work Timesheet Departments
 Route::get('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'index']);
