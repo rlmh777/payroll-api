@@ -44,7 +44,7 @@ class MenuSeeder extends Seeder
         // $this->createSubMenu($general->id, 'Honorific', '/settings/general/honorific', 'fas fa-user-tie', 'view-honorific', 5);
         $this->createSubMenu($general->id, 'Relationship', '/settings/general/relationship', 'fas fa-users', 'view-relationship', 6);
         $this->createSubMenu($general->id, 'Bank Account Type', '/settings/general/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7);
-        $this->createSubMenu($general->id, 'Calendar', '/settings/general/calendar', 'fas fa-calendar-alt', 'view-calendar', 8);
+        $this->createSubMenu($general->id, 'Define Working Hour Timesheet', '/settings/general/working-hours-timesheet', 'fas fa-clock', 'view-working-hours-timesheet', 8);
         $this->createSubMenu($general->id, 'Calculation Mode', '/settings/general/calculation-mode', 'fas fa-calculator', 'view-calculation-mode', 9);
         $this->createSubMenu($general->id, 'Degree', '/settings/general/degree', 'fas fa-graduation-cap', 'view-degree', 10);
         $this->createSubMenu($general->id, 'Department', '/settings/general/department', 'fas fa-sitemap', 'view-department', 11);

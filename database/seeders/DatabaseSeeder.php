@@ -40,6 +40,7 @@ class DatabaseSeeder extends Seeder
             MenuSeeder::class,
             AccountTypeSeeder::class,
             DepartmentSeeder::class,
+            WorkTimesheetSeeder::class,
             CalendarGroupSeeder::class,
             BelizePublicHolidays2026Seeder::class,
             BirthdayCalendarSeeder::class,
