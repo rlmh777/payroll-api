@@ -29,6 +29,10 @@ class WorkTimesheet extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $hidden = [
+        'break_minutes',
+    ];
+
     public function departments(): HasMany
     {
         return $this->hasMany(WorkTimesheetDepartment::class, 'work_timesheet_id');
