@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\CalendarGroup;
 use App\Models\Employee;
 use App\Models\Timesheet;
 use Illuminate\Database\Seeder;
@@ -20,8 +19,6 @@ class TimesheetSeeder extends Seeder
             return;
         }
 
-        $timesheetGroup = CalendarGroup::where('key', 'timesheets')->first();
-
         foreach ($employees as $employee) {
             for ($i = 0; $i < 5; $i++) {
                 Timesheet::updateOrCreate(
@@ -31,9 +28,8 @@ class TimesheetSeeder extends Seeder
                     ],
                     [
                         'id' => Str::uuid(),
-                        'calendar_group_id' => $timesheetGroup?->id,
                         'hoursWorked' => 8,
-                        'approvalStatus' => $i % 2 === 0 ? 'pending' : 'approved',
+                        'approvalStatus' => $i % 2 === 0 ? 'PENDING' : 'APPROVED',
                     ]
                 );
             }

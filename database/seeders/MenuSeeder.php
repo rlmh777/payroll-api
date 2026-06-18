@@ -57,8 +57,10 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
         $this->createSubMenu($payroll->id, 'Leave', '/payroll/leave', 'fas fa-calendar-check', 'view-leave', 3);
         $this->createSubMenu($payroll->id, 'Timesheets', '/payroll/timesheets', 'fas fa-clock', 'view-timesheets', 4);
-        $this->createSubMenu($payroll->id, 'Pay Employees', '/payroll/pay-employees', 'fas fa-money-bill', 'view-pay-employees', 5);
-        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 6);
+        $this->createSubMenu($payroll->id, 'Clocking Logs', '/payroll/clocking-logs', 'fas fa-fingerprint', 'view-clocking-logs', 5);
+        $this->createSubMenu($payroll->id, 'Clocking Import', '/payroll/clocking-import', 'fas fa-file-import', 'import-clocking-logs', 6);
+        $this->createSubMenu($payroll->id, 'Pay Employees', '/payroll/pay-employees', 'fas fa-money-bill', 'view-pay-employees', 7);
+        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 8);
 
         // Create Roles and Menus submenus
         $this->createSubMenu($settings->id, 'Roles', '/settings/roles', 'fas fa-user-shield', 'view-roles', 1);
@@ -140,6 +142,8 @@ class MenuSeeder extends Seeder
             'employees-crud',
             'leave-crud',
             'timesheets-crud',
+            'view-clocking-logs',
+            'import-clocking-logs',
             'pay-employees-crud',
             'view-taxes',
 

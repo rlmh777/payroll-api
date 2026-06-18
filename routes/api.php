@@ -58,6 +58,8 @@ use App\Http\Controllers\WorkTimesheetController;
 use App\Http\Controllers\WorkTimesheetDepartmentController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\EmployeeReportingController;
+use App\Http\Controllers\Attendance\ClockingLogController;
+use App\Http\Controllers\Attendance\TimesheetController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -123,6 +125,22 @@ Route::prefix('calendars')->group(function () {
 
 // Schedule Employee Timesheets
 Route::post('schedule-employee-timesheets', [ScheduleEmployeeTimesheetController::class, 'store']);
+
+// Clocking logs (raw biometric events)
+Route::prefix('clocking-logs')->group(function () {
+    Route::get('/', [ClockingLogController::class, 'index']);
+    Route::post('/', [ClockingLogController::class, 'store']);
+    Route::post('/import', [ClockingLogController::class, 'import']);
+    Route::post('/process', [ClockingLogController::class, 'process']);
+});
+
+// Timesheets (processed attendance)
+Route::prefix('timesheets')->group(function () {
+    Route::get('/', [TimesheetController::class, 'index']);
+    Route::get('/employee-summary', [TimesheetController::class, 'employeeSummary']);
+    Route::patch('/approval/bulk', [TimesheetController::class, 'updateBulkApproval']);
+    Route::patch('/{timesheet}/approval', [TimesheetController::class, 'updateApproval']);
+});
 
 // Work Timesheets
 Route::get('work-timesheets', [WorkTimesheetController::class, 'index']);

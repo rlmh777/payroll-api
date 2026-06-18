@@ -136,8 +136,8 @@ class CalendarEventController extends Controller
             foreach ($timesheets as $timesheet) {
                 $employeeName = trim(sprintf('%s %s', $timesheet->employee?->firstName, $timesheet->employee?->lastName));
                 $description = trim(sprintf('Timesheet - %s', $employeeName));
-                $groupId = $timesheet->calendar_group_id ?? $timesheetGroup->id;
-                $group = $groupsById->get($groupId) ?? $timesheetGroup;
+                $groupId = $timesheetGroup->id;
+                $group = $timesheetGroup;
 
                 $events->push([
                     'id' => sprintf('timesheet-%s-%s', $timesheet->id, $timesheet->date->format('Y-m-d')),
@@ -296,7 +296,7 @@ class CalendarEventController extends Controller
         $timesheetQuery = Timesheet::query()
             ->with('employee')
             ->whereBetween('date', [$start, $end])
-            ->where('approvalStatus', 'pending');
+            ->whereRaw('LOWER("approvalStatus") = ?', ['pending']);
 
         if ($employeeIds->isNotEmpty()) {
             $timesheetQuery->whereIn('employeeId', $employeeIds);
@@ -306,7 +306,7 @@ class CalendarEventController extends Controller
         $scheduleQuery = ScheduleEmployeeTimesheet::query()
             ->with('employee')
             ->whereBetween('date', [$start, $end])
-            ->where('approvalStatus', 'pending');
+            ->whereRaw('LOWER("approvalStatus") = ?', ['pending']);
 
         if ($employeeIds->isNotEmpty()) {
             $scheduleQuery->whereIn('employeeId', $employeeIds);
@@ -318,7 +318,7 @@ class CalendarEventController extends Controller
             ->with(['employee', 'leaveType'])
             ->whereDate('startDate', '<=', $end)
             ->whereDate('endDate', '>=', $start)
-            ->where('approvalStatus', 'pending');
+            ->whereRaw('LOWER("approvalStatus") = ?', ['pending']);
 
         if ($employeeIds->isNotEmpty()) {
             $leaveQuery->whereIn('employeeId', $employeeIds);
@@ -404,13 +404,27 @@ class CalendarEventController extends Controller
             return response()->json(['error' => 'Approval item not found'], 404);
         }
 
-        if ($record->approvalStatus !== 'pending') {
+        if (strtolower((string) $record->approvalStatus) !== 'pending') {
             return response()->json(['error' => 'Approval item already processed'], 409);
         }
 
-        $record->approvalStatus = $status;
+        if ($record instanceof Timesheet) {
+            $record->approvalStatus = strtoupper($status);
+        } else {
+            $record->approvalStatus = $status;
+        }
 
-        if ($record instanceof ScheduleEmployeeTimesheet || $record instanceof EmployeeLeave) {
+        if ($record instanceof Timesheet) {
+            $record->approvedAt = Carbon::now();
+
+            $approver = $request->user()
+                ? Employee::query()->where('user_id', $request->user()->id)->first()
+                : null;
+
+            if ($approver) {
+                $record->approvedBy = $approver->id;
+            }
+        } elseif ($record instanceof ScheduleEmployeeTimesheet || $record instanceof EmployeeLeave) {
             $record->approvalDate = Carbon::now();
 
             $approver = $request->user()
