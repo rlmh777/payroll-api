@@ -24,6 +24,8 @@ class Employee extends Model implements CipherSweetEncrypted
 
     protected $fillable = [
         'user_id',
+        'leadId',
+        'supervisorId',
         'code',
         'internalId1',
         'internalId2',
@@ -117,6 +119,16 @@ class Employee extends Model implements CipherSweetEncrypted
         return $this->hasMany(EmploymentDetail::class, 'employeeId');
     }
 
+    public function reportingSupervisors(): HasMany
+    {
+        return $this->hasMany(EmployeeReporting::class, 'subordinate_id');
+    }
+
+    public function reportingSubordinates(): HasMany
+    {
+        return $this->hasMany(EmployeeReporting::class, 'supervisor_id');
+    }
+
     public function loans(): HasMany
     {
         return $this->hasMany(Loan::class, 'employeeId');
@@ -140,6 +152,16 @@ class Employee extends Model implements CipherSweetEncrypted
     public function leaves(): HasMany
     {
         return $this->hasMany(EmployeeLeave::class, 'employeeId');
+    }
+
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(Timesheet::class, 'employeeId');
+    }
+
+    public function departmentHistory(): HasMany
+    {
+        return $this->hasMany(EmployeeDepartmentHistory::class, 'employeeId');
     }
 
     public function historicalAllowances(): HasMany

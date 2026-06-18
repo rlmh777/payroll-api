@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('work_timesheet_department', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->foreignUuid('work_timesheet_id')->constrained('work_timesheet')->cascadeOnDelete();
+            $table->foreignId('department_id')->constrained('department')->cascadeOnDelete();
+            $table->date('effective_date');
+            $table->text('notes')->nullable();
+            $table->timestamps();
+
+            $table->index(['department_id', 'effective_date']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('work_timesheet_department');
+    }
+};

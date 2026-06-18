@@ -22,11 +22,13 @@ class MenuSeeder extends Seeder
         $this->createMenu('Accounts', '/accounts', 'fas fa-wallet', 'view-accounts', 2);
         $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'view-reports', 3);
         $settings = $this->createMenu('Settings', '/settings', 'fas fa-cog', 'view-settings', 4);
-        $this->createMenu('Employees', '/employees', 'fas fa-user-friends', 'view-employees', 5);
+        $this->createMenu('Calendars', '/calendars', 'fas fa-calendar', 'view-calendars', 5);
+        $this->createMenu('Employees', '/employees', 'fas fa-user-friends', 'view-employees', 6);
+        //$this->createMenu('Leaves', '/leaves', 'fas fa-calendar-check', 'view-leave', 8);
         // Create Settings submenus
         $this->createSubMenu($settings->id, 'Organization', '/settings/organization', 'fas fa-building', 'view-organization', 1);
         $general = $this->createSubMenu($settings->id, 'General', '/settings/general', 'fas fa-sliders-h', 'view-general', 2);
-        $this->createSubMenu($settings->id, 'Calendars', '/settings/calendars', 'fas fa-calendar', 'view-calendars', 5);
+        //$calendars = $this->createSubMenu($settings->id, 'Calendars', '/settings/calendars', 'fas fa-calendar', 'view-calendars', 5);
         $this->createSubMenu($settings->id, 'Social Security', '/settings/social-security', 'fa-solid fa-city', 'manager-social-security', 6);
         $this->createSubMenu($settings->id, 'Personal Relief', '/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7);
         $this->createSubMenu($settings->id, 'Users', '/settings/users', 'fa-solid fa-users', 'manager-users', 8);
@@ -42,20 +44,23 @@ class MenuSeeder extends Seeder
         // $this->createSubMenu($general->id, 'Honorific', '/settings/general/honorific', 'fas fa-user-tie', 'view-honorific', 5);
         $this->createSubMenu($general->id, 'Relationship', '/settings/general/relationship', 'fas fa-users', 'view-relationship', 6);
         $this->createSubMenu($general->id, 'Bank Account Type', '/settings/general/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7);
-        $this->createSubMenu($general->id, 'Calendar', '/settings/general/calendar', 'fas fa-calendar-alt', 'view-calendar', 8);
+        $this->createSubMenu($general->id, 'Define Working Hour Timesheet', '/settings/general/working-hours-timesheet', 'fas fa-clock', 'view-working-hours-timesheet', 8);
         $this->createSubMenu($general->id, 'Calculation Mode', '/settings/general/calculation-mode', 'fas fa-calculator', 'view-calculation-mode', 9);
         $this->createSubMenu($general->id, 'Degree', '/settings/general/degree', 'fas fa-graduation-cap', 'view-degree', 10);
         $this->createSubMenu($general->id, 'Department', '/settings/general/department', 'fas fa-sitemap', 'view-department', 11);
         // $this->createSubMenu($general->id, 'Gender', '/settings/general/gender', 'fas fa-venus-mars', 'view-gender', 12);
         $this->createSubMenu($general->id, 'Work Site', '/settings/general/worksite', 'fas fa-map', 'view-worksite', 13);
 
+
         // Create Payroll menu with submenus
-        $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 6);
+        $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 7);
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
         $this->createSubMenu($payroll->id, 'Leave', '/payroll/leave', 'fas fa-calendar-check', 'view-leave', 3);
         $this->createSubMenu($payroll->id, 'Timesheets', '/payroll/timesheets', 'fas fa-clock', 'view-timesheets', 4);
-        $this->createSubMenu($payroll->id, 'Pay Employees', '/payroll/pay-employees', 'fas fa-money-bill', 'view-pay-employees', 5);
-        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 6);
+        $this->createSubMenu($payroll->id, 'Clocking Logs', '/payroll/clocking-logs', 'fas fa-fingerprint', 'view-clocking-logs', 5);
+        $this->createSubMenu($payroll->id, 'Clocking Import', '/payroll/clocking-import', 'fas fa-file-import', 'import-clocking-logs', 6);
+        $this->createSubMenu($payroll->id, 'Pay Employees', '/payroll/pay-employees', 'fas fa-money-bill', 'view-pay-employees', 7);
+        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 8);
 
         // Create Roles and Menus submenus
         $this->createSubMenu($settings->id, 'Roles', '/settings/roles', 'fas fa-user-shield', 'view-roles', 1);
@@ -115,6 +120,7 @@ class MenuSeeder extends Seeder
             'view-holidays',
             'view-roles-menus',
             'view-pay-items',
+            'view-leave',
 
             // General settings CRUD permissions
             'country-crud',
@@ -136,6 +142,8 @@ class MenuSeeder extends Seeder
             'employees-crud',
             'leave-crud',
             'timesheets-crud',
+            'view-clocking-logs',
+            'import-clocking-logs',
             'pay-employees-crud',
             'view-taxes',
 

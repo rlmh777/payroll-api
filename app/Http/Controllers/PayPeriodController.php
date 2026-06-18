@@ -8,9 +8,17 @@ use Illuminate\Http\Response;
 
 class PayPeriodController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(PayPeriodSchedule::query()->latest('start_date')->paginate());
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        return response()->json(
+            PayPeriodSchedule::query()
+                ->latest('start_date')
+                ->paginate($validated['per_page'] ?? 15)
+        );
     }
 
     public function store(Request $request)
@@ -51,5 +59,3 @@ class PayPeriodController extends Controller
         return response()->json(null, Response::HTTP_NO_CONTENT);
     }
 }
-
-

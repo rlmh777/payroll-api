@@ -15,6 +15,14 @@ class EmploymentDetail extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected $casts = [
+        'startDate' => 'date:Y-m-d',
+        'endDate' => 'date:Y-m-d',
+        'isActive' => 'boolean',
+        'hourlyRate' => 'decimal:2',
+        'totalRate' => 'decimal:2',
+    ];
+
     protected $fillable = [
         'employeeId',
         'startDate',

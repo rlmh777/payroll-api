@@ -35,7 +35,6 @@ use App\Http\Controllers\LoanTypeController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\HistoricalEmployeeDeductionController;
 use App\Http\Controllers\LeaveTypeController;
-use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\PayrateFrequencyController;
@@ -51,6 +50,16 @@ use App\Http\Controllers\JournalLineController;
 use App\Http\Controllers\SocialSecurityController;
 use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\CalendarGroupController;
+use App\Http\Controllers\CalendarEventController;
+use App\Http\Controllers\ScheduleEmployeeTimesheetController;
+use App\Http\Controllers\WorkTimesheetController;
+use App\Http\Controllers\WorkTimesheetDepartmentController;
+use App\Http\Controllers\EmployeeLeaveController;
+use App\Http\Controllers\EmployeeReportingController;
+use App\Http\Controllers\Attendance\ClockingLogController;
+use App\Http\Controllers\Attendance\TimesheetController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -71,6 +80,10 @@ Route::post('banks', [BankController::class, 'store']);
 Route::put('banks/{id}', [BankController::class, 'update']);
 Route::delete('banks/{id}', [BankController::class, 'delete']);
 
+// Employee calendar helpers
+Route::get('employees/by-user/{userId}', [EmployeeController::class, 'byUser']);
+Route::get('employees/{employeeId}/subordinates', [EmployeeController::class, 'subordinates']);
+
 // Social Security Routes
 Route::prefix('social-security')->group(function () {
     Route::get('/', [SocialSecurityController::class, 'index']);
@@ -90,6 +103,64 @@ Route::prefix('personal-relief')->group(function () {
 });
 
 Route::post('roles', [RoleController::class, 'store']);
+
+// Employee reporting relationships
+Route::get('employee-reporting', [EmployeeReportingController::class, 'index']);
+Route::post('employee-reporting', [EmployeeReportingController::class, 'store']);
+Route::delete('employee-reporting/{employeeReporting}', [EmployeeReportingController::class, 'destroy']);
+
+// Calendar Group Routes
+Route::prefix('calendar-groups')->group(function () {
+    Route::get('/', [CalendarGroupController::class, 'index']);
+});
+
+// Calendar Routes
+Route::prefix('calendars')->group(function () {
+    Route::get('/', [CalendarController::class, 'index']);
+    Route::post('/', [CalendarController::class, 'store']);
+    Route::get('/{calendar}', [CalendarController::class, 'show']);
+    Route::put('/{calendar}', [CalendarController::class, 'update']);
+    Route::delete('/{calendar}', [CalendarController::class, 'destroy']);
+});
+
+// Schedule Employee Timesheets
+Route::post('schedule-employee-timesheets', [ScheduleEmployeeTimesheetController::class, 'store']);
+
+// Clocking logs (raw biometric events)
+Route::prefix('clocking-logs')->group(function () {
+    Route::get('/', [ClockingLogController::class, 'index']);
+    Route::post('/', [ClockingLogController::class, 'store']);
+    Route::post('/import', [ClockingLogController::class, 'import']);
+    Route::post('/process', [ClockingLogController::class, 'process']);
+});
+
+// Timesheets (processed attendance)
+Route::prefix('timesheets')->group(function () {
+    Route::get('/', [TimesheetController::class, 'index']);
+    Route::get('/employee-summary', [TimesheetController::class, 'employeeSummary']);
+    Route::patch('/approval/bulk', [TimesheetController::class, 'updateBulkApproval']);
+    Route::patch('/{timesheet}/approval', [TimesheetController::class, 'updateApproval']);
+});
+
+// Work Timesheets
+Route::get('work-timesheets', [WorkTimesheetController::class, 'index']);
+Route::post('work-timesheets', [WorkTimesheetController::class, 'store']);
+Route::put('work-timesheets/{workTimesheet}', [WorkTimesheetController::class, 'update']);
+
+// Work Timesheet Departments
+Route::get('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'index']);
+Route::post('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'store']);
+
+// Calendar Events (merged calendar + timesheets)
+Route::prefix('calendar-events')->group(function () {
+    Route::get('/', [CalendarEventController::class, 'index']);
+});
+
+// Calendar Approvals (pending timesheets)
+Route::prefix('calendar-approvals')->group(function () {
+    Route::get('/', [CalendarEventController::class, 'approvals']);
+    Route::patch('/{type}/{id}', [CalendarEventController::class, 'updateApproval']);
+});
 
 //Allowance
 Route::get('allowances', [AllowanceController::class, 'index']);
@@ -418,6 +489,7 @@ Route::prefix('employee-leaves')->group(function () {
     Route::get('/{employeeLeave}', [EmployeeLeaveController::class, 'show']);
     Route::put('/{employeeLeave}', [EmployeeLeaveController::class, 'update']);
     Route::delete('/{employeeLeave}', [EmployeeLeaveController::class, 'destroy']);
+    Route::patch('/{employeeLeave}/approve', [EmployeeLeaveController::class, 'approve']);
 });
 
 // Loan Routes
@@ -459,7 +531,7 @@ Route::prefix('users')->group(function () {
     Route::put('/{user}/password', [UserController::class, 'updatePassword']);
     Route::post('/{user}/send-password-reset', [UserController::class, 'sendPasswordResetEmail']);
     Route::post('/reset-password', [UserController::class, 'resetPassword']);
-    
+
     // User employee linking
     Route::put('/{user}/employee', [UserController::class, 'linkEmployee']);
 
