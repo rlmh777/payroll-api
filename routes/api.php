@@ -52,6 +52,7 @@ use App\Http\Controllers\JournalLineController;
 use App\Http\Controllers\SocialSecurityController;
 use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CalendarGroupController;
 use App\Http\Controllers\CalendarEventController;
@@ -602,3 +603,14 @@ Route::prefix('journal-lines')->group(function () {
     Route::put('/{journalLine}', [JournalLineController::class, 'update']);
     Route::delete('/{journalLine}', [JournalLineController::class, 'destroy']);
 });
+
+
+// Company Routes
+Route::prefix('company')->group(function () {
+    Route::get('/', [CompanyController::class, 'index']);
+    Route::post('/', [CompanyController::class, 'store']);
+    Route::get('/{company}', [CompanyController::class, 'show']);
+    Route::put('/{company}', [CompanyController::class, 'update']);
+    Route::delete('/{company}', [CompanyController::class, 'destroy']);
+});
+

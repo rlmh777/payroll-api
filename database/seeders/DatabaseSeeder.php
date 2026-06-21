@@ -39,6 +39,8 @@ class DatabaseSeeder extends Seeder
             RelationshipSeeder::class,
             MenuSeeder::class,
             AccountTypeSeeder::class,
+            AccountsSeeder::class,
+            CompanySeeder::class,
             DepartmentSeeder::class,
             WorkTimesheetSeeder::class,
             CalendarGroupSeeder::class,
