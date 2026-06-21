@@ -65,6 +65,7 @@ class MenuSeeder extends Seeder
         // Create Roles and Menus submenus
         $this->createSubMenu($settings->id, 'Roles', '/settings/roles', 'fas fa-user-shield', 'view-roles', 1);
         $this->createSubMenu($settings->id, 'Menu', '/settings/menu', 'fas fa-bars', 'view-menu', 2);
+        $this->createSubMenu($settings->id, 'Pay Period', '/settings/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 3);
     }
 
     /**

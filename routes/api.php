@@ -43,6 +43,8 @@ use App\Http\Controllers\BankAccountTypeController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PayPeriodController;
+use App\Http\Controllers\PayPeriodGroupController;
+use App\Http\Controllers\PayPeriodScheduleAiController;
 use App\Http\Controllers\PayrollRunController;
 use App\Http\Controllers\PayrollContributionController;
 use App\Http\Controllers\JournalEntryController;
@@ -545,12 +547,24 @@ Route::prefix('users')->group(function () {
 });
 
 // Pay Period Routes
+Route::prefix('pay-period-groups')->group(function () {
+    Route::get('/', [PayPeriodGroupController::class, 'index']);
+    Route::post('/', [PayPeriodGroupController::class, 'store']);
+    Route::get('/{payPeriodGroup}', [PayPeriodGroupController::class, 'show']);
+    Route::put('/{payPeriodGroup}', [PayPeriodGroupController::class, 'update']);
+    Route::delete('/{payPeriodGroup}', [PayPeriodGroupController::class, 'destroy']);
+});
+
 Route::prefix('pay-period-schedules')->group(function () {
     Route::get('/', [PayPeriodController::class, 'index']);
     Route::post('/', [PayPeriodController::class, 'store']);
     Route::get('/{payPeriodSchedule}', [PayPeriodController::class, 'show']);
     Route::put('/{payPeriodSchedule}', [PayPeriodController::class, 'update']);
     Route::delete('/{payPeriodSchedule}', [PayPeriodController::class, 'destroy']);
+    
+    // AI-powered SQL generation endpoints
+    Route::post('/ai/generate', [PayPeriodScheduleAiController::class, 'generateSql']);
+    Route::post('/ai/confirm', [PayPeriodScheduleAiController::class, 'confirmAndExecute']);
 });
 
 // Payroll Run Routes

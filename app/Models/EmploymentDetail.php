@@ -40,7 +40,8 @@ class EmploymentDetail extends Model
         'employmentStatusId',
         'departmentId',
         'worksiteId',
-        'employeeStatusId'
+        'employeeStatusId',
+        'defaultPayPeriodGroupId'
     ];
 
     public function employee(): BelongsTo
@@ -83,5 +84,9 @@ class EmploymentDetail extends Model
         return $this->belongsTo(EmployeeStatus::class, 'employmentStatusId');
     }
 
+    public function defaultPayPeriodGroup(): BelongsTo
+    {
+        return $this->belongsTo(PayPeriodGroup::class, 'defaultPayPeriodGroupId');
+    }
 
 }

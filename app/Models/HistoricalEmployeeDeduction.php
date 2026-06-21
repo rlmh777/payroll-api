@@ -22,7 +22,15 @@ class HistoricalEmployeeDeduction extends Model
         'note',
         'payroll_run_id',
         'accountId',
-        'deductionTypeId'
+        'deductionTypeId',
+        'carryForwardShortfall',
+        'priority',
+    ];
+
+    protected $casts = [
+        'priority' => 'integer',
+        'amount' => 'decimal:2',
+        'carryForwardShortfall' => 'decimal:2',
     ];
 
     public function employee(): BelongsTo
@@ -49,5 +57,4 @@ class HistoricalEmployeeDeduction extends Model
     {
         return $this->belongsTo(DeductionType::class, 'deductionTypeId');
     }
-
 }

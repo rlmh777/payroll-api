@@ -15,6 +15,10 @@ return new class extends Migration
         Schema::create('payroll_runs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('pay_period_schedule_id');
+            $table->foreignId('payrate_frequency_id')
+                ->nullable()
+                ->constrained('payrate_frequency')
+                ->onDelete('set null');
             $table->enum('status', ['draft', 'posted'])->default('draft');
             $table->timestamps();
 
@@ -24,6 +28,7 @@ return new class extends Migration
                 ->onDelete('restrict');
 
             $table->index(['pay_period_schedule_id', 'status']);
+            $table->index('payrate_frequency_id');
         });
     }
 

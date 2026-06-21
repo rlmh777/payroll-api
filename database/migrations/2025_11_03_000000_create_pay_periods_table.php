@@ -16,6 +16,10 @@ return new class extends Migration
             $table->date('start_date');
             $table->date('end_date');
             $table->date('pay_date');
+            $table->foreignId('payrate_frequency_id')
+                ->nullable()
+                ->constrained('payrate_frequency')
+                ->onDelete('set null');
             $table->timestamps();
 
             $table->index(['start_date', 'end_date']);

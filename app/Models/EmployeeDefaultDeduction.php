@@ -17,12 +17,22 @@ class EmployeeDefaultDeduction extends Model
 
     protected $fillable = [
         'employeeId',
-        'paymentToId',
+        'bankId',
+        'accountNumber',
         'amount',
         'note',
         'frequencyId',
         'accountId',
-        'deductionTypeId'
+        'deductionTypeId',
+        'allowPartialDeduction',
+        'applicationRule',
+        'priority',
+    ];
+
+    protected $casts = [
+        'allowPartialDeduction' => 'boolean',
+        'priority' => 'integer',
+        'amount' => 'decimal:2',
     ];
 
     public function employee(): BelongsTo
@@ -30,9 +40,9 @@ class EmployeeDefaultDeduction extends Model
         return $this->belongsTo(Employee::class, 'employeeId');
     }
 
-    public function vendor(): BelongsTo
+    public function bank(): BelongsTo
     {
-        return $this->belongsTo(Vendor::class, 'paymentToId');
+        return $this->belongsTo(Bank::class, 'bankId');
     }
 
     public function payrateFrequency(): BelongsTo
@@ -52,6 +62,6 @@ class EmployeeDefaultDeduction extends Model
 
     public function deductionType(): BelongsTo
     {
-        return $this->belongsTo(DeductionType::class);
+        return $this->belongsTo(DeductionType::class, 'deductionTypeId');
     }
 }

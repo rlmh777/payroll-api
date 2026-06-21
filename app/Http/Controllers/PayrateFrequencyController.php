@@ -39,7 +39,7 @@ class PayrateFrequencyController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $payrateFrequency = PayrateFrequency::create($request->all());
+        $payrateFrequency = PayrateFrequency::create($validator->validated());
 
         return response()->json($payrateFrequency, 201);
     }
@@ -65,7 +65,7 @@ class PayrateFrequencyController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $payrateFrequency->update($request->all());
+        $payrateFrequency->update($validator->validated());
 
         return response()->json($payrateFrequency);
     }

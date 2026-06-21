@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class PayrollRun extends Model
@@ -19,7 +20,12 @@ class PayrollRun extends Model
     protected $fillable = [
         'id',
         'pay_period_schedule_id',
+        'payrate_frequency_id',
         'status',
+    ];
+
+    protected $casts = [
+        'payrate_frequency_id' => 'integer',
     ];
 
     protected static function boot()
@@ -33,10 +39,13 @@ class PayrollRun extends Model
         });
     }
 
-    public function payPeriodSchedule()
+    public function payPeriodSchedule(): BelongsTo
     {
         return $this->belongsTo(PayPeriodSchedule::class, 'pay_period_schedule_id');
     }
+
+    public function payrateFrequency(): BelongsTo
+    {
+        return $this->belongsTo(PayrateFrequency::class, 'payrate_frequency_id');
+    }
 }
-
-
