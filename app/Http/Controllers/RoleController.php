@@ -147,7 +147,11 @@ class RoleController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $role->detachPermissions($request->input('permissions'));
+        // Use the permissions relationship to detach multiple permissions efficiently
+        $role->permissions()->detach($request->input('permissions'));
+
+        // Clear the cache to ensure fresh data
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         return response()->json($role->load('permissions'));
     }

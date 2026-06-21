@@ -11,11 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pay_periods', function (Blueprint $table) {
+        Schema::create('pay_period_schedule', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->date('start_date');
             $table->date('end_date');
             $table->date('pay_date');
+            $table->foreignId('payrate_frequency_id')
+                ->nullable()
+                ->constrained('payrate_frequency')
+                ->onDelete('set null');
             $table->timestamps();
 
             $table->index(['start_date', 'end_date']);
@@ -27,7 +31,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('pay_periods');
+        Schema::dropIfExists('pay_period_schedule');
     }
 };
 

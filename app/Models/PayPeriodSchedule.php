@@ -4,9 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
-class PayPeriod extends Model
+class PayPeriodSchedule extends Model
 {
     use HasFactory;
 
@@ -14,19 +15,22 @@ class PayPeriod extends Model
 
     protected $keyType = 'string';
 
-    protected $table = 'pay_periods';
+    protected $table = 'pay_period_schedule';
 
     protected $fillable = [
         'id',
         'start_date',
         'end_date',
         'pay_date',
+        'pay_period_group_id',
+        'payrate_frequency_id',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'pay_date' => 'date',
+        'payrate_frequency_id' => 'integer',
     ];
 
     protected static function boot()
@@ -39,6 +43,14 @@ class PayPeriod extends Model
             }
         });
     }
+
+    public function payPeriodGroup(): BelongsTo
+    {
+        return $this->belongsTo(PayPeriodGroup::class, 'pay_period_group_id');
+    }
+
+    public function payrateFrequency(): BelongsTo
+    {
+        return $this->belongsTo(PayrateFrequency::class, 'payrate_frequency_id');
+    }
 }
-
-

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 
 class User extends Authenticatable
@@ -72,5 +73,13 @@ class User extends Authenticatable
     public function userRoles(): HasMany
     {
         return $this->hasMany(UserRole::class, 'user_id');
+    }
+
+    /**
+     * One-to-one relationship with employee.
+     */
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class, 'user_id');
     }
 }

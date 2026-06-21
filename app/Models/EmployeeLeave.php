@@ -25,7 +25,10 @@ class EmployeeLeave extends Model
         'duration',
         'totalDays',
         'notes',
-        'multiplier'
+        'multiplier',
+        'approvalStatus',
+        'approvalDate',
+        'approverId'
     ];
 
     public function employee(): BelongsTo {
@@ -36,4 +39,3 @@ class EmployeeLeave extends Model
         return $this->belongsTo(LeaveType::class, 'leaveTypeId');
     }
 }
-

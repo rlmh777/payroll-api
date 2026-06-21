@@ -19,6 +19,8 @@ return new class extends Migration
             $table->text('note');
             $table->foreignUuid('accountId')->constrained('accounts')->onDelete('cascade');
             $table->foreignId('deductionTypeId')->constrained('deduction_type')->onDelete('cascade');
+            $table->decimal('carryForwardShortfall', 12, 2)->default(0);
+            $table->integer('priority')->default(0);
             $table->timestamps();
         });
     }

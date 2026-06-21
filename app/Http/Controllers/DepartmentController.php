@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\WorkTimesheet;
+use App\Models\WorkTimesheetDepartment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -14,7 +16,10 @@ class DepartmentController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Department::query();
+        $query = Department::query()->with([
+            'parent',
+            'currentWorkTimesheetAssignment.workTimesheet',
+        ]);
 
         // Search by name
         if ($request->has('search')) {
@@ -53,12 +58,22 @@ class DepartmentController extends Controller
             $validatedData = $request->validate([
                 'name' => 'required|string|max:256',
                 'parentId' => 'nullable|exists:department,id',
+                'work_timesheet_id' => 'nullable|uuid|exists:work_timesheet,id',
             ]);
 
-            $department = Department::create($validatedData);
+            $department = Department::create([
+                'name' => $validatedData['name'],
+                'parentId' => $validatedData['parentId'] ?? null,
+            ]);
+
+            $this->assignWorkTimesheet(
+                $department,
+                $validatedData['work_timesheet_id'] ?? null,
+            );
+
             return response()->json([
                 'message' => 'Department created successfully',
-                'data' => $department
+                'data' => $department->load(['parent', 'currentWorkTimesheetAssignment.workTimesheet'])
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -70,7 +85,12 @@ class DepartmentController extends Controller
      */
     public function show(Department $department): JsonResponse
     {
-        return response()->json($department, 200);
+        $this->ensureDefaultWorkTimesheetAssignment($department);
+
+        return response()->json(
+            $department->load(['parent', 'children', 'currentWorkTimesheetAssignment.workTimesheet']),
+            200
+        );
     }
 
     /**
@@ -90,6 +110,7 @@ class DepartmentController extends Controller
             $validatedData = $request->validate([
                 'name' => 'sometimes|string|max:256',
                 'parentId' => 'sometimes|nullable|exists:department,id',
+                'work_timesheet_id' => 'sometimes|nullable|uuid|exists:work_timesheet,id',
             ]);
 
             // Prevent circular reference
@@ -99,10 +120,20 @@ class DepartmentController extends Controller
                 ], 422);
             }
 
-            $department->update($validatedData);
+            $department->update(collect($validatedData)->only(['name', 'parentId'])->all());
+
+            if (array_key_exists('work_timesheet_id', $validatedData)) {
+                $this->assignWorkTimesheet(
+                    $department,
+                    $validatedData['work_timesheet_id'] ?? null,
+                );
+            } else {
+                $this->ensureDefaultWorkTimesheetAssignment($department);
+            }
+
             return response()->json([
                 'message' => 'Department updated successfully',
-                'data' => $department
+                'data' => $department->load(['parent', 'currentWorkTimesheetAssignment.workTimesheet'])
             ], 200);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -130,5 +161,42 @@ class DepartmentController extends Controller
 
         $department->delete();
         return response()->json(['message' => 'Department deleted successfully.']);
+    }
+
+    private function assignWorkTimesheet(
+        Department $department,
+        ?string $workTimesheetId
+    ): void {
+        WorkTimesheetDepartment::create([
+            'work_timesheet_id' => $workTimesheetId ?: $this->defaultWorkTimesheet()->id,
+            'department_id' => $department->id,
+            'effective_date' => now()->toDateString(),
+        ]);
+    }
+
+    private function ensureDefaultWorkTimesheetAssignment(Department $department): void
+    {
+        if ($department->workTimesheetAssignments()->exists()) {
+            return;
+        }
+
+        $this->assignWorkTimesheet(
+            $department,
+            null,
+        );
+    }
+
+    private function defaultWorkTimesheet(): WorkTimesheet
+    {
+        return WorkTimesheet::firstOrCreate(
+            ['name' => 'Default Timesheet'],
+            [
+                'start_time' => '08:00',
+                'end_time' => '17:00',
+                'break_minutes' => 60,
+                'days' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                'is_active' => true,
+            ],
+        );
     }
 }

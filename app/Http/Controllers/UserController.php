@@ -7,6 +7,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 class UserController extends Controller
 {
@@ -15,7 +16,7 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with('rolesManyToMany');
+        $query = User::with(['rolesManyToMany', 'employee']);
 
         // Search by name or email
         if ($request->has('search')) {
@@ -80,7 +81,7 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        return $user->load('rolesManyToMany');
+        return $user->load(['rolesManyToMany', 'employee']);
     }
 
     /**
@@ -212,6 +213,130 @@ class UserController extends Controller
             'role' => $role,
             'users' => $users
         ]);
+    }
+
+    /**
+     * Update user password.
+     */
+    public function updatePassword(Request $request, User $user)
+    {
+        $validator = Validator::make($request->all(), [
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->input('password')),
+        ]);
+
+        return response()->json([
+            'message' => 'Password updated successfully',
+            'user' => $user->load(['rolesManyToMany', 'employee'])
+        ]);
+    }
+
+    /**
+     * Link or unlink user to employee.
+     */
+    public function linkEmployee(Request $request, User $user)
+    {
+        $validator = Validator::make($request->all(), [
+            'employee_id' => ['nullable', 'uuid', 'exists:employee,id'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Check if employee is already linked to another user
+        if ($request->has('employee_id') && $request->input('employee_id')) {
+            $employeeId = $request->input('employee_id');
+            $existingUser = \App\Models\Employee::where('id', $employeeId)
+                ->whereNotNull('user_id')
+                ->where('user_id', '!=', $user->id)
+                ->first();
+            
+            if ($existingUser) {
+                return response()->json([
+                    'errors' => ['employee_id' => ['This employee is already linked to another user']]
+                ], 422);
+            }
+        }
+
+        // Update employee's user_id
+        if ($request->has('employee_id') && $request->input('employee_id')) {
+            \App\Models\Employee::where('id', $request->input('employee_id'))
+                ->update(['user_id' => $user->id]);
+        } else {
+            // Unlink: set employee's user_id to null
+            \App\Models\Employee::where('user_id', $user->id)
+                ->update(['user_id' => null]);
+        }
+
+        return response()->json([
+            'message' => 'Employee link updated successfully',
+            'user' => $user->load(['rolesManyToMany', 'employee'])
+        ]);
+    }
+
+    /**
+     * Send password reset email to user.
+     */
+    public function sendPasswordResetEmail(Request $request, User $user)
+    {
+        $status = Password::sendResetLink(
+            ['email' => $user->email]
+        );
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return response()->json([
+                'message' => 'Password reset email sent successfully',
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Failed to send password reset email',
+            'error' => $status
+        ], 400);
+    }
+
+    /**
+     * Reset password using token from email.
+     */
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'exists:users,email'],
+            'token' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password)
+                ])->save();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'Password reset successfully',
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Failed to reset password',
+            'error' => $status
+        ], 400);
     }
 
     /**

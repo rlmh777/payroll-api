@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
             EmployeeModelSeeder::class,
             RoleAndPermissionSeeder::class,
             UserRoleSeeder::class,
+            SupervisorUserSeeder::class,
             DegreeSeeder::class,
             EmployeeStatusSeeder::class,
             RelationshipSeeder::class,
@@ -40,6 +41,14 @@ class DatabaseSeeder extends Seeder
             AccountTypeSeeder::class,
             AccountsSeeder::class,
             CompanySeeder::class,
+            DepartmentSeeder::class,
+            WorkTimesheetSeeder::class,
+            CalendarGroupSeeder::class,
+            BelizePublicHolidays2026Seeder::class,
+            BirthdayCalendarSeeder::class,
+            TimesheetSeeder::class,
+            ScheduleEmployeeTimesheetSeeder::class,
+            EmployeeLeaveSeeder::class,
         ]);
     }
 }

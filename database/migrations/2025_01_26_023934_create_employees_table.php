@@ -14,6 +14,7 @@ return new class extends Migration
     {
         Schema::create('employee', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->nullable()->unique()->constrained('users')->onDelete('set null');
             $table->string('code',64);
             $table->string('internalId1',64)->nullable();
             $table->string('internalId2',64)->nullable();

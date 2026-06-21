@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\EmployeeReporting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -11,11 +12,52 @@ use Illuminate\Support\Facades\Validator;
 class EmployeeController extends Controller
 {
     /**
+     * Display employee record for a user.
+     */
+    public function byUser(string $userId)
+    {
+        $employee = Employee::query()
+            ->with(['employmentDetails.department'])
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        return response()->json($employee);
+    }
+
+    /**
+     * Display employees that report to a supervisor or lead.
+     */
+    public function subordinates(string $employeeId)
+    {
+        $reportingIds = EmployeeReporting::query()
+            ->where('supervisor_id', $employeeId)
+            ->where('is_active', true)
+            ->pluck('subordinate_id');
+
+        $employees = Employee::query()
+            ->with(['employmentDetails.department'])
+            ->when($reportingIds->isNotEmpty(), function ($query) use ($reportingIds) {
+                $query->whereIn('id', $reportingIds);
+            }, function ($query) use ($employeeId) {
+                $query->where('supervisorId', $employeeId)
+                    ->orWhere('leadId', $employeeId);
+            })
+            ->orderBy('lastName', 'asc')
+            ->get();
+
+        return response()->json($employees);
+    }
+    /**
      * Display a listing of employees.
      */
     public function index(Request $request)
     {
         $query = Employee::with([
+            'user',
             'locality',
             'honorific',
             'gender',
@@ -108,6 +150,7 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|uuid|exists:users,id|unique:employee,user_id',
             'code' => 'required|string|max:64|unique:employee,code',
             'internalId1' => 'nullable|string|max:64',
             'internalId2' => 'nullable|string|max:64',
@@ -146,6 +189,7 @@ class EmployeeController extends Controller
         return response()->json([
             'message' => 'Employee created successfully',
             'data' => $employee->load([
+                'user',
                 'locality',
                 'honorific',
                 'gender',
@@ -161,6 +205,7 @@ class EmployeeController extends Controller
     public function show(Employee $employee)
     {
         return response()->json($employee->load([
+            'user',
             'locality',
             'honorific',
             'gender',
@@ -185,6 +230,7 @@ class EmployeeController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
+            'user_id' => 'nullable|uuid|exists:users,id|unique:employee,user_id,' . $employee->id,
             'code' => 'string|max:64|unique:employee,code,' . $employee->id,
             'internalId1' => 'nullable|string|max:64',
             'internalId2' => 'nullable|string|max:64',
@@ -223,6 +269,7 @@ class EmployeeController extends Controller
         return response()->json([
             'message' => 'Employee updated successfully',
             'data' => $employee->load([
+                'user',
                 'locality',
                 'honorific',
                 'gender',

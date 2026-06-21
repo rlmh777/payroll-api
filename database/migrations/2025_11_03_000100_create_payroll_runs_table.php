@@ -14,16 +14,21 @@ return new class extends Migration
     {
         Schema::create('payroll_runs', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('pay_period_id');
+            $table->uuid('pay_period_schedule_id');
+            $table->foreignId('payrate_frequency_id')
+                ->nullable()
+                ->constrained('payrate_frequency')
+                ->onDelete('set null');
             $table->enum('status', ['draft', 'posted'])->default('draft');
             $table->timestamps();
 
-            $table->foreign('pay_period_id')
-                ->references('id')->on('pay_periods')
+            $table->foreign('pay_period_schedule_id')
+                ->references('id')->on('pay_period_schedule')
                 ->onUpdate('cascade')
                 ->onDelete('restrict');
 
-            $table->index(['pay_period_id', 'status']);
+            $table->index(['pay_period_schedule_id', 'status']);
+            $table->index('payrate_frequency_id');
         });
     }
 

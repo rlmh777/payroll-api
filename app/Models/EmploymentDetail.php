@@ -15,6 +15,14 @@ class EmploymentDetail extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected $casts = [
+        'startDate' => 'date:Y-m-d',
+        'endDate' => 'date:Y-m-d',
+        'isActive' => 'boolean',
+        'hourlyRate' => 'decimal:2',
+        'totalRate' => 'decimal:2',
+    ];
+
     protected $fillable = [
         'employeeId',
         'startDate',
@@ -32,7 +40,8 @@ class EmploymentDetail extends Model
         'employmentStatusId',
         'departmentId',
         'worksiteId',
-        'employeeStatusId'
+        'employeeStatusId',
+        'defaultPayPeriodGroupId'
     ];
 
     public function employee(): BelongsTo
@@ -75,5 +84,9 @@ class EmploymentDetail extends Model
         return $this->belongsTo(EmployeeStatus::class, 'employmentStatusId');
     }
 
+    public function defaultPayPeriodGroup(): BelongsTo
+    {
+        return $this->belongsTo(PayPeriodGroup::class, 'defaultPayPeriodGroupId');
+    }
 
 }

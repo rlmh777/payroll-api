@@ -29,6 +29,11 @@ class Bank extends Model
         return $this->hasMany(Vendor::class);
     }
 
+    public function employeeDefaultDeductions(): HasMany
+    {
+        return $this->hasMany(EmployeeDefaultDeduction::class, 'bankId');
+    }
+
     public function companyBankAccounts(): HasMany {
         return $this->hasMany(CompanyBankAccount::class, 'bankId');
     }

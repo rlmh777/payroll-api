@@ -32,11 +32,6 @@ class Vendor extends Model
         return $this->belongsTo(Bank::class);
     }
 
-    public function deductions(): HasMany
-    {
-        return $this->hasMany(EmployeeDefaultDeduction::class);
-    }
-
     public function historicalDeductions(): HasMany
     {
         return $this->hasMany(HistoricalEmployeeDeduction::class);

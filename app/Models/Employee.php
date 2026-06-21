@@ -23,6 +23,9 @@ class Employee extends Model
     public $incrementing = false;
 
     protected $fillable = [
+        'user_id',
+        'leadId',
+        'supervisorId',
         'code',
         'internalId1',
         'internalId2',
@@ -50,6 +53,11 @@ class Employee extends Model
         'unionMembership'
     ];
 
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     public function locality(): BelongsTo
     {
@@ -111,6 +119,16 @@ class Employee extends Model
         return $this->hasMany(EmploymentDetail::class, 'employeeId');
     }
 
+    public function reportingSupervisors(): HasMany
+    {
+        return $this->hasMany(EmployeeReporting::class, 'subordinate_id');
+    }
+
+    public function reportingSubordinates(): HasMany
+    {
+        return $this->hasMany(EmployeeReporting::class, 'supervisor_id');
+    }
+
     public function loans(): HasMany
     {
         return $this->hasMany(Loan::class, 'employeeId');
@@ -134,6 +152,16 @@ class Employee extends Model
     public function leaves(): HasMany
     {
         return $this->hasMany(EmployeeLeave::class, 'employeeId');
+    }
+
+    public function timesheets(): HasMany
+    {
+        return $this->hasMany(Timesheet::class, 'employeeId');
+    }
+
+    public function departmentHistory(): HasMany
+    {
+        return $this->hasMany(EmployeeDepartmentHistory::class, 'employeeId');
     }
 
     public function historicalAllowances(): HasMany
