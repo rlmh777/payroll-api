@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WorkTimesheetDepartment;
+use App\Models\TimesheetTemplateDepartment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class WorkTimesheetDepartmentController extends Controller
+class TimesheetTemplateDepartmentController extends Controller
 {
     /**
-     * Display a listing of work timesheet assignments.
+     * Display a listing of timesheet template assignments.
      */
     public function index(Request $request): JsonResponse
     {
-        $query = WorkTimesheetDepartment::query()->with(['workTimesheet', 'department']);
+        $query = TimesheetTemplateDepartment::query()->with(['timesheetTemplate', 'department']);
 
         if ($request->filled('department_id')) {
             $query->where('department_id', $request->string('department_id'));
@@ -31,15 +31,15 @@ class WorkTimesheetDepartmentController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'work_timesheet_id' => ['required', 'uuid', 'exists:work_timesheet,id'],
+            'timesheet_template_id' => ['required', 'uuid', 'exists:timesheet_template,id'],
             'department_id' => ['required', 'integer', 'exists:department,id'],
             'effective_date' => ['required', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
-        $assignment = WorkTimesheetDepartment::create([
+        $assignment = TimesheetTemplateDepartment::create([
             'id' => (string) Str::uuid(),
-            'work_timesheet_id' => $validated['work_timesheet_id'],
+            'timesheet_template_id' => $validated['timesheet_template_id'],
             'department_id' => $validated['department_id'],
             'effective_date' => $validated['effective_date'],
             'notes' => $validated['notes'] ?? null,

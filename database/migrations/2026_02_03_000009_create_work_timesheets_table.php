@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('work_timesheet', function (Blueprint $table) {
+        Schema::create('timesheet_template', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('name', 120);
             $table->time('start_time');
             $table->time('end_time');
             $table->unsignedSmallInteger('break_minutes')->default(0);
             $table->json('days')->nullable();
+            $table->json('day_schedules')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -28,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('work_timesheet');
+        Schema::dropIfExists('timesheet_template');
     }
 };

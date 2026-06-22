@@ -8,8 +8,8 @@ use App\Models\Employee;
 use App\Models\EmployeeLeave;
 use App\Models\EmploymentDetail;
 use App\Models\Timesheet;
-use App\Models\WorkTimesheet;
-use App\Models\WorkTimesheetDepartment;
+use App\Models\TimesheetTemplate;
+use App\Models\TimesheetTemplateDepartment;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -143,12 +143,16 @@ class TimesheetProcessingService
             $date = Carbon::parse($workDate);
             $details = $employmentDetails->get($employeeId, collect());
             $employmentDetail = $this->employmentDetailForDate($details, $date);
-            $workTimesheet = $this->workTimesheetForDate(
+            $timesheetTemplate = $this->timesheetTemplateForDate(
                 $employmentDetail?->departmentId,
                 $date,
                 $scheduleAssignments,
             );
-            $scheduledHours = $this->scheduledHoursForDate($workTimesheet, $date);
+            $scheduledHours = $this->scheduledHoursForDate(
+                $timesheetTemplate,
+                $date,
+                $employmentDetail?->departmentId,
+            );
             $punches = collect($logGroupsByEmployee[$employeeId][$workDate] ?? []);
             $threshold = isset($filters['overtimeThresholdHours'])
                 ? (float) $filters['overtimeThresholdHours']
@@ -327,7 +331,7 @@ class TimesheetProcessingService
 
     /**
      * @param Collection<string, Collection<int, EmploymentDetail>> $employmentDetails
-     * @return Collection<string, Collection<int, WorkTimesheetDepartment>>
+     * @return Collection<string, Collection<int, TimesheetTemplateDepartment>>
      */
     private function loadScheduleAssignments(Collection $employmentDetails, Carbon $rangeEnd): Collection
     {
@@ -342,13 +346,13 @@ class TimesheetProcessingService
             return collect();
         }
 
-        return WorkTimesheetDepartment::query()
-            ->with('workTimesheet')
+        return TimesheetTemplateDepartment::query()
+            ->with('timesheetTemplate')
             ->whereIn('department_id', $departmentIds)
             ->whereDate('effective_date', '<=', $rangeEnd->toDateString())
             ->orderByDesc('effective_date')
             ->get()
-            ->groupBy(fn (WorkTimesheetDepartment $assignment) => (string) $assignment->department_id);
+            ->groupBy(fn (TimesheetTemplateDepartment $assignment) => (string) $assignment->department_id);
     }
 
     /**
@@ -386,7 +390,7 @@ class TimesheetProcessingService
     /**
      * @param array<string, array<string, array<int, array{punchDateTime:Carbon, deviceId:?string, punchType:?string}>>> $logGroupsByEmployee
      * @param Collection<string, Collection<int, EmploymentDetail>> $employmentDetails
-     * @param Collection<string, Collection<int, WorkTimesheetDepartment>> $scheduleAssignments
+     * @param Collection<string, Collection<int, TimesheetTemplateDepartment>> $scheduleAssignments
      * @return array<int, array{employeeId:string, date:string}>
      */
     private function buildRowKeys(
@@ -414,13 +418,13 @@ class TimesheetProcessingService
                 $employmentDetail = $this->employmentDetailForDate($details, $date);
 
                 if ($employmentDetail) {
-                    $workTimesheet = $this->workTimesheetForDate(
+                    $timesheetTemplate = $this->timesheetTemplateForDate(
                         $employmentDetail->departmentId,
                         $date,
                         $scheduleAssignments,
                     );
 
-                    if ($this->isScheduledWorkDay($workTimesheet, $date)) {
+                    if ($this->isScheduledWorkDay($timesheetTemplate, $date, $employmentDetail->departmentId)) {
                         $workDate = $date->toDateString();
                         $keys["{$employeeId}|{$workDate}"] = [
                             'employeeId' => (string) $employeeId,
@@ -443,69 +447,90 @@ class TimesheetProcessingService
      */
     private function employmentDetailForDate(Collection $details, Carbon $date): ?EmploymentDetail
     {
-        return $details->first(function (EmploymentDetail $detail) use ($date) {
+        $matching = $details->filter(function (EmploymentDetail $detail) use ($date) {
             $startDate = Carbon::parse($detail->startDate)->startOfDay();
             $endDate = $detail->endDate ? Carbon::parse($detail->endDate)->startOfDay() : null;
 
             return $startDate->lte($date) && (!$endDate || $endDate->gte($date));
         });
+
+        return $matching
+            ->sort(function (EmploymentDetail $left, EmploymentDetail $right) {
+                if ($left->isActive !== $right->isActive) {
+                    return $right->isActive <=> $left->isActive;
+                }
+
+                return Carbon::parse($right->startDate)->timestamp <=> Carbon::parse($left->startDate)->timestamp;
+            })
+            ->first();
     }
 
     /**
-     * @param Collection<string, Collection<int, WorkTimesheetDepartment>> $scheduleAssignments
+     * @param Collection<string, Collection<int, TimesheetTemplateDepartment>> $scheduleAssignments
      */
-    private function workTimesheetForDate(
+    private function timesheetTemplateForDate(
         mixed $departmentId,
         Carbon $date,
         Collection $scheduleAssignments
-    ): ?WorkTimesheet {
+    ): ?TimesheetTemplate {
         if ($departmentId === null) {
             return null;
         }
 
         $assignments = $scheduleAssignments->get((string) $departmentId, collect());
         $assignment = $assignments->first(
-            fn (WorkTimesheetDepartment $item) => Carbon::parse($item->effective_date)->startOfDay()->lte($date)
+            fn (TimesheetTemplateDepartment $item) => Carbon::parse($item->effective_date)->startOfDay()->lte($date)
         );
 
-        return $assignment?->workTimesheet;
+        return $assignment?->timesheetTemplate;
     }
 
-    private function isScheduledWorkDay(?WorkTimesheet $workTimesheet, Carbon $date): bool
+    private function isScheduledWorkDay(?TimesheetTemplate $timesheetTemplate, Carbon $date, ?int $departmentId = null): bool
     {
-        if (!$workTimesheet) {
+        if (!$timesheetTemplate) {
             return $date->isWeekday();
         }
 
-        if (!$workTimesheet->is_active) {
+        if (!$timesheetTemplate->is_active) {
             return false;
         }
 
-        $days = is_array($workTimesheet->days) ? $workTimesheet->days : [];
-
-        return in_array($date->format('D'), $days, true);
+        return $timesheetTemplate->daySlotsFor($date->format('D'), $departmentId) !== [];
     }
 
-    private function scheduledHoursForDate(?WorkTimesheet $workTimesheet, Carbon $date): float
+    private function scheduledHoursForDate(?TimesheetTemplate $timesheetTemplate, Carbon $date, ?int $departmentId = null): float
     {
-        if (!$this->isScheduledWorkDay($workTimesheet, $date)) {
-            return 0.0;
-        }
+        if (!$timesheetTemplate) {
+            if (!$date->isWeekday()) {
+                return 0.0;
+            }
 
-        if (!$workTimesheet) {
             return (float) config('attendance.standard_daily_hours', 8);
         }
 
-        $start = Carbon::parse($date->toDateString().' '.$workTimesheet->start_time);
-        $end = Carbon::parse($date->toDateString().' '.$workTimesheet->end_time);
-
-        if ($end->lte($start)) {
-            $end->addDay();
+        $slots = $timesheetTemplate->daySlotsFor($date->format('D'), $departmentId);
+        if ($slots === []) {
+            return 0.0;
         }
 
-        $minutes = max(0, $start->diffInMinutes($end, false) - (int) $workTimesheet->break_minutes);
+        $totalMinutes = 0;
 
-        return round($minutes / 60, 2);
+        foreach ($slots as $schedule) {
+            $start = Carbon::parse($date->toDateString().' '.$schedule['start_time']);
+            $end = Carbon::parse($date->toDateString().' '.$schedule['end_time']);
+
+            if ($end->lte($start)) {
+                $end->addDay();
+            }
+
+            $breakMinutes = ($schedule['include_lunch_hour'] ?? true)
+                ? 0
+                : (int) $timesheetTemplate->break_minutes;
+
+            $totalMinutes += max(0, $start->diffInMinutes($end, false) - $breakMinutes);
+        }
+
+        return round($totalMinutes / 60, 2);
     }
 
     /**

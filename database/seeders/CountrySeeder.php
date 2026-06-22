@@ -228,56 +228,83 @@ class CountrySeeder extends Seeder
 
             if ($response !== false) {
                 $countriesData = json_decode($response, true);
-                
+
                 if ($countriesData && is_array($countriesData)) {
-                    // Clear existing countries
                     Country::truncate();
-                    
-                    // Insert countries from API
+
+                    $seeded = 0;
                     foreach ($countriesData as $country) {
-                        Country::create([
-                            'id' => Str::uuid(),
-                            'name' => $country['name']['common'] ?? 'N/A',
-                            'code1' => $country['cca2'] ?? 'N/A',
-                            'code2' => $country['cca3'] ?? 'N/A',
-                            'nationalityName' => $country['demonyms']['eng']['m'] ?? 'N/A',
-                        ]);
+                        $payload = $this->normalizeCountryPayload(
+                            $country['name']['common'] ?? null,
+                            $country['cca2'] ?? null,
+                            $country['cca3'] ?? null,
+                            $country['demonyms']['eng']['m'] ?? ($country['demonyms']['eng']['f'] ?? null)
+                        );
+
+                        if ($payload === null) {
+                            continue;
+                        }
+
+                        Country::create($payload);
+                        $seeded++;
                     }
-                    echo "Countries seeded successfully from API!\n";
-                    return;
+
+                    if ($seeded > 0) {
+                        echo "Countries seeded successfully from API ({$seeded} records)!\n";
+                        return;
+                    }
+
+                    echo "API returned no valid countries, using fallback data...\n";
                 }
             }
-            
+
             // Fallback to static data
             echo "API failed, using fallback data for countries...\n";
-            Country::truncate();
-            
-            foreach ($countries as $country) {
-                Country::create([
-                    'id' => Str::uuid(),
-                    'name' => $country['name'],
-                    'code1' => $country['code1'],
-                    'code2' => $country['code2'],
-                    'nationalityName' => $country['nationalityName'],
-                ]);
-            }
-            
-            echo "Countries seeded successfully with fallback data!\n";
+            $this->seedStaticCountries($countries);
 
         } catch (\Exception $e) {
             echo "Error while seeding countries: " . $e->getMessage() . "\n";
-            
-            // Final fallback - ensure at least one country exists
+
             if (Country::count() === 0) {
-                Country::create([
-                    'id' => Str::uuid(),
-                    'name' => 'Belize',
-                    'code1' => 'BZ',
-                    'code2' => 'BLZ',
-                    'nationalityName' => 'Belizean',
-                ]);
-                echo "Created fallback country: Belize\n";
+                $this->seedStaticCountries($countries);
             }
         }
+    }
+
+    private function normalizeCountryPayload(?string $name, ?string $code1, ?string $code2, ?string $nationalityName): ?array
+    {
+        $name = trim((string) $name);
+        $code1 = strtoupper(trim((string) $code1));
+        $code2 = strtoupper(trim((string) $code2));
+        $nationalityName = trim((string) $nationalityName);
+
+        if ($name === '' || strlen($code1) !== 2 || strlen($code2) !== 3) {
+            return null;
+        }
+
+        return [
+            'id' => Str::uuid(),
+            'name' => $name,
+            'code1' => $code1,
+            'code2' => $code2,
+            'nationalityName' => $nationalityName !== '' ? $nationalityName : $name,
+        ];
+    }
+
+    private function seedStaticCountries(array $countries): void
+    {
+        Country::truncate();
+
+        foreach ($countries as $country) {
+            Country::create([
+                'id' => Str::uuid(),
+                'name' => $country['name'],
+                'code1' => $country['code1'],
+                'code2' => $country['code2'],
+                'nationalityName' => $country['nationalityName'],
+            ]);
+        }
+
+        echo "Countries seeded successfully with fallback data!\n";
     }
 }

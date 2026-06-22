@@ -16,7 +16,22 @@ class Department extends Model
 
     protected $fillable = [
         'name',
-        'parentId'
+        'parentId',
+        'totalDailyHoursBeforeOvertime',
+        'totalWeeklyHoursBeforeOvertime',
+        'includeLunchHour',
+    ];
+
+    protected $attributes = [
+        'totalDailyHoursBeforeOvertime' => 9,
+        'totalWeeklyHoursBeforeOvertime' => 45,
+        'includeLunchHour' => true,
+    ];
+
+    protected $casts = [
+        'totalDailyHoursBeforeOvertime' => 'decimal:2',
+        'totalWeeklyHoursBeforeOvertime' => 'decimal:2',
+        'includeLunchHour' => 'boolean',
     ];
 
     public function parent()
@@ -29,14 +44,14 @@ class Department extends Model
         return $this->hasMany(Department::class, 'parentId');
     }
 
-    public function workTimesheetAssignments(): HasMany
+    public function timesheetTemplateAssignments(): HasMany
     {
-        return $this->hasMany(WorkTimesheetDepartment::class, 'department_id');
+        return $this->hasMany(TimesheetTemplateDepartment::class, 'department_id');
     }
 
-    public function currentWorkTimesheetAssignment(): HasOne
+    public function currentTimesheetTemplateAssignment(): HasOne
     {
-        return $this->hasOne(WorkTimesheetDepartment::class, 'department_id')
+        return $this->hasOne(TimesheetTemplateDepartment::class, 'department_id')
             ->orderByDesc('effective_date')
             ->orderByDesc('created_at');
     }

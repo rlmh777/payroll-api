@@ -52,12 +52,13 @@ use App\Http\Controllers\JournalLineController;
 use App\Http\Controllers\SocialSecurityController;
 use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CalendarGroupController;
 use App\Http\Controllers\CalendarEventController;
 use App\Http\Controllers\ScheduleEmployeeTimesheetController;
-use App\Http\Controllers\WorkTimesheetController;
-use App\Http\Controllers\WorkTimesheetDepartmentController;
+use App\Http\Controllers\TimesheetTemplateController;
+use App\Http\Controllers\TimesheetTemplateDepartmentController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\EmployeeReportingController;
 use App\Http\Controllers\Attendance\ClockingLogController;
@@ -144,14 +145,14 @@ Route::prefix('timesheets')->group(function () {
     Route::patch('/{timesheet}/approval', [TimesheetController::class, 'updateApproval']);
 });
 
-// Work Timesheets
-Route::get('work-timesheets', [WorkTimesheetController::class, 'index']);
-Route::post('work-timesheets', [WorkTimesheetController::class, 'store']);
-Route::put('work-timesheets/{workTimesheet}', [WorkTimesheetController::class, 'update']);
+// Timesheet Templates
+Route::get('timesheet-templates', [TimesheetTemplateController::class, 'index']);
+Route::post('timesheet-templates', [TimesheetTemplateController::class, 'store']);
+Route::put('timesheet-templates/{timesheetTemplate}', [TimesheetTemplateController::class, 'update']);
 
-// Work Timesheet Departments
-Route::get('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'index']);
-Route::post('work-timesheet-departments', [WorkTimesheetDepartmentController::class, 'store']);
+// Timesheet Template Departments
+Route::get('timesheet-template-departments', [TimesheetTemplateDepartmentController::class, 'index']);
+Route::post('timesheet-template-departments', [TimesheetTemplateDepartmentController::class, 'store']);
 
 // Calendar Events (merged calendar + timesheets)
 Route::prefix('calendar-events')->group(function () {
@@ -181,6 +182,13 @@ Route::prefix('contact-type')->group(function () {
     Route::delete('/{contactType}', [ContactTypeController::class, 'destroy']);
 });
 //End Contact Type
+
+// Company Routes (single record — update only, no create)
+Route::prefix('company')->group(function () {
+    Route::get('/', [CompanyController::class, 'index']);
+    Route::get('/{company}', [CompanyController::class, 'show']);
+    Route::put('/{company}', [CompanyController::class, 'update']);
+});
 
 // Accounts Routes
 Route::prefix('accounts')->group(function () {

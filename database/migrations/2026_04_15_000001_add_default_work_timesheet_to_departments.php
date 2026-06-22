@@ -2,20 +2,38 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        $now = now();
-        $defaultTimesheet = DB::table('work_timesheet')->where('name', 'Default Timesheet')->first();
-        $defaultTimesheetId = $defaultTimesheet?->id ?? (string) Str::uuid();
+        $templateTable = Schema::hasTable('timesheet_template')
+            ? 'timesheet_template'
+            : (Schema::hasTable('work_timesheet') ? 'work_timesheet' : null);
 
-        if (!$defaultTimesheet) {
-            DB::table('work_timesheet')->insert([
-                'id' => $defaultTimesheetId,
-                'name' => 'Default Timesheet',
+        $assignmentTable = Schema::hasTable('timesheet_template_department')
+            ? 'timesheet_template_department'
+            : (Schema::hasTable('work_timesheet_department') ? 'work_timesheet_department' : null);
+
+        if ($templateTable === null || $assignmentTable === null) {
+            return;
+        }
+
+        $templateForeignKey = $assignmentTable === 'timesheet_template_department'
+            ? 'timesheet_template_id'
+            : 'work_timesheet_id';
+
+        $now = now();
+        $defaultTemplate = DB::table($templateTable)->where('name', 'Default Template')->first()
+            ?? DB::table($templateTable)->where('name', 'Default Timesheet')->first();
+        $defaultTemplateId = $defaultTemplate?->id ?? (string) Str::uuid();
+
+        if (!$defaultTemplate) {
+            DB::table($templateTable)->insert([
+                'id' => $defaultTemplateId,
+                'name' => 'Default Template',
                 'start_time' => '08:00',
                 'end_time' => '17:00',
                 'break_minutes' => 60,
@@ -27,31 +45,39 @@ return new class extends Migration
         }
 
         DB::table('department')
-            ->leftJoin('work_timesheet_department', 'department.id', '=', 'work_timesheet_department.department_id')
-            ->whereNull('work_timesheet_department.id')
+            ->leftJoin($assignmentTable, 'department.id', '=', "{$assignmentTable}.department_id")
+            ->whereNull("{$assignmentTable}.id")
             ->select('department.id')
             ->orderBy('department.id')
-            ->chunk(100, function ($departments) use ($defaultTimesheetId, $now) {
+            ->chunk(100, function ($departments) use ($defaultTemplateId, $now, $assignmentTable, $templateForeignKey) {
                 $rows = $departments->map(fn ($department) => [
                     'id' => (string) Str::uuid(),
-                    'work_timesheet_id' => $defaultTimesheetId,
+                    $templateForeignKey => $defaultTemplateId,
                     'department_id' => $department->id,
                     'effective_date' => $now->toDateString(),
-                    'notes' => 'Default assignment created for department without a work timesheet.',
+                    'notes' => 'Default assignment created for department without a timesheet template.',
                     'created_at' => $now,
                     'updated_at' => $now,
                 ])->all();
 
                 if ($rows) {
-                    DB::table('work_timesheet_department')->insert($rows);
+                    DB::table($assignmentTable)->insert($rows);
                 }
             });
     }
 
     public function down(): void
     {
-        DB::table('work_timesheet_department')
-            ->where('notes', 'Default assignment created for department without a work timesheet.')
+        $assignmentTable = Schema::hasTable('timesheet_template_department')
+            ? 'timesheet_template_department'
+            : (Schema::hasTable('work_timesheet_department') ? 'work_timesheet_department' : null);
+
+        if ($assignmentTable === null) {
+            return;
+        }
+
+        DB::table($assignmentTable)
+            ->where('notes', 'Default assignment created for department without a timesheet template.')
             ->delete();
     }
 };

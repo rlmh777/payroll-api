@@ -9,10 +9,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('employee_default_deduction', function (Blueprint $table) {
-            $table->foreignUuid('bankId')->nullable()->constrained('bank')->onDelete('cascade');
-            $table->string('accountNumber')->nullable();
-        });
+        if (!Schema::hasColumn('employee_default_deduction', 'bankId')) {
+            Schema::table('employee_default_deduction', function (Blueprint $table) {
+                $table->foreignUuid('bankId')->nullable()->constrained('bank')->onDelete('cascade');
+            });
+        }
+
+        if (!Schema::hasColumn('employee_default_deduction', 'accountNumber')) {
+            Schema::table('employee_default_deduction', function (Blueprint $table) {
+                $table->string('accountNumber')->nullable();
+            });
+        }
 
         if (Schema::hasColumn('employee_default_deduction', 'paymentToId')) {
             DB::statement('
@@ -21,6 +28,7 @@ return new class extends Migration
                     "accountNumber" = v."accountNumber"
                 FROM vendor AS v
                 WHERE v.id = ed."paymentToId"
+                  AND ed."bankId" IS NULL
             ');
 
             Schema::table('employee_default_deduction', function (Blueprint $table) {
@@ -29,19 +37,34 @@ return new class extends Migration
             });
         }
 
-        DB::statement('ALTER TABLE employee_default_deduction ALTER COLUMN "bankId" SET NOT NULL');
-        DB::statement('ALTER TABLE employee_default_deduction ALTER COLUMN "accountNumber" SET NOT NULL');
+        if (Schema::hasColumn('employee_default_deduction', 'bankId')) {
+            DB::statement('ALTER TABLE employee_default_deduction ALTER COLUMN "bankId" SET NOT NULL');
+        }
+
+        if (Schema::hasColumn('employee_default_deduction', 'accountNumber')) {
+            DB::statement('ALTER TABLE employee_default_deduction ALTER COLUMN "accountNumber" SET NOT NULL');
+        }
     }
 
     public function down(): void
     {
-        Schema::table('employee_default_deduction', function (Blueprint $table) {
-            $table->foreignUuid('paymentToId')->nullable()->constrained('vendor')->onDelete('cascade');
-        });
+        if (!Schema::hasColumn('employee_default_deduction', 'paymentToId')) {
+            Schema::table('employee_default_deduction', function (Blueprint $table) {
+                $table->foreignUuid('paymentToId')->nullable()->constrained('vendor')->onDelete('cascade');
+            });
+        }
 
-        Schema::table('employee_default_deduction', function (Blueprint $table) {
-            $table->dropForeign(['bankId']);
-            $table->dropColumn(['bankId', 'accountNumber']);
-        });
+        if (Schema::hasColumn('employee_default_deduction', 'bankId')) {
+            Schema::table('employee_default_deduction', function (Blueprint $table) {
+                $table->dropForeign(['bankId']);
+                $table->dropColumn('bankId');
+            });
+        }
+
+        if (Schema::hasColumn('employee_default_deduction', 'accountNumber')) {
+            Schema::table('employee_default_deduction', function (Blueprint $table) {
+                $table->dropColumn('accountNumber');
+            });
+        }
     }
 };

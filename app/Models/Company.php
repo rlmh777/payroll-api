@@ -2,14 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use ParagonIE\CipherSweet\BlindIndex;
-use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
 use ParagonIE\CipherSweet\EncryptedRow;
-use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
-use ParagonIE\CipherSweet\Constants;
 
 class Company extends Model
 {
@@ -26,12 +24,19 @@ class Company extends Model
         'phoneNumber2',
         'email',
         'street',
-        'localityId'
+        'localityId',
+        'primaryColor',
+        'secondaryColor',
+    ];
+
+    protected $attributes = [
+        'primaryColor' => '#1976D2',
+        'secondaryColor' => '#26A69A',
     ];
 
     public function locality(): BelongsTo
     {
-        return $this->belongsTo(Locality::class);
+        return $this->belongsTo(Locality::class, 'localityId');
     }
 
     public function companyBankAccounts(): HasMany
@@ -39,10 +44,35 @@ class Company extends Model
         return $this->hasMany(CompanyBankAccount::class, 'companyId');
     }
 
+    protected function socialSecurityNumber(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (is_resource($value)) {
+                    return stream_get_contents($value) ?: '';
+                }
+
+                return $value ?? '';
+            },
+        );
+    }
+
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+
+        foreach ($array as $key => $value) {
+            if (is_resource($value)) {
+                $array[$key] = stream_get_contents($value) ?: '';
+            }
+        }
+
+        return $array;
+    }
+
     public static function configureCipherSweet(EncryptedRow $encryptedRow): void
     {
         $encryptedRow
-            // add the columns you want to encrypt the values ​​for
             ->addField('legalName')
             ->addField('alias')
             ->addField('socialSecurityNumber')
@@ -50,8 +80,6 @@ class Company extends Model
             ->addField('phoneNumber1')
             ->addField('phoneNumber2')
             ->addField('email')
-
-            // add a blind index for each column you want to search
             ->addBlindIndex('legalName', new BlindIndex('legalNameIndex'))
             ->addBlindIndex('alias', new BlindIndex('aliasIndex'))
             ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
@@ -60,5 +88,5 @@ class Company extends Model
             ->addBlindIndex('phoneNumber2', new BlindIndex('phoneNumber2Index'))
             ->addBlindIndex('email', new BlindIndex('emailIndex'));
     }
-
 }
+

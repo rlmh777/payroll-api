@@ -14,6 +14,9 @@ return new class extends Migration {
             $table->id('id');
             $table->string('name', 256);
             $table->foreignId('parentId')->nullable()->constrained('department')->onDelete('cascade');
+            $table->decimal('totalDailyHoursBeforeOvertime', 5, 2)->default(9);
+            $table->decimal('totalWeeklyHoursBeforeOvertime', 6, 2)->default(45);
+            $table->boolean('includeLunchHour')->default(true);
             $table->timestamps();
         });
     }

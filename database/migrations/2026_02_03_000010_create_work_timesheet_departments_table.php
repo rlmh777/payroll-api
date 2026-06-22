@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('work_timesheet_department', function (Blueprint $table) {
+        Schema::create('timesheet_template_department', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('work_timesheet_id')->constrained('work_timesheet')->cascadeOnDelete();
+            $table->foreignUuid('timesheet_template_id')->constrained('timesheet_template')->cascadeOnDelete();
             $table->foreignId('department_id')->constrained('department')->cascadeOnDelete();
             $table->date('effective_date');
             $table->text('notes')->nullable();
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('work_timesheet_department');
+        Schema::dropIfExists('timesheet_template_department');
     }
 };

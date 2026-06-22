@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
-use App\Models\WorkTimesheet;
-use App\Models\WorkTimesheetDepartment;
+use App\Models\TimesheetTemplate;
+use App\Models\TimesheetTemplateDepartment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -18,7 +18,7 @@ class DepartmentController extends Controller
     {
         $query = Department::query()->with([
             'parent',
-            'currentWorkTimesheetAssignment.workTimesheet',
+            'currentTimesheetTemplateAssignment.timesheetTemplate',
         ]);
 
         // Search by name
@@ -36,7 +36,7 @@ class DepartmentController extends Controller
         $sortField = $request->get('sort_by', 'name');
         $sortDirection = $request->get('sort_direction', 'asc');
 
-        if (in_array($sortField, ['name'])) {
+        if (in_array($sortField, ['name', 'totalDailyHoursBeforeOvertime', 'totalWeeklyHoursBeforeOvertime'])) {
             $query->orderBy($sortField, $sortDirection);
         } else {
             $query->orderBy('name', 'asc');
@@ -58,22 +58,28 @@ class DepartmentController extends Controller
             $validatedData = $request->validate([
                 'name' => 'required|string|max:256',
                 'parentId' => 'nullable|exists:department,id',
-                'work_timesheet_id' => 'nullable|uuid|exists:work_timesheet,id',
+                'timesheet_template_id' => 'nullable|uuid|exists:timesheet_template,id',
+                'totalDailyHoursBeforeOvertime' => 'nullable|numeric|min:0|max:24',
+                'totalWeeklyHoursBeforeOvertime' => 'nullable|numeric|min:0|max:168',
+                'includeLunchHour' => 'nullable|boolean',
             ]);
 
             $department = Department::create([
                 'name' => $validatedData['name'],
                 'parentId' => $validatedData['parentId'] ?? null,
+                'totalDailyHoursBeforeOvertime' => $validatedData['totalDailyHoursBeforeOvertime'] ?? 9,
+                'totalWeeklyHoursBeforeOvertime' => $validatedData['totalWeeklyHoursBeforeOvertime'] ?? 45,
+                'includeLunchHour' => $validatedData['includeLunchHour'] ?? true,
             ]);
 
-            $this->assignWorkTimesheet(
+            $this->assignTimesheetTemplate(
                 $department,
-                $validatedData['work_timesheet_id'] ?? null,
+                $validatedData['timesheet_template_id'] ?? null,
             );
 
             return response()->json([
                 'message' => 'Department created successfully',
-                'data' => $department->load(['parent', 'currentWorkTimesheetAssignment.workTimesheet'])
+                'data' => $department->load(['parent', 'currentTimesheetTemplateAssignment.timesheetTemplate'])
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -85,10 +91,10 @@ class DepartmentController extends Controller
      */
     public function show(Department $department): JsonResponse
     {
-        $this->ensureDefaultWorkTimesheetAssignment($department);
+        $this->ensureDefaultTimesheetTemplateAssignment($department);
 
         return response()->json(
-            $department->load(['parent', 'children', 'currentWorkTimesheetAssignment.workTimesheet']),
+            $department->load(['parent', 'children', 'currentTimesheetTemplateAssignment.timesheetTemplate']),
             200
         );
     }
@@ -110,7 +116,10 @@ class DepartmentController extends Controller
             $validatedData = $request->validate([
                 'name' => 'sometimes|string|max:256',
                 'parentId' => 'sometimes|nullable|exists:department,id',
-                'work_timesheet_id' => 'sometimes|nullable|uuid|exists:work_timesheet,id',
+                'timesheet_template_id' => 'sometimes|nullable|uuid|exists:timesheet_template,id',
+                'totalDailyHoursBeforeOvertime' => 'sometimes|nullable|numeric|min:0|max:24',
+                'totalWeeklyHoursBeforeOvertime' => 'sometimes|nullable|numeric|min:0|max:168',
+                'includeLunchHour' => 'sometimes|boolean',
             ]);
 
             // Prevent circular reference
@@ -120,20 +129,26 @@ class DepartmentController extends Controller
                 ], 422);
             }
 
-            $department->update(collect($validatedData)->only(['name', 'parentId'])->all());
+            $department->update(collect($validatedData)->only([
+                'name',
+                'parentId',
+                'totalDailyHoursBeforeOvertime',
+                'totalWeeklyHoursBeforeOvertime',
+                'includeLunchHour',
+            ])->all());
 
-            if (array_key_exists('work_timesheet_id', $validatedData)) {
-                $this->assignWorkTimesheet(
+            if (array_key_exists('timesheet_template_id', $validatedData)) {
+                $this->assignTimesheetTemplate(
                     $department,
-                    $validatedData['work_timesheet_id'] ?? null,
+                    $validatedData['timesheet_template_id'] ?? null,
                 );
             } else {
-                $this->ensureDefaultWorkTimesheetAssignment($department);
+                $this->ensureDefaultTimesheetTemplateAssignment($department);
             }
 
             return response()->json([
                 'message' => 'Department updated successfully',
-                'data' => $department->load(['parent', 'currentWorkTimesheetAssignment.workTimesheet'])
+                'data' => $department->load(['parent', 'currentTimesheetTemplateAssignment.timesheetTemplate'])
             ], 200);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -163,38 +178,45 @@ class DepartmentController extends Controller
         return response()->json(['message' => 'Department deleted successfully.']);
     }
 
-    private function assignWorkTimesheet(
+    private function assignTimesheetTemplate(
         Department $department,
-        ?string $workTimesheetId
+        ?string $timesheetTemplateId
     ): void {
-        WorkTimesheetDepartment::create([
-            'work_timesheet_id' => $workTimesheetId ?: $this->defaultWorkTimesheet()->id,
+        TimesheetTemplateDepartment::create([
+            'timesheet_template_id' => $timesheetTemplateId ?: $this->defaultTimesheetTemplate()->id,
             'department_id' => $department->id,
             'effective_date' => now()->toDateString(),
         ]);
     }
 
-    private function ensureDefaultWorkTimesheetAssignment(Department $department): void
+    private function ensureDefaultTimesheetTemplateAssignment(Department $department): void
     {
-        if ($department->workTimesheetAssignments()->exists()) {
+        if ($department->timesheetTemplateAssignments()->exists()) {
             return;
         }
 
-        $this->assignWorkTimesheet(
+        $this->assignTimesheetTemplate(
             $department,
             null,
         );
     }
 
-    private function defaultWorkTimesheet(): WorkTimesheet
+    private function defaultTimesheetTemplate(): TimesheetTemplate
     {
-        return WorkTimesheet::firstOrCreate(
-            ['name' => 'Default Timesheet'],
+        return TimesheetTemplate::firstOrCreate(
+            ['name' => 'Default Template'],
             [
                 'start_time' => '08:00',
                 'end_time' => '17:00',
                 'break_minutes' => 60,
                 'days' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                'day_schedules' => [
+                    ['day' => 'Mon', 'start_time' => '08:00', 'end_time' => '17:00', 'include_lunch_hour' => false],
+                    ['day' => 'Tue', 'start_time' => '08:00', 'end_time' => '17:00', 'include_lunch_hour' => false],
+                    ['day' => 'Wed', 'start_time' => '08:00', 'end_time' => '17:00', 'include_lunch_hour' => false],
+                    ['day' => 'Thu', 'start_time' => '08:00', 'end_time' => '17:00', 'include_lunch_hour' => false],
+                    ['day' => 'Fri', 'start_time' => '08:00', 'end_time' => '17:00', 'include_lunch_hour' => false],
+                ],
                 'is_active' => true,
             ],
         );
