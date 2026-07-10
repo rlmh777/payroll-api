@@ -14,8 +14,8 @@ class EmploymentStatus extends Model
         'name'
     ];
 
-    public function employmentDetails(): HasMany
+    public function employees(): HasMany
     {
-        return $this->hasMany(EmploymentDetail::class);
+        return $this->hasMany(Employee::class, 'employmentStatusId');
     }
 }

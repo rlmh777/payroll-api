@@ -3,174 +3,225 @@
 namespace App\Http\Controllers;
 
 use App\Models\EmploymentDetail;
-use App\Models\Employee;
-use App\Models\Department;
-use App\Models\EmployeeStatus;
-use App\Models\PayrateFrequency;
-use App\Models\PaymentMethod;
+use App\Services\Employment\EmploymentDetailVersionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class EmploymentDetailsController extends Controller
 {
-    public function index(Request $request)
-    {
-        $query = EmploymentDetail::with([
-            'employee',
-            'department',
-            'employeeStatus',
-            'payrateFrequency',
-        ]);
+    private const RELATIONS = [
+        'employee',
+        'department',
+        'worksite',
+        'contractType',
+        'chartOfAccount',
+        'defaultPayPeriodGroup',
+    ];
 
-        // Filter by employee
-        if ($request->has('employeeId')) {
+    public function __construct(
+        private readonly EmploymentDetailVersionService $versionService,
+    ) {
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $query = EmploymentDetail::with(self::RELATIONS);
+
+        if ($request->filled('employeeId')) {
             $query->where('employeeId', $request->input('employeeId'));
         }
 
-        // Filter by department
-        if ($request->has('departmentId')) {
+        if ($request->filled('departmentId')) {
             $query->where('departmentId', $request->input('departmentId'));
         }
 
-        // Filter by employee status
-        if ($request->has('employeeStatusId')) {
-            $query->where('employeeStatusId', $request->input('employeeStatusId'));
-        }
-
-        // Filter by active status
         if ($request->has('isActive')) {
             $query->where('isActive', $request->boolean('isActive'));
         }
 
-        // Sort
-        if ($request->has('sortBy')) {
-            $sortDirection = $request->input('sortDirection', 'asc');
-            $query->orderBy($request->input('sortBy'), $sortDirection);
-        } else {
-            $query->orderBy('created_at', 'desc');
-        }
+        $sortField = $request->input('sortBy', 'startDate');
+        $sortDirection = $request->input('sortDirection', 'desc');
+        $query->orderBy($sortField, $sortDirection);
 
-        return $query->paginate($request->input('per_page', 15));
+        return response()->json($query->paginate((int) $request->input('per_page', 15)));
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'employeeId' => ['required', 'uuid', 'exists:employee,id'],
-            'departmentId' => ['required', 'integer', 'exists:department,id'],
-            'employeeStatusId' => ['required', 'integer', 'exists:employee_status,id'],
-            'payrateFrequencyId' => ['required', 'integer', 'exists:payrate_frequency,id'],
-            'worksiteId' => ['required', 'integer', 'exists:worksite,id'],
-            'employmentStatusId' => ['required', 'integer', 'exists:employment_status,id'],
-            'accountId' => ['required', 'uuid', 'exists:accounts,id'],
-            'contractTypeId' => ['required', 'integer'],
-            'employmentPolicies' => ['required', 'string'],
-            'contractAgreementPath' => ['required', 'string', 'max: 1024'],
-            'payrate' => ['required', 'numeric', 'min:0'],
-            'hourlyRate' => ['required', 'numeric'],
-            'totalRate' => ['required', 'numeric'],
-            'startDate' => ['required', 'date'],
-            'endDate' => ['nullable', 'date', 'after:startDate'],
-            'isActive' => ['boolean'],
-            'payscalePoint' => ['required', 'string'],
-            'benefits' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validator = Validator::make($request->all(), $this->rules());
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Check if employee already has employment details
-        $exists = EmploymentDetail::where('employeeId', $request->employeeId)
-            ->where('isActive', true)
-            ->exists();
+        $data = $this->applyContractAgreementUpload($request, $validator->validated());
+        $data = $this->normalizeOptionalTextFields($data, defaultWhenMissing: true);
+        $data = $this->normalizeOptionalDates($data);
 
-        if ($exists) {
-            return response()->json([
-                'message' => 'Employee already has active employment details'
-            ], 422);
-        }
+        $employmentDetails = EmploymentDetail::create(array_merge($data, [
+            'id' => (string) Str::uuid(),
+        ]));
 
-        $employmentDetails = EmploymentDetail::create($request->all());
-
-        return response()->json($employmentDetails->load([
-            'employee',
-            'department',
-            'employeeStatus',
-            'payrateFrequency',
-        ]), 201);
+        return response()->json([
+            'message' => 'Employment detail created successfully',
+            'data' => $employmentDetails->load(self::RELATIONS),
+        ], 201);
     }
 
-    public function show(EmploymentDetail $employmentDetails)
+    public function show(EmploymentDetail $employmentDetails): JsonResponse
     {
-        return $employmentDetails->load([
-            'employee',
-            'department',
-            'employeeStatus',
-            'payrateFrequency',
-        ]);
+        return response()->json($employmentDetails->load(self::RELATIONS));
     }
 
-    public function update(Request $request, EmploymentDetail $employmentDetails)
+    public function update(Request $request, EmploymentDetail $employmentDetails): JsonResponse
     {
         if ($request->isMethod('put') && empty($request->all())) {
-            return response()->json([
-                'message' => 'No data provided for update'
-            ], 422);
+            return response()->json(['message' => 'No data provided for update'], 422);
         }
 
-        $validator = Validator::make($request->all(), [
-            'employeeId' => ['sometimes', 'required', 'uuid', 'exists:employee,id'],
-            'departmentId' => ['sometimes', 'required', 'integer', 'exists:department,id'],
-            'employeeStatusId' => ['sometimes', 'required', 'integer', 'exists:employee_status,id'],
-            'payrateFrequencyId' => ['sometimes', 'required', 'integer', 'exists:payrate_frequency,id'],
-            'worksiteId' => ['sometimes', 'required', 'integer', 'exists:worksite,id'],
-            'employmentStatusId' => ['sometimes', 'required', 'integer', 'exists:employment_status,id'],
-            'accountId' => ['sometimes', 'required', 'uuid', 'exists:accounts,id'],
-            'contractTypeId' => ['sometimes', 'required', 'integer'],
-            'employmentPolicies' => ['sometimes', 'required', 'string'],
-            'contractAgreementPath' => ['sometimes', 'required', 'string', 'max:1024'],
-            'payrate' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'hourlyRate' => ['sometimes', 'required', 'numeric'],
-            'totalRate' => ['sometimes', 'required', 'numeric'],
-            'startDate' => ['sometimes', 'required', 'date'],
-            'endDate' => ['nullable', 'date', 'after:startDate'],
-            'isActive' => ['sometimes', 'boolean'],
-            'payscalePoint' => ['sometimes', 'required', 'string'],
-            'benefits' => ['nullable', 'string', 'max:255'],
-        ]);
+        $validator = Validator::make($request->all(), $this->rules(partial: true));
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // If employee is being changed, check for active employment details
-        if ($request->has('employeeId') && $request->employeeId !== $employmentDetails->employeeId) {
-            $exists = EmploymentDetail::where('employeeId', $request->employeeId)
-                ->where('isActive', true)
-                ->exists();
+        $data = $this->applyContractAgreementUpload(
+            $request,
+            $validator->validated(),
+            $employmentDetails->contractAgreementPath
+        );
+        $data = $this->normalizeOptionalTextFields($data);
+        $data = $this->normalizeOptionalDates($data);
 
-            if ($exists) {
+        if (!$employmentDetails->isActive) {
+            if ($this->versionService->assignmentFieldsChanged($employmentDetails, $data)) {
                 return response()->json([
-                    'message' => 'Employee already has active employment details'
+                    'message' => 'Department, work site, and pay period group can only be changed on the active employment contract.',
                 ], 422);
+            }
+
+            $employmentDetails->update($data);
+
+            return response()->json([
+                'message' => 'Employment detail updated successfully',
+                'data' => $employmentDetails->fresh()->load(self::RELATIONS),
+                'revised' => false,
+            ]);
+        }
+
+        if ($this->versionService->assignmentFieldsChanged($employmentDetails, $data)) {
+            $successor = $this->versionService->revise($employmentDetails, $data);
+
+            return response()->json([
+                'message' => 'Employment contract revised with updated assignment.',
+                'data' => $successor->load(self::RELATIONS),
+                'revised' => true,
+            ]);
+        }
+
+        $employmentDetails->update($data);
+
+        return response()->json([
+            'message' => 'Employment detail updated successfully',
+            'data' => $employmentDetails->fresh()->load(self::RELATIONS),
+            'revised' => false,
+        ]);
+    }
+
+    public function destroy(EmploymentDetail $employmentDetails): JsonResponse
+    {
+        if ($employmentDetails->isActive) {
+            return response()->json([
+                'message' => 'End the active employment contract before deleting it.',
+            ], 422);
+        }
+
+        $employmentDetails->delete();
+
+        return response()->json(['message' => 'Employment detail deleted successfully']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rules(bool $partial = false): array
+    {
+        $required = $partial ? 'sometimes' : 'required';
+
+        return [
+            'employeeId' => [$required, 'uuid', 'exists:employee,id'],
+            'departmentId' => [$required, 'integer', 'exists:department,id'],
+            'worksiteId' => [$required, 'integer', 'exists:worksite,id'],
+            'accountId' => [$required, 'uuid', 'exists:accounts,id'],
+            'contractTypeId' => [$required, 'integer', 'exists:contract_type,id'],
+            'defaultPayPeriodGroupId' => [$required, 'uuid', 'exists:pay_period_groups,id'],
+            'employmentPolicies' => ['nullable', 'string'],
+            'contractAgreementPath' => ['nullable', 'string', 'max:1024'],
+            'contractAgreement' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'],
+            'requiresClocking' => ['sometimes', 'boolean'],
+            'startDate' => [$required, 'date'],
+            'endDate' => ['nullable', 'date', 'after_or_equal:startDate'],
+            'isActive' => ['boolean'],
+            'jobTitle' => ['nullable', 'string', 'max:255'],
+            'benefits' => ['nullable', 'string'],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function applyContractAgreementUpload(
+        Request $request,
+        array $data,
+        ?string $existingPath = null
+    ): array {
+        unset($data['contractAgreement']);
+
+        if (!$request->hasFile('contractAgreement')) {
+            return $data;
+        }
+
+        if ($existingPath && Storage::disk('public')->exists($existingPath)) {
+            Storage::disk('public')->delete($existingPath);
+        }
+
+        $file = $request->file('contractAgreement');
+        $fileName = 'contract_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
+        $data['contractAgreementPath'] = $file->storeAs('employment-contracts', $fileName, 'public');
+
+        return $data;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function normalizeOptionalTextFields(array $data, bool $defaultWhenMissing = false): array
+    {
+        foreach (['employmentPolicies', 'benefits'] as $field) {
+            if (array_key_exists($field, $data) || $defaultWhenMissing) {
+                $data[$field] = trim((string) ($data[$field] ?? ''));
             }
         }
 
-        $employmentDetails->update($request->all());
-
-        return response()->json($employmentDetails->load([
-            'employee',
-            'department',
-            'employeeStatus',
-            'payrateFrequency',
-        ]));
+        return $data;
     }
 
-    public function destroy(EmploymentDetail $employmentDetails)
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function normalizeOptionalDates(array $data): array
     {
-        $employmentDetails->delete();
-        return response()->json(null, 204);
+        if (array_key_exists('endDate', $data) && ($data['endDate'] === '' || $data['endDate'] === null)) {
+            $data['endDate'] = null;
+        }
+
+        return $data;
     }
+
 }

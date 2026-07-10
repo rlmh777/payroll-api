@@ -15,6 +15,6 @@ class ContractType extends Model
     ];
 
     public function employmentDetails(): HasMany {
-        return $this->hasMany(EmploymentDetail::class);
+        return $this->hasMany(EmploymentDetail::class, 'contractTypeId');
     }
 }

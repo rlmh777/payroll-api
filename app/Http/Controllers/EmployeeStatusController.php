@@ -15,10 +15,13 @@ class EmployeeStatusController extends Controller
     {
         $query = EmployeeStatus::query();
 
-        // Search by name
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where('name', 'ilike', "%{$search}%");
+        }
+
+        if ($request->boolean('all')) {
+            return response()->json($query->orderBy('name')->get());
         }
 
         // Sort
@@ -93,9 +96,9 @@ class EmployeeStatusController extends Controller
     public function destroy(EmployeeStatus $employeeStatus)
     {
         // Check if there are any associated employee details
-        if ($employeeStatus->employeeDetails()->exists()) {
+        if ($employeeStatus->employees()->exists()) {
             return response()->json([
-                'message' => 'Cannot delete employee status with associated employee details'
+                'message' => 'Cannot delete employee status with associated employees'
             ], 422);
         }
 

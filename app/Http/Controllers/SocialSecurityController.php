@@ -67,7 +67,7 @@ class SocialSecurityController extends Controller
         try {
             $validatedData = $request->validate([
                 'weeklyEarningsStartRange' => 'required|numeric|min:0',
-                'weeklyEarningsEndRange' => 'required|numeric|min:0|gte:weeklyEarningsStartRange',
+                'weeklyEarningsEndRange' => 'nullable|numeric|min:0|gte:weeklyEarningsStartRange',
                 'weeklyInsurableEarnings' => 'required|numeric|min:0',
                 'weeklyEmployeeContributions' => 'required|numeric|min:0',
                 'weeklyEmployerContributions' => 'required|numeric|min:0',
@@ -116,7 +116,7 @@ class SocialSecurityController extends Controller
 
             $validatedData = $request->validate([
                 'weeklyEarningsStartRange' => 'sometimes|numeric|min:0',
-                'weeklyEarningsEndRange' => 'sometimes|numeric|min:0',
+                'weeklyEarningsEndRange' => 'nullable|numeric|min:0',
                 'weeklyInsurableEarnings' => 'sometimes|numeric|min:0',
                 'weeklyEmployeeContributions' => 'sometimes|numeric|min:0',
                 'weeklyEmployerContributions' => 'sometimes|numeric|min:0',
@@ -131,9 +131,11 @@ class SocialSecurityController extends Controller
             // Validate that end range is greater than or equal to start range if both are provided
             if ($request->has('weeklyEarningsStartRange') || $request->has('weeklyEarningsEndRange')) {
                 $startRange = $validatedData['weeklyEarningsStartRange'] ?? $socialSecurity->weeklyEarningsStartRange;
-                $endRange = $validatedData['weeklyEarningsEndRange'] ?? $socialSecurity->weeklyEarningsEndRange;
-                
-                if ($endRange < $startRange) {
+                $endRange = array_key_exists('weeklyEarningsEndRange', $validatedData)
+                    ? $validatedData['weeklyEarningsEndRange']
+                    : $socialSecurity->weeklyEarningsEndRange;
+
+                if ($endRange !== null && $endRange < $startRange) {
                     return response()->json([
                         'errors' => ['weeklyEarningsEndRange' => ['End range must be greater than or equal to start range']]
                     ], 422);

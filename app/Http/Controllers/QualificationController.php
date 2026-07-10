@@ -26,8 +26,11 @@ class QualificationController extends Controller
         }
 
         // Filter by employee
-        if ($request->has('employee_id')) {
-            $query->where('employeeId', $request->input('employee_id'));
+        if ($request->filled('employeeId') || $request->filled('employee_id')) {
+            $query->where(
+                'employeeId',
+                $request->input('employeeId', $request->input('employee_id')),
+            );
         }
 
         // Filter by institution

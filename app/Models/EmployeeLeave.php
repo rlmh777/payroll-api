@@ -17,7 +17,9 @@ class EmployeeLeave extends Model
 
     protected $fillable = [
         'employeeId',
+        'departmentId',
         'leaveTypeId',
+        'leaveStatusId',
         'startDate',
         'endDate',
         'fromTime',
@@ -26,16 +28,43 @@ class EmployeeLeave extends Model
         'totalDays',
         'notes',
         'multiplier',
-        'approvalStatus',
+        'statusNote',
         'approvalDate',
-        'approverId'
+        'approverId',
+    ];
+
+    protected $casts = [
+        'startDate' => 'date:Y-m-d',
+        'endDate' => 'date:Y-m-d',
+        'approvalDate' => 'date:Y-m-d',
+    ];
+
+    protected $appends = [
+        'statusCode',
     ];
 
     public function employee(): BelongsTo {
         return $this->belongsTo(Employee::class, 'employeeId');
     }
 
+    public function department(): BelongsTo {
+        return $this->belongsTo(Department::class, 'departmentId');
+    }
+
     public function leaveType(): BelongsTo {
         return $this->belongsTo(LeaveType::class, 'leaveTypeId');
+    }
+
+    public function leaveStatus(): BelongsTo {
+        return $this->belongsTo(LeaveStatus::class, 'leaveStatusId');
+    }
+
+    public function approver(): BelongsTo {
+        return $this->belongsTo(Employee::class, 'approverId');
+    }
+
+    public function getStatusCodeAttribute(): ?string
+    {
+        return $this->leaveStatus?->code;
     }
 }

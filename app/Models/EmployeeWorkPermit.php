@@ -27,18 +27,4 @@ class EmployeeWorkPermit extends Model
     {
         return $this->belongsTo(Employee::class, 'employeeId');
     }
-
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
-    {
-        $encryptedRow
-            // add the columns you want to encrypt the values ​​for
-            ->addField('socialSecurityNumber')
-            ->addField('workPermitNumber')
-
-
-            // add a blind index for each column you want to search
-            ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
-            ->addBlindIndex('workPermitNumber', new BlindIndex('workPermitNumberIndex'));
-    }
-
 }

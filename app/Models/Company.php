@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use ParagonIE\CipherSweet\BlindIndex;
-use ParagonIE\CipherSweet\EncryptedRow;
 
 class Company extends Model
 {
@@ -68,25 +66,6 @@ class Company extends Model
         }
 
         return $array;
-    }
-
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
-    {
-        $encryptedRow
-            ->addField('legalName')
-            ->addField('alias')
-            ->addField('socialSecurityNumber')
-            ->addField('taxIdentificationNumber')
-            ->addField('phoneNumber1')
-            ->addField('phoneNumber2')
-            ->addField('email')
-            ->addBlindIndex('legalName', new BlindIndex('legalNameIndex'))
-            ->addBlindIndex('alias', new BlindIndex('aliasIndex'))
-            ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
-            ->addBlindIndex('taxIdentificationNumber', new BlindIndex('taxIdentificationNumberIndex'))
-            ->addBlindIndex('phoneNumber1', new BlindIndex('phoneNumber1Index'))
-            ->addBlindIndex('phoneNumber2', new BlindIndex('phoneNumber2Index'))
-            ->addBlindIndex('email', new BlindIndex('emailIndex'));
     }
 }
 

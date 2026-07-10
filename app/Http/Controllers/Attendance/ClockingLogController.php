@@ -11,6 +11,7 @@ use App\Models\ClockingLog;
 use App\Models\PayPeriodSchedule;
 use App\Services\Attendance\BiometricFileParserService;
 use App\Services\Attendance\ClockingLogIngestionService;
+use App\Services\Attendance\TimesheetProcessingScheduler;
 use App\Services\Attendance\TimesheetProcessingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,20 +46,26 @@ class ClockingLogController extends Controller
 
     public function store(
         StoreClockingLogRequest $request,
-        ClockingLogIngestionService $ingestionService
+        ClockingLogIngestionService $ingestionService,
+        TimesheetProcessingScheduler $processingScheduler,
     ): JsonResponse {
-        $summary = $ingestionService->ingest($request->validated('logs'));
+        $rows = $request->validated('logs');
+        $summary = $ingestionService->ingest($rows);
+        $processingScheduler->queueAfterIngest((int) ($summary['inserted'] ?? 0), $rows);
 
         return response()->json([
             'message' => 'Clocking logs received.',
             ...$summary,
+            'timesheetProcessingQueued' => ($summary['inserted'] ?? 0) > 0
+                && config('attendance.timesheet_processing.queue_after_ingest', true),
         ], 201);
     }
 
     public function import(
         ImportClockingLogRequest $request,
         BiometricFileParserService $fileParser,
-        ClockingLogIngestionService $ingestionService
+        ClockingLogIngestionService $ingestionService,
+        TimesheetProcessingScheduler $processingScheduler,
     ): JsonResponse {
         $validated = $request->validated();
         $rows = $fileParser->parse(
@@ -82,11 +89,14 @@ class ClockingLogController extends Controller
         }
 
         $summary = $ingestionService->ingest($rows);
+        $processingScheduler->queueAfterIngest((int) ($summary['inserted'] ?? 0), $rows);
 
         return response()->json([
             'message' => 'Biometric file imported.',
             'fileName' => $request->file('file')->getClientOriginalName(),
             ...$summary,
+            'timesheetProcessingQueued' => ($summary['inserted'] ?? 0) > 0
+                && config('attendance.timesheet_processing.queue_after_ingest', true),
         ], 201);
     }
 

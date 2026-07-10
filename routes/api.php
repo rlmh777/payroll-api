@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\BankController;
+use App\Http\Controllers\EmployeeCompensationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AllowanceController;
@@ -13,10 +13,11 @@ use App\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DepartmentHeadAssignmentController;
+use App\Http\Controllers\WorksiteController;
 use App\Http\Controllers\DegreeController;
 use App\Http\Controllers\LocalityController;
 use App\Http\Controllers\DistrictController;
-use App\Http\Controllers\CalculationModeController;
 use App\Http\Controllers\GenderController;
 use App\Http\Controllers\CitizenshipStatusController;
 use App\Http\Controllers\EmployeeStatusController;
@@ -24,48 +25,79 @@ use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\QualificationController;
 use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\EmployeeContactController;
+use App\Http\Controllers\EmployeeCertificationController;
+use App\Http\Controllers\EmployeeSkillController;
+use App\Http\Controllers\DocumentTagController;
+use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeDefaultAllowanceController;
 use App\Http\Controllers\EmployeeBankController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDefaultDeductionController;
 use App\Http\Controllers\EmploymentDetailsController;
+use App\Http\Controllers\ContractTypeController;
+use App\Http\Controllers\EmploymentStatusController;
 use App\Http\Controllers\EmployeeHoursWorkedController;
 use App\Http\Controllers\EmploymentHistoryController;
 use App\Http\Controllers\LoanTypeController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\HistoricalEmployeeDeductionController;
+use App\Http\Controllers\LeaveStatusController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\PayrateFrequencyController;
 use App\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
+use App\Http\Controllers\BankController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PayPeriodController;
 use App\Http\Controllers\PayPeriodGroupController;
 use App\Http\Controllers\PayPeriodScheduleAiController;
+use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\PayrollEarningCodeController;
+use App\Http\Controllers\PayrollEarningLineController;
+use App\Http\Controllers\PayrollRunAllowanceDeductionImportController;
 use App\Http\Controllers\PayrollRunController;
+use App\Http\Controllers\PayrollRunPayslipController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\PayrollContributionController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\JournalLineController;
 use App\Http\Controllers\SocialSecurityController;
+use App\Http\Controllers\SocialSecurityContributionController;
+use App\Http\Controllers\SocialSecurityContributionRuleController;
+use App\Http\Controllers\SsBenefitTypeController;
+use App\Http\Controllers\EmployeeSsBenefitStatusController;
+use App\Http\Controllers\PayrollSettingController;
 use App\Http\Controllers\PersonalReliefController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CalendarGroupController;
-use App\Http\Controllers\CalendarEventController;
+use App\Http\Controllers\PublicHolidayController;
+use App\Http\Controllers\ScheduledWorkController;
+use App\Http\Controllers\SchedulerEventController;
 use App\Http\Controllers\ScheduleEmployeeTimesheetController;
 use App\Http\Controllers\TimesheetTemplateController;
 use App\Http\Controllers\TimesheetTemplateDepartmentController;
+use App\Http\Controllers\EmployeeLeaveBalanceController;
 use App\Http\Controllers\EmployeeLeaveController;
+use App\Http\Controllers\EmploymentLeaveEntitlementController;
 use App\Http\Controllers\EmployeeReportingController;
 use App\Http\Controllers\Attendance\ClockingLogController;
+use App\Http\Controllers\Attendance\AttendanceSettingController;
 use App\Http\Controllers\Attendance\TimesheetController;
 
 Route::get('/user', function (Request $request) {
-    return $request->user();
+    $user = $request->user();
+
+    return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'role' => $user->getRoleNames()->first() ?? 'employee',
+    ];
 })->middleware('auth:sanctum');
 
 Route::post('/tokens/create', [AuthController::class, 'createToken'])->middleware('auth:sanctum');
@@ -89,12 +121,39 @@ Route::get('employees/{employeeId}/subordinates', [EmployeeController::class, 's
 
 // Social Security Routes
 Route::prefix('social-security')->group(function () {
+    Route::post('/calculate-contribution', [SocialSecurityContributionController::class, 'calculate']);
     Route::get('/', [SocialSecurityController::class, 'index']);
     Route::post('/', [SocialSecurityController::class, 'store']);
     Route::get('/{id}', [SocialSecurityController::class, 'show']);
     Route::put('/{id}', [SocialSecurityController::class, 'update']);
     Route::delete('/{id}', [SocialSecurityController::class, 'destroy']);
 });
+
+Route::prefix('social-security-contribution-rules')->group(function () {
+    Route::get('/', [SocialSecurityContributionRuleController::class, 'index']);
+    Route::post('/', [SocialSecurityContributionRuleController::class, 'store']);
+    Route::get('/{socialSecurityContributionRule}', [SocialSecurityContributionRuleController::class, 'show']);
+    Route::put('/{socialSecurityContributionRule}', [SocialSecurityContributionRuleController::class, 'update']);
+    Route::delete('/{socialSecurityContributionRule}', [SocialSecurityContributionRuleController::class, 'destroy']);
+});
+
+Route::prefix('ss-benefit-types')->group(function () {
+    Route::get('/', [SsBenefitTypeController::class, 'index']);
+    Route::post('/', [SsBenefitTypeController::class, 'store']);
+    Route::get('/{ssBenefitType}', [SsBenefitTypeController::class, 'show']);
+    Route::put('/{ssBenefitType}', [SsBenefitTypeController::class, 'update']);
+    Route::delete('/{ssBenefitType}', [SsBenefitTypeController::class, 'destroy']);
+});
+
+Route::prefix('employee-ss-benefit-status')->group(function () {
+    Route::get('/', [EmployeeSsBenefitStatusController::class, 'index']);
+    Route::post('/', [EmployeeSsBenefitStatusController::class, 'store']);
+    Route::get('/{employeeSsBenefitStatus}', [EmployeeSsBenefitStatusController::class, 'show']);
+    Route::put('/{employeeSsBenefitStatus}', [EmployeeSsBenefitStatusController::class, 'update']);
+    Route::delete('/{employeeSsBenefitStatus}', [EmployeeSsBenefitStatusController::class, 'destroy']);
+});
+
+Route::get('employees/{employee}/ss-contribution-preview', [EmployeeSsBenefitStatusController::class, 'preview']);
 
 // Personal Relief Routes
 Route::prefix('personal-relief')->group(function () {
@@ -103,6 +162,11 @@ Route::prefix('personal-relief')->group(function () {
     Route::get('/{id}', [PersonalReliefController::class, 'show']);
     Route::put('/{id}', [PersonalReliefController::class, 'update']);
     Route::delete('/{id}', [PersonalReliefController::class, 'destroy']);
+});
+
+Route::prefix('payroll-settings')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [PayrollSettingController::class, 'show']);
+    Route::put('/', [PayrollSettingController::class, 'update']);
 });
 
 Route::post('roles', [RoleController::class, 'store']);
@@ -117,17 +181,32 @@ Route::prefix('calendar-groups')->group(function () {
     Route::get('/', [CalendarGroupController::class, 'index']);
 });
 
-// Calendar Routes
-Route::prefix('calendars')->group(function () {
-    Route::get('/', [CalendarController::class, 'index']);
-    Route::post('/', [CalendarController::class, 'store']);
-    Route::get('/{calendar}', [CalendarController::class, 'show']);
-    Route::put('/{calendar}', [CalendarController::class, 'update']);
-    Route::delete('/{calendar}', [CalendarController::class, 'destroy']);
+// Scheduled work (employee shifts)
+Route::prefix('scheduled-work')->group(function () {
+    Route::get('/', [ScheduledWorkController::class, 'index']);
+    Route::post('/', [ScheduledWorkController::class, 'store']);
+    Route::get('/{scheduledWork}', [ScheduledWorkController::class, 'show']);
+    Route::put('/{scheduledWork}', [ScheduledWorkController::class, 'update']);
+    Route::delete('/{scheduledWork}', [ScheduledWorkController::class, 'destroy']);
+});
+
+// Public holidays
+Route::prefix('public-holidays')->group(function () {
+    Route::get('/', [PublicHolidayController::class, 'index']);
+    Route::post('/', [PublicHolidayController::class, 'store']);
+    Route::get('/{publicHoliday}', [PublicHolidayController::class, 'show']);
+    Route::put('/{publicHoliday}', [PublicHolidayController::class, 'update']);
+    Route::delete('/{publicHoliday}', [PublicHolidayController::class, 'destroy']);
 });
 
 // Schedule Employee Timesheets
-Route::post('schedule-employee-timesheets', [ScheduleEmployeeTimesheetController::class, 'store']);
+Route::prefix('schedule-employee-timesheets')->group(function () {
+    Route::post('/', [ScheduleEmployeeTimesheetController::class, 'store']);
+    Route::get('/{scheduleEmployeeTimesheet}', [ScheduleEmployeeTimesheetController::class, 'show']);
+    Route::put('/{scheduleEmployeeTimesheet}', [ScheduleEmployeeTimesheetController::class, 'update']);
+    Route::delete('/{scheduleEmployeeTimesheet}', [ScheduleEmployeeTimesheetController::class, 'destroy']);
+    Route::post('/{scheduleEmployeeTimesheet}/copy', [ScheduleEmployeeTimesheetController::class, 'copy']);
+});
 
 // Clocking logs (raw biometric events)
 Route::prefix('clocking-logs')->group(function () {
@@ -138,11 +217,27 @@ Route::prefix('clocking-logs')->group(function () {
 });
 
 // Timesheets (processed attendance)
-Route::prefix('timesheets')->group(function () {
+Route::prefix('attendance-settings')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [AttendanceSettingController::class, 'show']);
+    Route::put('/', [AttendanceSettingController::class, 'update']);
+});
+
+Route::prefix('timesheets')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [TimesheetController::class, 'index']);
     Route::get('/employee-summary', [TimesheetController::class, 'employeeSummary']);
+    Route::post('/recalculate-compensation', [TimesheetController::class, 'recalculateCompensation']);
     Route::patch('/approval/bulk', [TimesheetController::class, 'updateBulkApproval']);
+    Route::patch('/{timesheet}/round-off', [TimesheetController::class, 'updateRoundOff']);
+    Route::patch('/{timesheet}/paid-status', [TimesheetController::class, 'updatePaidStatus']);
+    Route::patch('/{timesheet}/lunch-hours', [TimesheetController::class, 'updateLunchHours']);
+    Route::post('/{timesheet}/resolve-leave-conflict', [TimesheetController::class, 'resolveLeaveConflict']);
     Route::patch('/{timesheet}/approval', [TimesheetController::class, 'updateApproval']);
+});
+
+Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::post('/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/{notificationId}/read', [NotificationController::class, 'markAsRead']);
 });
 
 // Timesheet Templates
@@ -154,15 +249,15 @@ Route::put('timesheet-templates/{timesheetTemplate}', [TimesheetTemplateControll
 Route::get('timesheet-template-departments', [TimesheetTemplateDepartmentController::class, 'index']);
 Route::post('timesheet-template-departments', [TimesheetTemplateDepartmentController::class, 'store']);
 
-// Calendar Events (merged calendar + timesheets)
-Route::prefix('calendar-events')->group(function () {
-    Route::get('/', [CalendarEventController::class, 'index']);
+// Scheduler merged feed (work, holidays, leaves, birthdays)
+Route::prefix('scheduler-events')->group(function () {
+    Route::get('/', [SchedulerEventController::class, 'index']);
 });
 
-// Calendar Approvals (pending timesheets)
-Route::prefix('calendar-approvals')->group(function () {
-    Route::get('/', [CalendarEventController::class, 'approvals']);
-    Route::patch('/{type}/{id}', [CalendarEventController::class, 'updateApproval']);
+// Leave approvals for scheduler
+Route::prefix('scheduler-approvals')->group(function () {
+    Route::get('/', [SchedulerEventController::class, 'approvals']);
+    Route::patch('/{type}/{id}', [SchedulerEventController::class, 'updateApproval']);
 });
 
 //Allowance
@@ -256,6 +351,14 @@ Route::prefix('departments')->group(function () {
     Route::delete('/{department}', [DepartmentController::class, 'destroy']);
 });
 
+Route::prefix('department-head-assignments')->group(function () {
+    Route::get('/', [DepartmentHeadAssignmentController::class, 'index']);
+    Route::post('/', [DepartmentHeadAssignmentController::class, 'store']);
+    Route::get('/{departmentHeadAssignment}', [DepartmentHeadAssignmentController::class, 'show']);
+    Route::put('/{departmentHeadAssignment}', [DepartmentHeadAssignmentController::class, 'update']);
+    Route::delete('/{departmentHeadAssignment}', [DepartmentHeadAssignmentController::class, 'destroy']);
+});
+
 // Degree Routes
 Route::prefix('degrees')->group(function () {
     Route::get('/', [DegreeController::class, 'index']);
@@ -274,6 +377,15 @@ Route::prefix('localities')->group(function () {
     Route::delete('/{locality}', [LocalityController::class, 'destroy']);
 });
 
+// Worksite routes
+Route::prefix('worksites')->group(function () {
+    Route::get('/', [WorksiteController::class, 'index']);
+    Route::post('/', [WorksiteController::class, 'store']);
+    Route::get('/{worksite}', [WorksiteController::class, 'show']);
+    Route::put('/{worksite}', [WorksiteController::class, 'update']);
+    Route::delete('/{worksite}', [WorksiteController::class, 'destroy']);
+});
+
 // District routes
 Route::prefix('districts')->group(function () {
     Route::get('/', [DistrictController::class, 'index']);
@@ -282,15 +394,6 @@ Route::prefix('districts')->group(function () {
     Route::put('/{district}', [DistrictController::class, 'update']);
     Route::delete('/{district}', [DistrictController::class, 'destroy']);
     Route::get('/{district}/localities', [DistrictController::class, 'localities']);
-});
-
-// Calculation Mode Routes
-Route::prefix('calculation-modes')->group(function () {
-    Route::get('/', [CalculationModeController::class, 'index']);
-    Route::post('/', [CalculationModeController::class, 'store']);
-    Route::get('/{calculationMode}', [CalculationModeController::class, 'show']);
-    Route::put('/{calculationMode}', [CalculationModeController::class, 'update']);
-    Route::delete('/{calculationMode}', [CalculationModeController::class, 'destroy']);
 });
 
 // Gender routes
@@ -334,8 +437,34 @@ Route::prefix('employment-details')->group(function () {
     Route::get('/', [EmploymentDetailsController::class, 'index']);
     Route::post('/', [EmploymentDetailsController::class, 'store']);
     Route::get('/{employmentDetails}', [EmploymentDetailsController::class, 'show']);
-    Route::put('/{employmentDetails}', [EmploymentDetailsController::class, 'update']);
+    Route::match(['put', 'post'], '/{employmentDetails}', [EmploymentDetailsController::class, 'update']);
     Route::delete('/{employmentDetails}', [EmploymentDetailsController::class, 'destroy']);
+    Route::get('/{employmentDetails}/leave-entitlements', [EmploymentLeaveEntitlementController::class, 'index']);
+    Route::put('/{employmentDetails}/leave-entitlements', [EmploymentLeaveEntitlementController::class, 'sync']);
+});
+
+Route::prefix('employee-compensations')->group(function () {
+    Route::get('/', [EmployeeCompensationController::class, 'index']);
+    Route::post('/', [EmployeeCompensationController::class, 'store']);
+    Route::get('/{employeeCompensation}', [EmployeeCompensationController::class, 'show']);
+    Route::match(['put', 'post'], '/{employeeCompensation}', [EmployeeCompensationController::class, 'update']);
+    Route::delete('/{employeeCompensation}', [EmployeeCompensationController::class, 'destroy']);
+});
+
+Route::prefix('contract-types')->group(function () {
+    Route::get('/', [ContractTypeController::class, 'index']);
+    Route::post('/', [ContractTypeController::class, 'store']);
+    Route::get('/{contractType}', [ContractTypeController::class, 'show']);
+    Route::put('/{contractType}', [ContractTypeController::class, 'update']);
+    Route::delete('/{contractType}', [ContractTypeController::class, 'destroy']);
+});
+
+Route::prefix('employment-statuses')->group(function () {
+    Route::get('/', [EmploymentStatusController::class, 'index']);
+    Route::post('/', [EmploymentStatusController::class, 'store']);
+    Route::get('/{employmentStatus}', [EmploymentStatusController::class, 'show']);
+    Route::put('/{employmentStatus}', [EmploymentStatusController::class, 'update']);
+    Route::delete('/{employmentStatus}', [EmploymentStatusController::class, 'destroy']);
 });
 
 // Employee Routes
@@ -372,6 +501,38 @@ Route::prefix('qualifications')->group(function () {
     Route::get('/{qualification}', [QualificationController::class, 'show']);
     Route::put('/{qualification}', [QualificationController::class, 'update']);
     Route::delete('/{qualification}', [QualificationController::class, 'destroy']);
+});
+
+Route::prefix('employee-certifications')->group(function () {
+    Route::get('/', [EmployeeCertificationController::class, 'index']);
+    Route::post('/', [EmployeeCertificationController::class, 'store']);
+    Route::get('/{employeeCertification}', [EmployeeCertificationController::class, 'show']);
+    Route::put('/{employeeCertification}', [EmployeeCertificationController::class, 'update']);
+    Route::delete('/{employeeCertification}', [EmployeeCertificationController::class, 'destroy']);
+});
+
+Route::prefix('employee-skills')->group(function () {
+    Route::get('/', [EmployeeSkillController::class, 'index']);
+    Route::post('/', [EmployeeSkillController::class, 'store']);
+    Route::get('/{employeeSkill}', [EmployeeSkillController::class, 'show']);
+    Route::put('/{employeeSkill}', [EmployeeSkillController::class, 'update']);
+    Route::delete('/{employeeSkill}', [EmployeeSkillController::class, 'destroy']);
+});
+
+Route::prefix('document-tags')->group(function () {
+    Route::get('/', [DocumentTagController::class, 'index']);
+    Route::post('/', [DocumentTagController::class, 'store']);
+    Route::get('/{documentTag}', [DocumentTagController::class, 'show']);
+    Route::put('/{documentTag}', [DocumentTagController::class, 'update']);
+    Route::delete('/{documentTag}', [DocumentTagController::class, 'destroy']);
+});
+
+Route::prefix('employee-documents')->group(function () {
+    Route::get('/', [EmployeeDocumentController::class, 'index']);
+    Route::post('/', [EmployeeDocumentController::class, 'store']);
+    Route::get('/{employeeDocument}', [EmployeeDocumentController::class, 'show']);
+    Route::match(['put', 'post'], '/{employeeDocument}', [EmployeeDocumentController::class, 'update']);
+    Route::delete('/{employeeDocument}', [EmployeeDocumentController::class, 'destroy']);
 });
 
 // Employee Contact Routes
@@ -483,6 +644,8 @@ Route::prefix('employee-work-permits')->group(function () {
     Route::delete('/{employeeWorkPermit}', [EmployeeWorkPermitController::class, 'destroy']);
 });
 
+Route::get('leave-statuses', [LeaveStatusController::class, 'index']);
+
 // Leave Type Routes
 Route::prefix('leave-types')->group(function () {
     Route::get('/', [LeaveTypeController::class, 'index']);
@@ -492,6 +655,8 @@ Route::prefix('leave-types')->group(function () {
     Route::delete('/{leaveType}', [LeaveTypeController::class, 'destroy']);
 });
 
+Route::get('employee-leave-balances', [EmployeeLeaveBalanceController::class, 'index']);
+
 // Employee Leave Routes
 Route::prefix('employee-leaves')->group(function () {
     Route::get('/', [EmployeeLeaveController::class, 'index']);
@@ -500,6 +665,7 @@ Route::prefix('employee-leaves')->group(function () {
     Route::put('/{employeeLeave}', [EmployeeLeaveController::class, 'update']);
     Route::delete('/{employeeLeave}', [EmployeeLeaveController::class, 'destroy']);
     Route::patch('/{employeeLeave}/approve', [EmployeeLeaveController::class, 'approve']);
+    Route::patch('/{employeeLeave}/status', [EmployeeLeaveController::class, 'updateStatus']);
 });
 
 // Loan Routes
@@ -576,13 +742,47 @@ Route::prefix('pay-period-schedules')->group(function () {
 });
 
 // Payroll Run Routes
+Route::prefix('reports')->group(function () {
+    Route::get('/salary-review', [ReportController::class, 'salaryReview']);
+});
+
 Route::prefix('payroll-runs')->group(function () {
     Route::get('/', [PayrollRunController::class, 'index']);
     Route::post('/', [PayrollRunController::class, 'store']);
+    Route::get('/{payrollRun}/department-earnings-report', [PayrollEarningLineController::class, 'departmentReport']);
+    Route::get('/{payrollRun}/journal-entries-report', [PayrollRunController::class, 'journalEntriesReport']);
+    Route::get('/{payrollRun}/payroll-summary-by-department-report', [PayrollRunController::class, 'payrollSummaryByDepartmentReport']);
+    Route::get('/{payrollRun}/payroll-journal-departments-report', [PayrollRunController::class, 'payrollJournalDepartmentsReport']);
+    Route::get('/{payrollRun}/employee-summary', [PayrollRunController::class, 'employeeSummary']);
+    Route::post('/{payrollRun}/process', [PayrollRunPayslipController::class, 'process']);
+    Route::get('/{payrollRun}/payslips', [PayrollRunPayslipController::class, 'payslips']);
+    Route::post('/{payrollRun}/allowance-deduction-import/preview', [PayrollRunAllowanceDeductionImportController::class, 'preview']);
+    Route::post('/{payrollRun}/allowance-deduction-import/confirm', [PayrollRunAllowanceDeductionImportController::class, 'confirm']);
     Route::get('/{payrollRun}', [PayrollRunController::class, 'show']);
     Route::put('/{payrollRun}', [PayrollRunController::class, 'update']);
     Route::delete('/{payrollRun}', [PayrollRunController::class, 'destroy']);
 });
+
+// Employee payroll summaries
+Route::prefix('payrolls')->group(function () {
+    Route::get('/', [PayrollController::class, 'index']);
+    Route::post('/', [PayrollController::class, 'store']);
+    Route::get('/{payroll}', [PayrollController::class, 'show']);
+    Route::put('/{payroll}', [PayrollController::class, 'update']);
+    Route::delete('/{payroll}', [PayrollController::class, 'destroy']);
+});
+
+// Payroll earning codes (settings)
+Route::prefix('payroll-earning-codes')->group(function () {
+    Route::get('/', [PayrollEarningCodeController::class, 'index']);
+    Route::post('/', [PayrollEarningCodeController::class, 'store']);
+    Route::get('/{payrollEarningCode}', [PayrollEarningCodeController::class, 'show']);
+    Route::put('/{payrollEarningCode}', [PayrollEarningCodeController::class, 'update']);
+    Route::delete('/{payrollEarningCode}', [PayrollEarningCodeController::class, 'destroy']);
+});
+
+// Payroll earning lines
+Route::get('payroll-earning-lines', [PayrollEarningLineController::class, 'index']);
 
 // Payroll Contribution Routes
 Route::prefix('payroll-contributions')->group(function () {

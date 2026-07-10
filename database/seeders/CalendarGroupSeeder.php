@@ -17,8 +17,6 @@ class CalendarGroupSeeder extends Seeder
             ['key' => 'birthdays', 'name' => 'Birthdays', 'color' => '#9C27B0'],
             ['key' => 'leaves', 'name' => 'Leaves / Absent', 'color' => '#FB8C00'],
             ['key' => 'holidays', 'name' => 'Holidays', 'color' => '#26A69A'],
-            ['key' => 'timesheets', 'name' => 'Timesheets', 'color' => '#1E88E5'],
-            ['key' => 'schedules', 'name' => 'Schedules', 'color' => '#546E7A'],
         ];
 
         foreach ($groups as $group) {

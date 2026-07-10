@@ -177,11 +177,15 @@ EMP001,2026-05-24,13:00:00,17:06:11,DEV-01,DEV-02
 - Mixed typed and untyped logs use the typed sequence, with untyped punches inferred and flagged for review.
 - Multiple pairs are summed, so meal breaks and split shifts are excluded from hours worked.
 - Clock-in and clock-out are taken from the first and last valid matched pair; unmatched punches do not contribute hours.
-- Regular hours are capped at the schedule or supplied daily threshold, and all remaining worked time is overtime.
+- `clockedHoursWorked` is calculated from raw `clockInTime` / `clockOutTime` pairs.
+- `roundOffClockInTime` and `roundOffClockOutTime` round punches to the configured interval (default 30 minutes; both clock-in and clock-out round up).
+- `hoursWorked` is calculated from the rounded punch pairs and is the payable total.
+- Regular hours are capped at the department timesheet template daily threshold, and all remaining payable time is overtime.
 - Salary employees without punches receive scheduled regular hours.
 - Hourly employees without punches receive scheduled unpaid hours.
 - Approved unpaid leave creates unpaid scheduled hours for salary employees.
 - Public holidays and overtime are identified in `workingStatus`.
+- Public holidays and overtime are identified in `workingStatus`. Holiday hours use each holiday's `payMultiplier` (e.g. 8 hours at 1.5x = 12 holiday hours).
 - Missing or unpaired punches add warning text in `timesheet.remarks`.
 - Duplicate raw logs are skipped during ingest.
 

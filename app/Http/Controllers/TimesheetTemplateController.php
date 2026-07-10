@@ -67,6 +67,7 @@ class TimesheetTemplateController extends Controller
             'day_schedules.*.start_time' => ['required', 'date_format:H:i'],
             'day_schedules.*.end_time' => ['required', 'date_format:H:i'],
             'day_schedules.*.include_lunch_hour' => ['required', 'boolean'],
+            'day_schedules.*.lunch_hour_hours' => ['nullable', 'numeric', 'min:0', 'max:8'],
             'day_schedules.*.department_id' => ['required', 'integer', 'exists:department,id'],
             'is_active' => ['nullable', 'boolean'],
         ]);

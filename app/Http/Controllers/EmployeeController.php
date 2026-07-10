@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\EmployeeReporting;
+use App\Services\Employee\EmployeeNameSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -11,13 +12,25 @@ use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
+    private const EMPLOYMENT_RELATIONS = [
+        'employmentDetails.department',
+        'employmentDetails.worksite',
+        'employmentDetails.contractType',
+        'employmentDetails.defaultPayPeriodGroup',
+        'employeeCompensations',
+    ];
+
     /**
      * Display employee record for a user.
      */
     public function byUser(string $userId)
     {
         $employee = Employee::query()
-            ->with(['employmentDetails.department'])
+            ->with(array_merge(self::EMPLOYMENT_RELATIONS, [
+                'employmentStatus',
+                'employeeStatus',
+                'timesheetTemplate',
+            ]))
             ->where('user_id', $userId)
             ->first();
 
@@ -31,7 +44,7 @@ class EmployeeController extends Controller
     /**
      * Display employees that report to a supervisor or lead.
      */
-    public function subordinates(string $employeeId)
+    public function subordinates(Request $request, string $employeeId)
     {
         $reportingIds = EmployeeReporting::query()
             ->where('supervisor_id', $employeeId)
@@ -39,13 +52,19 @@ class EmployeeController extends Controller
             ->pluck('subordinate_id');
 
         $employees = Employee::query()
-            ->with(['employmentDetails.department'])
+            ->with(self::EMPLOYMENT_RELATIONS)
             ->when($reportingIds->isNotEmpty(), function ($query) use ($reportingIds) {
                 $query->whereIn('id', $reportingIds);
             }, function ($query) use ($employeeId) {
                 $query->where('supervisorId', $employeeId)
                     ->orWhere('leadId', $employeeId);
-            })
+            });
+
+        if ($request->filled('search')) {
+            EmployeeNameSearch::apply($employees, $request->input('search'));
+        }
+
+        $employees = $employees
             ->orderBy('lastName', 'asc')
             ->get();
 
@@ -63,28 +82,15 @@ class EmployeeController extends Controller
             'gender',
             'citizenshipStatus',
             'nationality',
-            'employmentDetails.department'
+            'employmentStatus',
+            'employeeStatus',
+            'timesheetTemplate',
+            ...self::EMPLOYMENT_RELATIONS,
         ]);
 
-        // Search by name or code (case-insensitive)
+        // Fuzzy name/code search (pg_trgm when available, ILIKE fallback)
         if ($request->has('search')) {
-            $search = $request->input('search');
-            $query->where(function($q) use ($search) {
-                // Exact matches (case-insensitive)
-                $q->whereRaw('"code" ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('"firstName" ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('"lastName" ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('"middleName" ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('"maidenName" ILIKE ?', ["%{$search}%"]);
-                
-                // Full name search (case-insensitive)
-                $q->orWhereRaw('CONCAT("firstName", \' \', "lastName") ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('CONCAT("lastName", \', \', "firstName") ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('CONCAT("firstName", \' \', "middleName", \' \', "lastName") ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('CONCAT("lastName", \', \', "firstName", \' \', "middleName") ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('CONCAT("firstName", \' \', "middleName", \' \', "lastName", \' \', "maidenName") ILIKE ?', ["%{$search}%"])
-                  ->orWhereRaw('CONCAT("lastName", \', \', "firstName", \' \', "middleName", \' \', "maidenName") ILIKE ?', ["%{$search}%"]);
-            });
+            EmployeeNameSearch::apply($query, $request->input('search'));
         }
 
         // Filter by gender
@@ -105,6 +111,14 @@ class EmployeeController extends Controller
         // Filter by citizenship status
         if ($request->has('citizenship_status_id')) {
             $query->where('citizenshipStatusId', $request->input('citizenship_status_id'));
+        }
+
+        if ($request->filled('employee_status_id')) {
+            $query->where('employeeStatusId', $request->input('employee_status_id'));
+        }
+
+        if ($request->filled('employment_status_id')) {
+            $query->where('employmentStatusId', $request->input('employment_status_id'));
         }
 
         // Sort
@@ -177,7 +191,10 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string',
             'picturePath' => 'nullable|string',
             'health' => 'nullable|string',
-            'unionMembership' => 'nullable|string'
+            'unionMembership' => 'nullable|string',
+            'employmentStatusId' => 'nullable|integer|exists:employment_status,id',
+            'employeeStatusId' => 'nullable|integer|exists:employee_status,id',
+            'timesheetTemplateId' => 'nullable|uuid|exists:timesheet_template,id',
         ]);
 
         if ($validator->fails()) {
@@ -195,6 +212,9 @@ class EmployeeController extends Controller
                 'gender',
                 'citizenshipStatus',
                 'nationality',
+                'employmentStatus',
+                'employeeStatus',
+                'timesheetTemplate',
             ])
         ], 201);
     }
@@ -211,11 +231,15 @@ class EmployeeController extends Controller
             'gender',
             'citizenshipStatus',
             'nationality',
+            'employmentStatus',
+            'employeeStatus',
+            'timesheetTemplate',
             'allowances',
             'employeeBanks',
             'contacts',
             'employeeDefaultDeductions',
             'employmentDetails',
+            'employeeCompensations',
             'qualifications'
         ]));
     }
@@ -257,7 +281,10 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string',
             'picturePath' => 'nullable|string',
             'health' => 'nullable|string',
-            'unionMembership' => 'nullable|string'
+            'unionMembership' => 'nullable|string',
+            'employmentStatusId' => 'nullable|integer|exists:employment_status,id',
+            'employeeStatusId' => 'nullable|integer|exists:employee_status,id',
+            'timesheetTemplateId' => 'nullable|uuid|exists:timesheet_template,id',
         ]);
 
         if ($validator->fails()) {
@@ -274,7 +301,10 @@ class EmployeeController extends Controller
                 'honorific',
                 'gender',
                 'citizenshipStatus',
-                'nationality'
+                'nationality',
+                'employmentStatus',
+                'employeeStatus',
+                'timesheetTemplate',
             ])
         ]);
     }
@@ -291,6 +321,9 @@ class EmployeeController extends Controller
             $employee->employeeDefaultDeductions()->exists() ||
             $employee->employmentDetails()->exists() ||
             $employee->qualifications()->exists() ||
+            $employee->certifications()->exists() ||
+            $employee->skills()->exists() ||
+            $employee->documents()->exists() ||
             $employee->loans()->exists() ||
             $employee->payrolls()->exists() ||
             $employee->leaves()->exists()) {

@@ -2,27 +2,73 @@
 
 namespace App\Http\Controllers\Attendance;
 
+use App\Enums\LeaveStatusCode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\ApproveTimesheetRequest;
 use App\Http\Requests\Attendance\BulkApproveTimesheetRequest;
+use App\Http\Requests\Attendance\ResolveTimesheetLeaveConflictRequest;
+use App\Http\Requests\Attendance\UpdateTimesheetLunchHoursRequest;
+use App\Http\Requests\Attendance\UpdateTimesheetPaidStatusRequest;
+use App\Http\Requests\Attendance\UpdateTimesheetRoundOffRequest;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeLeave;
+use App\Models\AttendanceSetting;
+use App\Models\EmploymentDetail;
 use App\Models\Timesheet;
+use App\Services\Attendance\TimesheetEditLockService;
+use App\Services\Attendance\TimesheetIssueNotifier;
+use App\Services\Attendance\TimesheetLeaveConflictResolver;
+use App\Services\Attendance\TimesheetLeaveConflictService;
+use App\Services\Attendance\TimesheetLunchBreakResolver;
+use App\Services\Attendance\TimesheetCompensationRecalculationService;
+use App\Services\Attendance\TimesheetProcessingService;
+use App\Services\Attendance\TimesheetOverlapValidator;
+use App\Services\Attendance\TimesheetPayFields;
+use App\Services\Attendance\TimesheetRoundOffService;
+use App\Services\Attendance\TimesheetScheduleCoverageService;
+use App\Services\Attendance\TimesheetScopeService;
+use App\Services\Payroll\PayrollRunFrequencyResolver;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TimesheetController extends Controller
 {
+    public function __construct(
+        private readonly TimesheetScopeService $timesheetScope,
+        private readonly TimesheetRoundOffService $timesheetRoundOffService,
+        private readonly TimesheetScheduleCoverageService $scheduleCoverage,
+        private readonly TimesheetLunchBreakResolver $lunchBreakResolver,
+        private readonly TimesheetOverlapValidator $timesheetOverlapValidator,
+        private readonly TimesheetLeaveConflictService $leaveConflictService,
+        private readonly TimesheetLeaveConflictResolver $leaveConflictResolver,
+        private readonly TimesheetIssueNotifier $issueNotifier,
+        private readonly TimesheetCompensationRecalculationService $compensationRecalculationService,
+        private readonly TimesheetProcessingService $timesheetProcessingService,
+        private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly TimesheetEditLockService $timesheetEditLockService,
+    ) {
+    }
+
     public function index(Request $request): JsonResponse
     {
+        $this->recalculateCurrentAndFutureTimesheets($request);
+
         $query = Timesheet::query()
             ->with([
                 'employee',
                 'approver',
                 'department:id,name',
                 'worksite:id,name',
+                'employmentDetail.department',
+                'employmentDetail.worksite',
+                'employmentDetail.contractType',
+                'employmentDetail.defaultPayPeriodGroup',
+                'employeeCompensation',
             ]);
 
         $this->applyFilters($query, $request);
@@ -32,64 +78,27 @@ class TimesheetController extends Controller
         $timesheets = $query
             ->orderByDesc('date')
             ->orderBy('employeeId')
+            ->orderBy('slotIndex')
             ->paginate(max(1, min($perPage, 500)));
 
-        $timesheets->getCollection()->transform(function (Timesheet $timesheet) {
-            $employeeName = trim(sprintf(
-                '%s %s',
-                $timesheet->employee?->firstName ?? '',
-                $timesheet->employee?->lastName ?? ''
-            ));
+        $scheduleSlots = $this->scheduleCoverage->buildScheduleSlots($timesheets->getCollection());
+        $this->timesheetEditLockService->warmCache($timesheets->getCollection());
 
-            $approverName = trim(sprintf(
-                '%s %s',
-                $timesheet->approver?->firstName ?? '',
-                $timesheet->approver?->lastName ?? ''
-            ));
-
-            return [
-                'id' => $timesheet->id,
-                'employeeId' => $timesheet->employeeId,
-                'employeeCode' => $timesheet->employee?->code,
-                'employeeName' => $employeeName !== '' ? $employeeName : null,
-                'date' => $timesheet->date?->format('Y-m-d'),
-                'clockInTime' => $timesheet->clockInTime?->format('Y-m-d H:i:s'),
-                'clockInDeviceId' => $timesheet->clockInDeviceId,
-                'clockOutTime' => $timesheet->clockOutTime?->format('Y-m-d H:i:s'),
-                'clockOutDeviceId' => $timesheet->clockOutDeviceId,
-                'hoursWorked' => (float) $timesheet->hoursWorked,
-                'regularHours' => (float) ($timesheet->regularHours ?? 0),
-                'overtimeHours' => (float) ($timesheet->overtimeHours ?? 0),
-                'holidayHours' => (float) ($timesheet->holidayHours ?? 0),
-                'unpaidHours' => (float) ($timesheet->unpaidHours ?? 0),
-                'workingStatus' => strtoupper((string) $timesheet->workingStatus),
-                'departmentId' => $timesheet->departmentId,
-                'departmentName' => $timesheet->department?->name,
-                'worksiteId' => $timesheet->worksiteId,
-                'worksiteName' => $timesheet->worksite?->name,
-                'payType' => $timesheet->payType ? strtoupper((string) $timesheet->payType) : null,
-                'hourlyRate' => $timesheet->hourlyRate !== null ? (float) $timesheet->hourlyRate : null,
-                'baseSalary' => $timesheet->baseSalary !== null ? (float) $timesheet->baseSalary : null,
-                'approvalStatus' => strtoupper((string) $timesheet->approvalStatus),
-                'approvedBy' => $timesheet->approvedBy,
-                'approvedByName' => $approverName !== '' ? $approverName : null,
-                'approvedAt' => $timesheet->approvedAt?->format('Y-m-d H:i:s'),
-                'remarks' => $timesheet->remarks,
-                'hasIssues' => strtoupper((string) $timesheet->approvalStatus) !== 'APPROVED'
-                    && !empty(trim((string) $timesheet->remarks)),
-                'createdAt' => $timesheet->created_at?->format('Y-m-d H:i:s'),
-                'updatedAt' => $timesheet->updated_at?->format('Y-m-d H:i:s'),
-            ];
+        $timesheets->getCollection()->transform(function (Timesheet $timesheet) use ($scheduleSlots) {
+            return $this->transformTimesheet($timesheet, $scheduleSlots);
         });
 
         $payload = $timesheets->toArray();
         $payload['summary'] = $this->formatSummary($summary);
+        $payload['scheduleComparisonSource'] = AttendanceSetting::current()->scheduleComparisonSourceEnum()->value;
 
         return response()->json($payload);
     }
 
     public function employeeSummary(Request $request): JsonResponse
     {
+        $this->recalculateCurrentAndFutureTimesheets($request);
+
         $filteredQuery = Timesheet::query();
         $this->applyFilters($filteredQuery, $request);
         $summary = $this->buildSummary($filteredQuery);
@@ -100,6 +109,7 @@ class TimesheetController extends Controller
             ->reorder()
             ->selectRaw('
                 "employeeId",
+                "employmentDetailId",
                 MAX("departmentId") as "departmentId",
                 MAX("payType") as "payType",
                 MIN("date") as "periodStart",
@@ -110,12 +120,13 @@ class TimesheetController extends Controller
                 COALESCE(SUM("overtimeHours"), 0) as "overtimeHours",
                 COALESCE(SUM("holidayHours"), 0) as "holidayHours",
                 COALESCE(SUM("unpaidHours"), 0) as "unpaidHours",
+                COALESCE(SUM("paidHours"), 0) as "paidHours",
                 COALESCE(SUM(CASE WHEN UPPER("approvalStatus") = \'PENDING\' THEN 1 ELSE 0 END), 0) as "pendingCount",
                 COALESCE(SUM(CASE WHEN UPPER("approvalStatus") = \'APPROVED\' THEN 1 ELSE 0 END), 0) as "approvedCount",
                 COALESCE(SUM(CASE WHEN UPPER("approvalStatus") = \'REJECTED\' THEN 1 ELSE 0 END), 0) as "rejectedCount",
                 COALESCE(SUM(CASE WHEN UPPER("approvalStatus") != \'APPROVED\' AND "remarks" IS NOT NULL AND TRIM("remarks") != \'\' THEN 1 ELSE 0 END), 0) as "issueCount"
             ')
-            ->groupBy('employeeId')
+            ->groupBy('employeeId', 'employmentDetailId')
             ->orderBy('employeeId')
             ->paginate(max(1, min($perPage, 100)));
 
@@ -136,9 +147,15 @@ class TimesheetController extends Controller
             ->whereIn('id', $departmentIds)
             ->get()
             ->keyBy('id');
+        $employmentDetails = EmploymentDetail::query()
+            ->with(['department', 'worksite', 'contractType', 'defaultPayPeriodGroup'])
+            ->whereIn('id', $employeeSummaries->getCollection()->pluck('employmentDetailId')->filter()->values())
+            ->get()
+            ->keyBy('id');
 
-        $employeeSummaries->getCollection()->transform(function ($row) use ($employees, $departments) {
+        $employeeSummaries->getCollection()->transform(function ($row) use ($employees, $departments, $employmentDetails) {
             $employee = $employees->get($row->employeeId);
+            $employmentDetail = $row->employmentDetailId ? $employmentDetails->get($row->employmentDetailId) : null;
             $employeeName = trim(sprintf(
                 '%s %s',
                 $employee?->firstName ?? '',
@@ -151,6 +168,8 @@ class TimesheetController extends Controller
 
             return [
                 'employeeId' => $row->employeeId,
+                'employmentDetailId' => $row->employmentDetailId,
+                'employmentContractLabel' => $employmentDetail ? $this->employmentContractLabel($employmentDetail) : null,
                 'employeeCode' => $employee?->code,
                 'employeeName' => $employeeName !== '' ? $employeeName : null,
                 'departmentId' => $row->departmentId,
@@ -164,6 +183,7 @@ class TimesheetController extends Controller
                 'overtimeHours' => (float) $row->overtimeHours,
                 'holidayHours' => (float) $row->holidayHours,
                 'unpaidHours' => (float) $row->unpaidHours,
+                'paidHours' => (float) ($row->paidHours ?? 0),
                 'pendingCount' => $pendingCount,
                 'approvedCount' => $approvedCount,
                 'rejectedCount' => $rejectedCount,
@@ -183,18 +203,157 @@ class TimesheetController extends Controller
         return response()->json($payload);
     }
 
-    public function updateApproval(ApproveTimesheetRequest $request, Timesheet $timesheet): JsonResponse
+    public function updatePaidStatus(UpdateTimesheetPaidStatusRequest $request, Timesheet $timesheet): JsonResponse
     {
+        $this->ensureTimesheetInScope($timesheet, $request);
+
+        if ($lockedResponse = $this->lockedTimesheetResponse($timesheet)) {
+            return $lockedResponse;
+        }
+
+        if (strtoupper((string) $timesheet->approvalStatus) === 'APPROVED') {
+            return response()->json([
+                'message' => 'Approved timesheets cannot be edited.',
+            ], 422);
+        }
+
+        $isPaid = (bool) $request->validated()['isPaid'];
+        $payFields = TimesheetPayFields::fromStoredHours(
+            $isPaid,
+            (float) ($timesheet->regularHours ?? 0),
+            (float) ($timesheet->overtimeHours ?? 0),
+            (float) ($timesheet->holidayHours ?? 0),
+            (float) ($timesheet->hoursWorked ?? 0),
+        );
+
+        $timesheet->isPaid = $payFields['isPaid'];
+        $timesheet->paidHours = $payFields['paidHours'];
+        $timesheet->unpaidHours = $payFields['unpaidHours'];
+
+        if (!in_array(strtoupper((string) $timesheet->approvalStatus), ['APPROVED', 'REJECTED'], true)) {
+            $timesheet->approvalStatus = 'PENDING';
+        }
+
+        $timesheet->save();
+
+        return response()->json($this->buildTimesheetMutationResponse(
+            'Timesheet paid status updated.',
+            $timesheet,
+        ));
+    }
+
+    public function updateRoundOff(UpdateTimesheetRoundOffRequest $request, Timesheet $timesheet): JsonResponse
+    {
+        $this->ensureTimesheetInScope($timesheet, $request);
+
+        if ($lockedResponse = $this->lockedTimesheetResponse($timesheet)) {
+            return $lockedResponse;
+        }
+
+        if (strtoupper((string) $timesheet->approvalStatus) === 'APPROVED') {
+            return response()->json([
+                'message' => 'Approved timesheets cannot be edited.',
+            ], 422);
+        }
+
         $validated = $request->validated();
-
-        $timesheet->approvalStatus = $validated['approvalStatus'];
-        $timesheet->approvedAt = now();
-
-        $approver = $request->user()
-            ? Employee::query()->where('user_id', $request->user()->id)->first()
+        $roundOffIn = !empty($validated['roundOffClockInTime'])
+            ? Carbon::parse($validated['roundOffClockInTime'])
+            : null;
+        $roundOffOut = !empty($validated['roundOffClockOutTime'])
+            ? Carbon::parse($validated['roundOffClockOutTime'])
             : null;
 
-        $timesheet->approvedBy = $approver?->id;
+        $this->timesheetOverlapValidator->assertNoOverlapWithExisting(
+            $timesheet->employeeId,
+            $timesheet->date->format('Y-m-d'),
+            $roundOffIn,
+            $roundOffOut,
+            $timesheet->id,
+        );
+
+        $this->timesheetRoundOffService->recalculate($timesheet, $roundOffIn, $roundOffOut);
+        $timesheet->refresh();
+
+        if (!in_array(strtoupper((string) $timesheet->approvalStatus), ['APPROVED', 'REJECTED'], true)) {
+            $timesheet->approvalStatus = 'PENDING';
+            $timesheet->save();
+        }
+
+        $this->applyLeaveConflictIfNeeded($timesheet, $roundOffIn, $roundOffOut);
+
+        return response()->json($this->buildTimesheetMutationResponse(
+            'Timesheet round-off times updated.',
+            $timesheet->fresh(),
+        ));
+    }
+
+    public function updateLunchHours(UpdateTimesheetLunchHoursRequest $request, Timesheet $timesheet): JsonResponse
+    {
+        $this->ensureTimesheetInScope($timesheet, $request);
+
+        if ($lockedResponse = $this->lockedTimesheetResponse($timesheet)) {
+            return $lockedResponse;
+        }
+
+        if (strtoupper((string) $timesheet->approvalStatus) === 'APPROVED') {
+            return response()->json([
+                'message' => 'Approved timesheets cannot be edited.',
+            ], 422);
+        }
+
+        $hours = round((float) $request->validated()['lunchHourHours'], 2);
+        $timesheet->includeLunchHour = $hours > 0;
+        $timesheet->lunchHourHours = $hours;
+        $timesheet->save();
+
+        $this->timesheetRoundOffService->recalculate(
+            $timesheet,
+            $timesheet->roundOffClockInTime ? Carbon::parse($timesheet->roundOffClockInTime) : null,
+            $timesheet->roundOffClockOutTime ? Carbon::parse($timesheet->roundOffClockOutTime) : null,
+        );
+        $timesheet->refresh();
+
+        if (!in_array(strtoupper((string) $timesheet->approvalStatus), ['APPROVED', 'REJECTED'], true)) {
+            $timesheet->approvalStatus = 'PENDING';
+            $timesheet->save();
+        }
+
+        return response()->json($this->buildTimesheetMutationResponse(
+            'Timesheet lunch hours updated.',
+            $timesheet->fresh(),
+        ));
+    }
+
+    public function updateApproval(ApproveTimesheetRequest $request, Timesheet $timesheet): JsonResponse
+    {
+        $this->ensureTimesheetInScope($timesheet, $request);
+
+        if ($lockedResponse = $this->lockedTimesheetResponse($timesheet)) {
+            return $lockedResponse;
+        }
+
+        $validated = $request->validated();
+        $approvalStatus = strtoupper((string) $validated['approvalStatus']);
+
+        if (
+            $approvalStatus === 'APPROVED'
+            && $this->leaveConflictResolver->hasUnresolvedLeaveConflict($timesheet)
+        ) {
+            return response()->json([
+                'message' => 'Resolve the leave conflict before approving this timesheet.',
+            ], 422);
+        }
+
+        $timesheet->approvalStatus = $approvalStatus;
+
+        if ($approvalStatus === 'PENDING') {
+            $timesheet->approvedAt = null;
+            $timesheet->approvedBy = null;
+        } else {
+            $timesheet->approvedAt = now();
+            $timesheet->approvedBy = $this->resolveApproverId($request, $validated['approvedBy'] ?? null);
+        }
 
         if (isset($validated['remarks']) && trim((string) $validated['remarks']) !== '') {
             $newRemarks = trim((string) $validated['remarks']);
@@ -204,40 +363,131 @@ class TimesheetController extends Controller
 
         $timesheet->save();
 
+        $freshTimesheet = $timesheet->fresh([
+            'employee',
+            'approver',
+            'department:id,name',
+            'worksite:id,name',
+        ]);
+        $scheduleSlots = $this->scheduleCoverage->buildScheduleSlots(collect([$freshTimesheet]));
+
         return response()->json([
             'message' => 'Timesheet approval updated.',
-            'data' => $timesheet->load([
-                'employee',
-                'approver',
-                'department:id,name',
-                'worksite:id,name',
-            ]),
+            'data' => $this->transformTimesheet($freshTimesheet, $scheduleSlots),
+        ]);
+    }
+
+    public function recalculateCompensation(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'employeeIds' => ['nullable', 'array'],
+            'employeeIds.*' => ['uuid', 'exists:employee,id'],
+            'allActiveCompensation' => ['nullable', 'boolean'],
+            'startDate' => ['nullable', 'date'],
+            'endDate' => ['nullable', 'date', 'after_or_equal:startDate'],
+            'payPeriodGroupId' => ['nullable', 'uuid', 'exists:pay_period_groups,id'],
+        ]);
+
+        $employeeIds = $this->employeeIdsForRecalculation($request, $validated['employeeIds'] ?? []);
+
+        $result = $this->compensationRecalculationService->recalculate(
+            $employeeIds,
+            $validated['startDate'] ?? null,
+            $validated['endDate'] ?? null,
+            false,
+            true,
+        );
+
+        return response()->json([
+            'message' => 'Timesheet compensation recalculated.',
+            ...$result,
+        ]);
+    }
+
+    public function resolveLeaveConflict(
+        ResolveTimesheetLeaveConflictRequest $request,
+        Timesheet $timesheet,
+    ): JsonResponse {
+        $this->ensureTimesheetInScope($timesheet, $request);
+
+        if ($lockedResponse = $this->lockedTimesheetResponse($timesheet)) {
+            return $lockedResponse;
+        }
+
+        if (strtoupper((string) $timesheet->approvalStatus) === 'APPROVED') {
+            return response()->json([
+                'message' => 'Approved timesheets cannot be updated.',
+            ], 422);
+        }
+
+        $resolver = $request->user()
+            ? Employee::query()->where('user_id', $request->user()->id)->first()
+            : null;
+
+        if (!$resolver) {
+            return response()->json([
+                'message' => 'An employee profile is required to resolve leave conflicts.',
+            ], 422);
+        }
+
+        try {
+            $resolved = $this->leaveConflictResolver->authorizeWork(
+                $timesheet,
+                $resolver,
+                trim((string) $request->validated()['note']),
+            );
+        } catch (ValidationException $exception) {
+            return response()->json(['errors' => $exception->errors()], 422);
+        }
+
+        $freshTimesheet = $resolved->fresh([
+            'employee',
+            'approver',
+            'department:id,name',
+            'worksite:id,name',
+        ]);
+        $scheduleSlots = $this->scheduleCoverage->buildScheduleSlots(collect([$freshTimesheet]));
+
+        return response()->json([
+            'message' => 'Leave conflict resolved. Conflicting leave was cancelled and timesheet hours were recalculated.',
+            'data' => $this->transformTimesheet($freshTimesheet, $scheduleSlots),
         ]);
     }
 
     public function updateBulkApproval(BulkApproveTimesheetRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $approver = $request->user()
-            ? Employee::query()->where('user_id', $request->user()->id)->first()
-            : null;
+        $approverId = $this->resolveApproverId($request, $validated['approvedBy'] ?? null);
         $reviewedAt = now();
         $remarks = trim((string) ($validated['remarks'] ?? ''));
 
-        $updatedCount = DB::transaction(function () use ($validated, $approver, $reviewedAt, $remarks) {
-            $timesheets = Timesheet::query()
+        $updatedCount = DB::transaction(function () use ($validated, $approverId, $reviewedAt, $remarks, $request) {
+            $query = Timesheet::query()
                 ->whereIn('id', $validated['timesheetIds'])
                 ->whereRaw('UPPER("approvalStatus") = ?', ['PENDING'])
                 ->where(function ($query) {
                     $query->whereNull('remarks')->orWhereRaw('TRIM("remarks") = ?', ['']);
-                })
-                ->lockForUpdate()
-                ->get();
+                });
+
+            $user = $request->user();
+            if ($user) {
+                $this->timesheetScope->applyScope($query, $user);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+
+            $timesheets = $query->lockForUpdate()->get();
+
+            $updatedCount = 0;
 
             foreach ($timesheets as $timesheet) {
+                if ($this->timesheetEditLockService->isLocked($timesheet)) {
+                    continue;
+                }
+
                 $timesheet->approvalStatus = $validated['approvalStatus'];
                 $timesheet->approvedAt = $reviewedAt;
-                $timesheet->approvedBy = $approver?->id;
+                $timesheet->approvedBy = $approverId;
 
                 if ($remarks !== '') {
                     $existing = trim((string) $timesheet->remarks);
@@ -245,9 +495,10 @@ class TimesheetController extends Controller
                 }
 
                 $timesheet->save();
+                $updatedCount++;
             }
 
-            return $timesheets->count();
+            return $updatedCount;
         });
 
         return response()->json([
@@ -272,6 +523,14 @@ class TimesheetController extends Controller
             $query->where('employeeId', $request->string('employeeId'));
         }
 
+        if ($request->filled('employmentDetailId')) {
+            $query->where('employmentDetailId', $request->string('employmentDetailId'));
+        }
+
+        if ($request->filled('payPeriodGroupId')) {
+            $this->applyPayPeriodGroupFilter($query, (string) $request->string('payPeriodGroupId'));
+        }
+
         if ($request->filled('approvalStatus')) {
             $status = strtoupper((string) $request->string('approvalStatus'));
             $query->whereRaw('UPPER("approvalStatus") = ?', [$status]);
@@ -286,6 +545,8 @@ class TimesheetController extends Controller
             $query->where('departmentId', $request->integer('departmentId'));
         }
 
+        $this->applyTimesheetScope($query, $request);
+
         if ($request->filled('payType')) {
             $payType = strtoupper((string) $request->string('payType'));
             $query->whereRaw('UPPER("payType") = ?', [$payType]);
@@ -299,6 +560,107 @@ class TimesheetController extends Controller
         }
 
         return $query;
+    }
+
+    private function recalculateCurrentAndFutureTimesheets(Request $request): void
+    {
+        if (!$request->filled('startDate') && !$request->filled('endDate')) {
+            return;
+        }
+
+        $startDate = $request->filled('startDate') ? (string) $request->string('startDate') : null;
+        $endDate = $request->filled('endDate') ? (string) $request->string('endDate') : null;
+
+        if ($startDate && $endDate) {
+            $this->timesheetProcessingService->process(array_filter([
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'payPeriodGroupId' => $request->filled('payPeriodGroupId')
+                    ? (string) $request->string('payPeriodGroupId')
+                    : null,
+            ], fn ($value) => is_string($value) && $value !== ''));
+        }
+
+        $employeeIds = $this->employeeIdsForRecalculation($request);
+        if ($employeeIds === []) {
+            return;
+        }
+
+        $this->compensationRecalculationService->recalculate(
+            $employeeIds,
+            $startDate,
+            $endDate,
+            false,
+        );
+    }
+
+    /**
+     * @param array<int, string> $requestedEmployeeIds
+     * @return array<int, string>
+     */
+    private function employeeIdsForRecalculation(Request $request, array $requestedEmployeeIds = []): array
+    {
+        $query = Timesheet::query()
+            ->select('employeeId')
+            ->whereNotNull('employeeId')
+            ->distinct();
+
+        if ($request->filled('startDate')) {
+            $query->whereDate('date', '>=', (string) $request->string('startDate'));
+        }
+
+        if ($request->filled('endDate')) {
+            $query->whereDate('date', '<=', (string) $request->string('endDate'));
+        }
+
+        if ($request->filled('payPeriodGroupId')) {
+            $this->applyPayPeriodGroupFilter($query, (string) $request->string('payPeriodGroupId'));
+        }
+
+        if ($requestedEmployeeIds !== []) {
+            $query->whereIn('employeeId', $requestedEmployeeIds);
+        } elseif ($request->filled('employeeId')) {
+            $query->where('employeeId', (string) $request->string('employeeId'));
+        }
+
+        $this->applyTimesheetScope($query, $request);
+
+        return $query
+            ->pluck('employeeId')
+            ->map(fn ($employeeId) => (string) $employeeId)
+            ->values()
+            ->all();
+    }
+
+    private function applyPayPeriodGroupFilter(Builder $query, string $payPeriodGroupId): void
+    {
+        $query->whereHas('employmentDetail', function (Builder $employmentDetailQuery) use ($payPeriodGroupId) {
+            $employmentDetailQuery
+                ->where('defaultPayPeriodGroupId', $payPeriodGroupId)
+                ->where('isActive', true);
+        });
+
+        $frequencyId = $this->payrollRunFrequencyResolver->resolveFromGroupName(
+            (string) (\App\Models\PayPeriodGroup::query()->whereKey($payPeriodGroupId)->value('name') ?? ''),
+        );
+
+        if ($frequencyId !== null) {
+            $query->whereHas('employee', function (Builder $employeeQuery) use ($frequencyId) {
+                $employeeQuery->where('payrateFrequencyId', $frequencyId);
+            });
+        }
+    }
+
+    private function applyTimesheetScope(Builder $query, Request $request): void
+    {
+        $user = $request->user();
+        if (!$user) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $this->timesheetScope->applyScope($query, $user);
     }
 
     private function buildSummary(Builder $query): ?Timesheet
@@ -316,7 +678,8 @@ class TimesheetController extends Controller
                 COALESCE(SUM("regularHours"), 0) as "regularHours",
                 COALESCE(SUM("overtimeHours"), 0) as "overtimeHours",
                 COALESCE(SUM("holidayHours"), 0) as "holidayHours",
-                COALESCE(SUM("unpaidHours"), 0) as "unpaidHours"
+                COALESCE(SUM("unpaidHours"), 0) as "unpaidHours",
+                COALESCE(SUM("paidHours"), 0) as "paidHours"
             ')
             ->first();
     }
@@ -334,6 +697,7 @@ class TimesheetController extends Controller
             'overtimeHours' => (float) ($summary?->overtimeHours ?? 0),
             'holidayHours' => (float) ($summary?->holidayHours ?? 0),
             'unpaidHours' => (float) ($summary?->unpaidHours ?? 0),
+            'paidHours' => (float) ($summary?->paidHours ?? 0),
         ];
     }
 
@@ -356,5 +720,243 @@ class TimesheetController extends Controller
         }
 
         return 'APPROVED';
+    }
+
+    private function resolveApproverId(Request $request, ?string $approvedBy = null): ?string
+    {
+        if ($approvedBy) {
+            return $approvedBy;
+        }
+
+        $approver = $request->user()
+            ? Employee::query()->where('user_id', $request->user()->id)->first()
+            : null;
+
+        return $approver?->id;
+    }
+
+    private function ensureTimesheetInScope(Timesheet $timesheet, Request $request): void
+    {
+        $user = $request->user();
+        if (!$user || !$this->timesheetScope->canAccessTimesheet($user, $timesheet)) {
+            abort(403, 'You are not allowed to update this timesheet.');
+        }
+    }
+
+    private function applyLeaveConflictIfNeeded(
+        Timesheet $timesheet,
+        ?Carbon $roundOffIn,
+        ?Carbon $roundOffOut,
+    ): void {
+        $workDate = $timesheet->date->format('Y-m-d');
+        $approvedLeaves = EmployeeLeave::query()
+            ->where('employeeId', $timesheet->employeeId)
+            ->whereHas('leaveStatus', fn ($query) => $query->whereIn('code', array_map(
+                fn (LeaveStatusCode $code) => $code->value,
+                LeaveStatusCode::activeAbsenceStatuses(),
+            )))
+            ->whereDate('startDate', '<=', $workDate)
+            ->whereDate('endDate', '>=', $workDate)
+            ->get()
+            ->all();
+
+        $conflicts = $this->leaveConflictService->conflictingLeaves(
+            $approvedLeaves,
+            $workDate,
+            $roundOffIn?->format('Y-m-d H:i:s'),
+            $roundOffOut?->format('Y-m-d H:i:s'),
+        );
+
+        if ($conflicts->isEmpty()) {
+            return;
+        }
+
+        $message = TimesheetLeaveConflictService::CONFLICT_MESSAGE;
+        $remarks = trim((string) $timesheet->remarks);
+        $timesheet->remarks = $remarks === '' || !str_contains($remarks, $message)
+            ? trim($remarks.' '.$message)
+            : $remarks;
+        $timesheet->hoursWorked = 0;
+        $timesheet->regularHours = 0;
+        $timesheet->overtimeHours = 0;
+        $timesheet->isPaid = false;
+        $timesheet->paidHours = 0;
+        $timesheet->save();
+
+        $employee = Employee::query()->find($timesheet->employeeId);
+        if ($employee) {
+            $this->issueNotifier->notifyLeaveConflict($timesheet, $employee, $message);
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function transformEmployeeWeekTimesheets(Timesheet $timesheet): array
+    {
+        $weekStart = Carbon::parse($timesheet->date)->startOfWeek(Carbon::MONDAY);
+        $weekEnd = Carbon::parse($timesheet->date)->endOfWeek(Carbon::SUNDAY);
+
+        $timesheets = Timesheet::query()
+            ->with([
+                'employee',
+                'approver',
+                'department:id,name',
+                'worksite:id,name',
+                'employmentDetail.department',
+                'employmentDetail.worksite',
+                'employmentDetail.contractType',
+                'employmentDetail.defaultPayPeriodGroup',
+                'employeeCompensation',
+            ])
+            ->where('employeeId', $timesheet->employeeId)
+            ->whereBetween('date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+            ->orderBy('date')
+            ->orderBy('slotIndex')
+            ->get();
+
+        $scheduleSlots = $this->scheduleCoverage->buildScheduleSlots($timesheets);
+        $this->timesheetEditLockService->warmCache($timesheets);
+
+        return $timesheets
+            ->map(fn (Timesheet $row) => $this->transformTimesheet($row, $scheduleSlots))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{message:string, data:array<string, mixed>, affected:array<int, array<string, mixed>>}
+     */
+    private function buildTimesheetMutationResponse(string $message, Timesheet $timesheet): array
+    {
+        $freshTimesheet = $timesheet->fresh([
+            'employee',
+            'approver',
+            'department:id,name',
+            'worksite:id,name',
+            'employmentDetail.department',
+            'employmentDetail.worksite',
+            'employmentDetail.contractType',
+            'employmentDetail.defaultPayPeriodGroup',
+            'employeeCompensation',
+        ]);
+        $scheduleSlots = $this->scheduleCoverage->buildScheduleSlots(collect([$freshTimesheet]));
+
+        return [
+            'message' => $message,
+            'data' => $this->transformTimesheet($freshTimesheet, $scheduleSlots),
+            'affected' => $this->transformEmployeeWeekTimesheets($freshTimesheet),
+        ];
+    }
+
+    private function transformTimesheet(Timesheet $timesheet, array $scheduleSlots = []): array
+    {
+        $employeeName = trim(sprintf(
+            '%s %s',
+            $timesheet->employee?->firstName ?? '',
+            $timesheet->employee?->lastName ?? ''
+        ));
+
+        $approverName = trim(sprintf(
+            '%s %s',
+            $timesheet->approver?->firstName ?? '',
+            $timesheet->approver?->lastName ?? ''
+        ));
+
+        $lunchSettings = $this->lunchBreakResolver->lunchSettingsForTimesheet($timesheet);
+        $lockInfo = $this->timesheetEditLockService->lockInfo($timesheet);
+
+        return [
+            'id' => $timesheet->id,
+            'employeeId' => $timesheet->employeeId,
+            'employmentDetailId' => $timesheet->employmentDetailId,
+            'employmentContractLabel' => $timesheet->employmentDetail
+                ? $this->employmentContractLabel($timesheet->employmentDetail)
+                : null,
+            'employeeCompensationId' => $timesheet->employeeCompensationId,
+            'compensationLabel' => $timesheet->employeeCompensation
+                ? $this->compensationLabel($timesheet->employeeCompensation)
+                : null,
+            'slotIndex' => (int) ($timesheet->slotIndex ?? 0),
+            'employeeCode' => $timesheet->employee?->code,
+            'employeeName' => $employeeName !== '' ? $employeeName : null,
+            'date' => $timesheet->date?->format('Y-m-d'),
+            'clockInTime' => $timesheet->clockInTime?->format('Y-m-d H:i:s'),
+            'clockInDeviceId' => $timesheet->clockInDeviceId,
+            'clockOutTime' => $timesheet->clockOutTime?->format('Y-m-d H:i:s'),
+            'clockOutDeviceId' => $timesheet->clockOutDeviceId,
+            'roundOffClockInTime' => $timesheet->roundOffClockInTime?->format('Y-m-d H:i:s'),
+            'roundOffClockOutTime' => $timesheet->roundOffClockOutTime?->format('Y-m-d H:i:s'),
+            'clockedHoursWorked' => (float) ($timesheet->clockedHoursWorked ?? 0),
+            'includeLunchHour' => $lunchSettings['include_lunch_hour'],
+            'lunchHourHours' => (float) $lunchSettings['lunch_hour_hours'],
+            'hoursWorked' => (float) $timesheet->hoursWorked,
+            'regularHours' => (float) ($timesheet->regularHours ?? 0),
+            'overtimeHours' => (float) ($timesheet->overtimeHours ?? 0),
+            'holidayHours' => (float) ($timesheet->holidayHours ?? 0),
+            'unpaidHours' => (float) ($timesheet->unpaidHours ?? 0),
+            'isPaid' => (bool) ($timesheet->isPaid ?? true),
+            'paidHours' => (float) ($timesheet->paidHours ?? 0),
+            'workingStatus' => strtoupper((string) $timesheet->workingStatus),
+            'departmentId' => $timesheet->departmentId,
+            'departmentName' => $timesheet->department?->name,
+            'worksiteId' => $timesheet->worksiteId,
+            'worksiteName' => $timesheet->worksite?->name,
+            'payType' => $timesheet->payType ? strtoupper((string) $timesheet->payType) : null,
+            'hourlyRate' => $timesheet->hourlyRate !== null ? (float) $timesheet->hourlyRate : null,
+            'weeklySalary' => $timesheet->weeklySalary !== null ? (float) $timesheet->weeklySalary : null,
+            'baseSalary' => $timesheet->baseSalary !== null ? (float) $timesheet->baseSalary : null,
+            'approvalStatus' => strtoupper((string) $timesheet->approvalStatus),
+            'approvedBy' => $timesheet->approvedBy,
+            'approvedByName' => $approverName !== '' ? $approverName : null,
+            'approvedAt' => $timesheet->approvedAt?->format('Y-m-d H:i:s'),
+            'remarks' => $timesheet->remarks,
+            'hasLeaveConflict' => $this->leaveConflictResolver->hasUnresolvedLeaveConflict($timesheet),
+            'hasIssues' => strtoupper((string) $timesheet->approvalStatus) !== 'APPROVED'
+                && !empty(trim((string) $timesheet->remarks)),
+            'isOutsideSchedule' => $this->scheduleCoverage->isOutsideSchedule($timesheet, $scheduleSlots),
+            'isLocked' => $lockInfo['isLocked'],
+            'isPayDatePassed' => $lockInfo['isPayDatePassed'],
+            'isDateUnlocked' => $lockInfo['isDateUnlocked'],
+            'lockReason' => $lockInfo['lockReason'],
+            'payDate' => $lockInfo['payDate'],
+            'createdAt' => $timesheet->created_at?->format('Y-m-d H:i:s'),
+            'updatedAt' => $timesheet->updated_at?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    private function lockedTimesheetResponse(Timesheet $timesheet): ?JsonResponse
+    {
+        $lockInfo = $this->timesheetEditLockService->lockInfo($timesheet);
+        if (!$lockInfo['isLocked']) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => $lockInfo['lockReason'] ?? 'This timesheet is locked and cannot be edited.',
+            'isLocked' => true,
+            'payDate' => $lockInfo['payDate'],
+        ], 422);
+    }
+
+    private function employmentContractLabel(EmploymentDetail $employmentDetail): string
+    {
+        $title = $employmentDetail->jobTitle
+            ?: $employmentDetail->contractType?->name
+            ?: 'Contract';
+        $department = $employmentDetail->department?->name ?: 'No department';
+        $payPeriodGroup = $employmentDetail->defaultPayPeriodGroup?->name ?: 'No pay period group';
+
+        return "{$title} - {$department} - {$payPeriodGroup}";
+    }
+
+    private function compensationLabel($compensation): string
+    {
+        $method = strtoupper((string) $compensation->compensationMethod);
+        $rate = $compensation->yearlyRate > 0
+            ? number_format((float) $compensation->yearlyRate, 2)
+            : number_format((float) $compensation->hourlyRate, 2);
+
+        return "{$method} @ {$rate}";
     }
 }

@@ -12,6 +12,7 @@ class DeductionType extends Model
 
     protected $fillable = [
         'name',
+        'category',
         'note',
         'defaultAmount'
     ];

@@ -72,7 +72,8 @@ class TimesheetTemplate extends Model
                 'day' => $day,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
-                'include_lunch_hour' => (bool) ($schedule['include_lunch_hour'] ?? true),
+                'include_lunch_hour' => (bool) ($schedule['include_lunch_hour'] ?? false),
+                'lunch_hour_hours' => (float) ($schedule['lunch_hour_hours'] ?? 1),
                 'department_id' => $departmentId,
             ];
         }
@@ -110,7 +111,8 @@ class TimesheetTemplate extends Model
                 'day' => $day,
                 'start_time' => substr((string) $this->start_time, 0, 5),
                 'end_time' => substr((string) $this->end_time, 0, 5),
-                'include_lunch_hour' => ((int) $this->break_minutes) === 0,
+                'include_lunch_hour' => ((int) $this->break_minutes) > 0,
+                'lunch_hour_hours' => max(1, (int) $this->break_minutes) / 60,
                 'department_id' => null,
             ];
         }

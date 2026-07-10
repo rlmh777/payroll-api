@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreignId('taxCalculationModeId')->constrained('calculation_mode')->onDelete('cascade');
             $table->foreignId('socialSecurityCalculationModeId')->constrained('calculation_mode')->onDelete('cascade');
             $table->foreignId('paymentMethodId')->constrained('payment_method')->onDelete('cascade');
-            $table->text('note');
+            $table->text('note')->nullable();
             $table->timestamps();
         });
     }

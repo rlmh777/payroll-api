@@ -6,16 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use ParagonIE\CipherSweet\BlindIndex;
-use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
-use ParagonIE\CipherSweet\EncryptedRow;
-use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
-use ParagonIE\CipherSweet\Constants;
 
-class Employee extends Model implements CipherSweetEncrypted
+class Employee extends Model
 {
     use HasUuids;
-    use UsesCipherSweet;
 
     protected $table = 'employee';
     protected $primaryKey = 'id';
@@ -50,7 +44,10 @@ class Employee extends Model implements CipherSweetEncrypted
         'notes',
         'picturePath',
         'health',
-        'unionMembership'
+        'unionMembership',
+        'employmentStatusId',
+        'employeeStatusId',
+        'timesheetTemplateId',
     ];
 
 
@@ -119,6 +116,11 @@ class Employee extends Model implements CipherSweetEncrypted
         return $this->hasMany(EmploymentDetail::class, 'employeeId');
     }
 
+    public function employeeCompensations(): HasMany
+    {
+        return $this->hasMany(EmployeeCompensation::class, 'employeeId');
+    }
+
     public function reportingSupervisors(): HasMany
     {
         return $this->hasMany(EmployeeReporting::class, 'subordinate_id');
@@ -149,6 +151,21 @@ class Employee extends Model implements CipherSweetEncrypted
         return $this->hasMany(Qualification::class, 'employeeId');
     }
 
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(EmployeeCertification::class, 'employeeId');
+    }
+
+    public function skills(): HasMany
+    {
+        return $this->hasMany(EmployeeSkill::class, 'employeeId');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(EmployeeDocument::class, 'employeeId');
+    }
+
     public function leaves(): HasMany
     {
         return $this->hasMany(EmployeeLeave::class, 'employeeId');
@@ -159,9 +176,9 @@ class Employee extends Model implements CipherSweetEncrypted
         return $this->hasMany(Timesheet::class, 'employeeId');
     }
 
-    public function departmentHistory(): HasMany
+    public function headAssignments(): HasMany
     {
-        return $this->hasMany(EmployeeDepartmentHistory::class, 'employeeId');
+        return $this->hasMany(DepartmentHeadAssignment::class, 'employeeId');
     }
 
     public function historicalAllowances(): HasMany
@@ -169,37 +186,23 @@ class Employee extends Model implements CipherSweetEncrypted
         return $this->hasMany(HistoricalEmployeeAllowance::class);
     }
 
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    public function ssBenefitStatuses(): HasMany
     {
-        $encryptedRow
-            // add the columns you want to encrypt the values ​​for
-            ->addField('socialSecurityNumber', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('taxIdentificationNumber', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('passportNumber', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('votersId', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('firstName')
-            ->addField('middleName', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('lastName')
-            ->addField('maidenName', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('notes', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('health', Constants::TYPE_OPTIONAL_TEXT)
-            ->addField('picturePath', Constants::TYPE_OPTIONAL_TEXT)
-
-            // add a blind index for each column you want to search
-            ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
-            ->addBlindIndex('taxIdentificationNumber', new BlindIndex('taxIdentificationNumberIndex'))
-            ->addBlindIndex('passportNumber', new BlindIndex('passportNumberIndex'))
-            ->addBlindIndex('firstName', new BlindIndex('firstNameIndex'))
-            ->addBlindIndex('middleName', new BlindIndex('middleNameIndex'))
-            ->addBlindIndex('lastName', new BlindIndex('lastNameIndex'))
-            ->addBlindIndex('maidenName', new BlindIndex('maidenNameIndex'))
-            ->addBlindIndex('notes', new BlindIndex('notesIndex'))
-            ->addBlindIndex('health', new BlindIndex('healthIndex'))
-            ->addBlindIndex('picturePath', new BlindIndex('picturePathIndex'))
-            ->addBlindIndex('votersId', new BlindIndex('votersIdIndex'));
-
+        return $this->hasMany(EmployeeSsBenefitStatus::class, 'employeeId');
     }
 
+    public function employmentStatus(): BelongsTo
+    {
+        return $this->belongsTo(EmploymentStatus::class, 'employmentStatusId');
+    }
 
+    public function employeeStatus(): BelongsTo
+    {
+        return $this->belongsTo(EmployeeStatus::class, 'employeeStatusId');
+    }
 
+    public function timesheetTemplate(): BelongsTo
+    {
+        return $this->belongsTo(TimesheetTemplate::class, 'timesheetTemplateId');
+    }
 }

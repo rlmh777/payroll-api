@@ -7,6 +7,11 @@ use Illuminate\Support\Collection;
 
 class TimesheetHoursCalculator
 {
+    public function __construct(
+        private readonly ClockTimeRounder $clockTimeRounder
+    ) {
+    }
+
     /**
      * @param Collection<int, array{punchDateTime:Carbon, deviceId:?string, punchType:?string}> $punches
      * @return array{
@@ -14,14 +19,70 @@ class TimesheetHoursCalculator
      *   clockInDeviceId:?string,
      *   clockOutTime:?string,
      *   clockOutDeviceId:?string,
+     *   roundOffClockInTime:?string,
+     *   roundOffClockOutTime:?string,
+     *   clockedHoursWorked:float,
      *   hoursWorked:float,
      *   regularHours:float,
      *   overtimeHours:float,
      *   issues:array<int, string>
      * }
      */
-    public function calculate(Collection $punches, float $regularHoursThreshold): array
-    {
+    public function calculate(
+        Collection $punches,
+        float $regularHoursThreshold,
+        int $clockRoundOffMinutes = 30
+    ): array {
+        $slotCalc = $this->calculateSlots($punches, $clockRoundOffMinutes);
+        $roundedSeconds = (float) collect($slotCalc['slots'])->sum('roundedSeconds');
+        $clockedSeconds = (float) collect($slotCalc['slots'])->sum('clockedSeconds');
+
+        $regularThresholdSeconds = max(0, (int) round($regularHoursThreshold * 3600));
+        $regularSeconds = min($roundedSeconds, $regularThresholdSeconds);
+        $overtimeSeconds = max(0, $roundedSeconds - $regularThresholdSeconds);
+        $firstSlot = $slotCalc['slots'][0] ?? null;
+        $lastSlot = $slotCalc['slots'] === []
+            ? null
+            : $slotCalc['slots'][array_key_last($slotCalc['slots'])];
+
+        return [
+            'clockInTime' => $firstSlot['clockInTime'] ?? null,
+            'clockInDeviceId' => $firstSlot['clockInDeviceId'] ?? null,
+            'clockOutTime' => $lastSlot['clockOutTime'] ?? null,
+            'clockOutDeviceId' => $lastSlot['clockOutDeviceId'] ?? null,
+            'roundOffClockInTime' => $firstSlot['roundOffClockInTime'] ?? null,
+            'roundOffClockOutTime' => $lastSlot['roundOffClockOutTime'] ?? null,
+            'clockedHoursWorked' => $this->secondsToHours($clockedSeconds),
+            'hoursWorked' => $this->secondsToHours($roundedSeconds),
+            'regularHours' => $this->secondsToHours($regularSeconds),
+            'overtimeHours' => $this->secondsToHours($overtimeSeconds),
+            'issues' => $slotCalc['issues'],
+            'slots' => $slotCalc['slots'],
+        ];
+    }
+
+    /**
+     * @param Collection<int, array{punchDateTime:Carbon, deviceId:?string, punchType:?string}> $punches
+     * @return array{
+     *   slots:array<int, array{
+     *     clockInTime:?string,
+     *     clockInDeviceId:?string,
+     *     clockOutTime:?string,
+     *     clockOutDeviceId:?string,
+     *     roundOffClockInTime:?string,
+     *     roundOffClockOutTime:?string,
+     *     clockedSeconds:float,
+     *     roundedSeconds:float,
+     *     clockedHoursWorked:float,
+     *     hoursWorked:float
+     *   }>,
+     *   issues:array<int, string>
+     * }
+     */
+    public function calculateSlots(
+        Collection $punches,
+        int $clockRoundOffMinutes = 30
+    ): array {
         $sortedPunches = $punches
             ->sortBy(fn (array $punch) => $punch['punchDateTime']->getTimestamp())
             ->values();
@@ -30,30 +91,45 @@ class TimesheetHoursCalculator
         )
             ? $this->pairDirectionalPunches($sortedPunches)
             : $this->pairChronologicalPunches($sortedPunches);
-        $workedSeconds = (float) $pairedPunches['pairs']->sum(
-            fn (array $pair) => $pair['clockIn']['punchDateTime']->diffInSeconds(
+
+        $slots = [];
+
+        foreach ($pairedPunches['pairs'] as $pair) {
+            $clockedSeconds = (float) $pair['clockIn']['punchDateTime']->diffInSeconds(
                 $pair['clockOut']['punchDateTime'],
                 false,
-            )
-        );
-        $regularThresholdSeconds = max(0, (int) round($regularHoursThreshold * 3600));
-        $regularSeconds = min($workedSeconds, $regularThresholdSeconds);
-        $overtimeSeconds = max(0, $workedSeconds - $regularThresholdSeconds);
-        $firstPair = $pairedPunches['pairs']->first();
-        $lastPair = $pairedPunches['pairs']->last();
+            );
+
+            $roundedIn = $this->clockTimeRounder->roundClockIn(
+                $pair['clockIn']['punchDateTime'],
+                $clockRoundOffMinutes
+            );
+            $roundedOut = $this->clockTimeRounder->roundClockOut(
+                $pair['clockOut']['punchDateTime'],
+                $clockRoundOffMinutes
+            );
+
+            $roundedSeconds = 0.0;
+            if ($roundedOut->gt($roundedIn)) {
+                $roundedSeconds = (float) $roundedIn->diffInSeconds($roundedOut, false);
+            }
+
+            $slots[] = [
+                'clockInTime' => $pair['clockIn']['punchDateTime']->format('Y-m-d H:i:s'),
+                'clockInDeviceId' => $pair['clockIn']['deviceId'] ?? null,
+                'clockOutTime' => $pair['clockOut']['punchDateTime']->format('Y-m-d H:i:s'),
+                'clockOutDeviceId' => $pair['clockOut']['deviceId'] ?? null,
+                'roundOffClockInTime' => $roundedIn->format('Y-m-d H:i:s'),
+                'roundOffClockOutTime' => $roundedOut->format('Y-m-d H:i:s'),
+                'clockedSeconds' => $clockedSeconds,
+                'roundedSeconds' => $roundedSeconds,
+                'clockedHoursWorked' => $this->secondsToHours($clockedSeconds),
+                'hoursWorked' => $this->secondsToHours($roundedSeconds),
+            ];
+        }
 
         return [
-            'clockInTime' => $firstPair
-                ? $firstPair['clockIn']['punchDateTime']->format('Y-m-d H:i:s')
-                : null,
-            'clockInDeviceId' => $firstPair['clockIn']['deviceId'] ?? null,
-            'clockOutTime' => $lastPair
-                ? $lastPair['clockOut']['punchDateTime']->format('Y-m-d H:i:s')
-                : null,
-            'clockOutDeviceId' => $lastPair['clockOut']['deviceId'] ?? null,
-            'hoursWorked' => $this->secondsToHours($workedSeconds),
-            'regularHours' => $this->secondsToHours($regularSeconds),
-            'overtimeHours' => $this->secondsToHours($overtimeSeconds),
+            'slots' => $slots,
             'issues' => array_values(array_unique($pairedPunches['issues'])),
         ];
     }
@@ -102,6 +178,12 @@ class TimesheetHoursCalculator
                 continue;
             }
 
+            if ($this->pairOverlapsExisting($pairs, $pendingClockIn['punchDateTime'], $punch['punchDateTime'])) {
+                $issues[] = 'Overlapping punch pairs detected for the same day.';
+                $pendingClockIn = null;
+                continue;
+            }
+
             $pairs->push([
                 'clockIn' => $pendingClockIn,
                 'clockOut' => $punch,
@@ -143,6 +225,11 @@ class TimesheetHoursCalculator
                 continue;
             }
 
+            if ($this->pairOverlapsExisting($pairs, $clockIn['punchDateTime'], $clockOut['punchDateTime'])) {
+                $issues[] = 'Overlapping punch pairs detected for the same day.';
+                continue;
+            }
+
             $pairs->push([
                 'clockIn' => $clockIn,
                 'clockOut' => $clockOut,
@@ -164,5 +251,25 @@ class TimesheetHoursCalculator
     private function secondsToHours(float $seconds): float
     {
         return round($seconds / 3600, 2);
+    }
+
+    /**
+     * @param Collection<int, array{
+     *   clockIn:array{punchDateTime:Carbon},
+     *   clockOut:array{punchDateTime:Carbon}
+     * }> $pairs
+     */
+    private function pairOverlapsExisting(Collection $pairs, Carbon $clockIn, Carbon $clockOut): bool
+    {
+        foreach ($pairs as $pair) {
+            $existingIn = $pair['clockIn']['punchDateTime'];
+            $existingOut = $pair['clockOut']['punchDateTime'];
+
+            if ($clockIn->lt($existingOut) && $existingIn->lt($clockOut)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -6,9 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-//Employee Department and Hierarchy - Employee Department Assignment - Employee Department Transfer - Employee Department History
-// start date, end date, current department, previous department, transfer reason, transfer approval status, transfer approval date, transfer approver, transfer notes
-// Link to Employee model via employment details - Employee and Supervisor Relationship - 
+//Employee Department and Hierarchy - tracked via versioned employment_detail rows
 class Department extends Model
 {
     protected $table = 'department';
@@ -17,21 +15,29 @@ class Department extends Model
     protected $fillable = [
         'name',
         'parentId',
+        'accountId',
         'totalDailyHoursBeforeOvertime',
         'totalWeeklyHoursBeforeOvertime',
+        'overtimeThresholdMode',
+        'overnightShiftMode',
         'includeLunchHour',
+        'lunchHourHours',
     ];
 
     protected $attributes = [
         'totalDailyHoursBeforeOvertime' => 9,
         'totalWeeklyHoursBeforeOvertime' => 45,
+        'overtimeThresholdMode' => 'DAILY_AND_WEEKLY',
+        'overnightShiftMode' => 'SPLIT_AT_MIDNIGHT',
         'includeLunchHour' => true,
+        'lunchHourHours' => 1,
     ];
 
     protected $casts = [
         'totalDailyHoursBeforeOvertime' => 'decimal:2',
         'totalWeeklyHoursBeforeOvertime' => 'decimal:2',
         'includeLunchHour' => 'boolean',
+        'lunchHourHours' => 'decimal:2',
     ];
 
     public function parent()
@@ -49,6 +55,19 @@ class Department extends Model
         return $this->hasMany(TimesheetTemplateDepartment::class, 'department_id');
     }
 
+    public function headAssignments(): HasMany
+    {
+        return $this->hasMany(DepartmentHeadAssignment::class, 'departmentId');
+    }
+
+    public function currentHeadAssignment(): HasOne
+    {
+        return $this->hasOne(DepartmentHeadAssignment::class, 'departmentId')
+            ->whereNull('endDate')
+            ->where('isCurrent', true)
+            ->latest('startDate');
+    }
+
     public function currentTimesheetTemplateAssignment(): HasOne
     {
         return $this->hasOne(TimesheetTemplateDepartment::class, 'department_id')
@@ -59,5 +78,10 @@ class Department extends Model
     public function employmentDetails()
     {
         return $this->hasMany(EmploymentDetail::class, 'departmentId');
+    }
+
+    public function chartOfAccount()
+    {
+        return $this->belongsTo(Account::class, 'accountId');
     }
 }

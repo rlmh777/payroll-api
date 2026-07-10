@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\TimesheetTemplate;
 use App\Models\TimesheetTemplateDepartment;
+use App\Services\Attendance\TimesheetOvertimeAllocator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +19,7 @@ class DepartmentController extends Controller
     {
         $query = Department::query()->with([
             'parent',
+            'chartOfAccount',
             'currentTimesheetTemplateAssignment.timesheetTemplate',
         ]);
 
@@ -58,18 +60,26 @@ class DepartmentController extends Controller
             $validatedData = $request->validate([
                 'name' => 'required|string|max:256',
                 'parentId' => 'nullable|exists:department,id',
+                'accountId' => 'nullable|uuid|exists:accounts,id',
                 'timesheet_template_id' => 'nullable|uuid|exists:timesheet_template,id',
                 'totalDailyHoursBeforeOvertime' => 'nullable|numeric|min:0|max:24',
                 'totalWeeklyHoursBeforeOvertime' => 'nullable|numeric|min:0|max:168',
+                'overtimeThresholdMode' => 'nullable|in:DAILY,WEEKLY,DAILY_AND_WEEKLY',
+                'overnightShiftMode' => 'nullable|in:SPLIT_AT_MIDNIGHT,ATTRIBUTE_TO_CLOCK_IN_DAY,ATTRIBUTE_TO_CLOCK_OUT_DAY',
                 'includeLunchHour' => 'nullable|boolean',
+                'lunchHourHours' => 'nullable|numeric|min:0|max:8',
             ]);
 
             $department = Department::create([
                 'name' => $validatedData['name'],
                 'parentId' => $validatedData['parentId'] ?? null,
+                'accountId' => $validatedData['accountId'] ?? null,
                 'totalDailyHoursBeforeOvertime' => $validatedData['totalDailyHoursBeforeOvertime'] ?? 9,
                 'totalWeeklyHoursBeforeOvertime' => $validatedData['totalWeeklyHoursBeforeOvertime'] ?? 45,
+                'overtimeThresholdMode' => $validatedData['overtimeThresholdMode'] ?? 'DAILY_AND_WEEKLY',
+                'overnightShiftMode' => $validatedData['overnightShiftMode'] ?? 'SPLIT_AT_MIDNIGHT',
                 'includeLunchHour' => $validatedData['includeLunchHour'] ?? true,
+                'lunchHourHours' => $validatedData['lunchHourHours'] ?? 1,
             ]);
 
             $this->assignTimesheetTemplate(
@@ -79,7 +89,7 @@ class DepartmentController extends Controller
 
             return response()->json([
                 'message' => 'Department created successfully',
-                'data' => $department->load(['parent', 'currentTimesheetTemplateAssignment.timesheetTemplate'])
+                'data' => $department->load(['parent', 'chartOfAccount', 'currentTimesheetTemplateAssignment.timesheetTemplate'])
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -94,7 +104,7 @@ class DepartmentController extends Controller
         $this->ensureDefaultTimesheetTemplateAssignment($department);
 
         return response()->json(
-            $department->load(['parent', 'children', 'currentTimesheetTemplateAssignment.timesheetTemplate']),
+            $department->load(['parent', 'children', 'chartOfAccount', 'currentTimesheetTemplateAssignment.timesheetTemplate']),
             200
         );
     }
@@ -116,10 +126,14 @@ class DepartmentController extends Controller
             $validatedData = $request->validate([
                 'name' => 'sometimes|string|max:256',
                 'parentId' => 'sometimes|nullable|exists:department,id',
+                'accountId' => 'sometimes|nullable|uuid|exists:accounts,id',
                 'timesheet_template_id' => 'sometimes|nullable|uuid|exists:timesheet_template,id',
                 'totalDailyHoursBeforeOvertime' => 'sometimes|nullable|numeric|min:0|max:24',
                 'totalWeeklyHoursBeforeOvertime' => 'sometimes|nullable|numeric|min:0|max:168',
+                'overtimeThresholdMode' => 'sometimes|nullable|in:DAILY,WEEKLY,DAILY_AND_WEEKLY',
+                'overnightShiftMode' => 'sometimes|nullable|in:SPLIT_AT_MIDNIGHT,ATTRIBUTE_TO_CLOCK_IN_DAY,ATTRIBUTE_TO_CLOCK_OUT_DAY',
                 'includeLunchHour' => 'sometimes|boolean',
+                'lunchHourHours' => 'sometimes|nullable|numeric|min:0|max:8',
             ]);
 
             // Prevent circular reference
@@ -129,12 +143,27 @@ class DepartmentController extends Controller
                 ], 422);
             }
 
+            $overtimeFields = [
+                'totalDailyHoursBeforeOvertime',
+                'totalWeeklyHoursBeforeOvertime',
+                'overtimeThresholdMode',
+                'includeLunchHour',
+                'lunchHourHours',
+            ];
+            $overtimeSettingsChanged = collect($overtimeFields)->contains(
+                fn (string $field) => array_key_exists($field, $validatedData),
+            );
+
             $department->update(collect($validatedData)->only([
                 'name',
                 'parentId',
+                'accountId',
                 'totalDailyHoursBeforeOvertime',
                 'totalWeeklyHoursBeforeOvertime',
+                'overtimeThresholdMode',
+                'overnightShiftMode',
                 'includeLunchHour',
+                'lunchHourHours',
             ])->all());
 
             if (array_key_exists('timesheet_template_id', $validatedData)) {
@@ -146,9 +175,13 @@ class DepartmentController extends Controller
                 $this->ensureDefaultTimesheetTemplateAssignment($department);
             }
 
+            if ($overtimeSettingsChanged) {
+                app(TimesheetOvertimeAllocator::class)->redistributeDepartmentTimesheets((int) $department->id);
+            }
+
             return response()->json([
                 'message' => 'Department updated successfully',
-                'data' => $department->load(['parent', 'currentTimesheetTemplateAssignment.timesheetTemplate'])
+                'data' => $department->load(['parent', 'chartOfAccount', 'currentTimesheetTemplateAssignment.timesheetTemplate'])
             ], 200);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);

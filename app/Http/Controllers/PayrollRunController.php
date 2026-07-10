@@ -5,27 +5,40 @@ namespace App\Http\Controllers;
 use App\Models\PayrollRun;
 use App\Models\PayPeriodSchedule;
 use App\Services\AiSqlGeneratorService;
+use App\Services\Payroll\PayrollRunCalculationService;
+use App\Services\Payroll\PayrollRunFrequencyResolver;
+use App\Services\Payroll\PayrollRunJournalEntryReportService;
+use App\Services\Payroll\PayrollJournalDepartmentsReportService;
+use App\Services\Payroll\PayrollSummaryByDepartmentReportService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class PayrollRunController extends Controller
 {
-    private AiSqlGeneratorService $aiService;
-
-    public function __construct(AiSqlGeneratorService $aiService)
-    {
-        $this->aiService = $aiService;
+    public function __construct(
+        private readonly AiSqlGeneratorService $aiService,
+        private readonly PayrollRunCalculationService $payrollRunCalculationService,
+        private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly PayrollRunJournalEntryReportService $payrollRunJournalEntryReportService,
+        private readonly PayrollJournalDepartmentsReportService $payrollJournalDepartmentsReportService,
+        private readonly PayrollSummaryByDepartmentReportService $payrollSummaryByDepartmentReportService,
+    ) {
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $validated = $request->validate([
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
         return response()->json(
             PayrollRun::query()
                 ->with(['payPeriodSchedule.payPeriodGroup', 'payrateFrequency'])
                 ->latest('created_at')
-                ->paginate()
+                ->paginate($validated['per_page'] ?? 15)
         );
     }
 
@@ -42,10 +55,18 @@ class PayrollRunController extends Controller
             $data['status'] = 'draft';
         }
 
-        if (empty($data['payrate_frequency_id'])) {
-            $schedule = PayPeriodSchedule::find($data['pay_period_schedule_id']);
-            if ($schedule?->payrate_frequency_id) {
-                $data['payrate_frequency_id'] = $schedule->payrate_frequency_id;
+        if (!isset($data['payrate_frequency_id'])) {
+            $schedule = PayPeriodSchedule::query()
+                ->with('payPeriodGroup')
+                ->find($data['pay_period_schedule_id']);
+
+            $resolvedFrequencyId = $this->payrollRunFrequencyResolver->resolveForRun(
+                new PayrollRun($data),
+                $schedule,
+            );
+
+            if ($resolvedFrequencyId !== null) {
+                $data['payrate_frequency_id'] = $resolvedFrequencyId;
             }
         }
 
@@ -125,11 +146,7 @@ class PayrollRunController extends Controller
             }
 
             $fields = $result['fields'];
-            unset($fields['id'], $fields['created_at'], $fields['updated_at']);
-
-            if (empty($fields['payrate_frequency_id']) && $currentSchedule->payrate_frequency_id) {
-                $fields['payrate_frequency_id'] = $currentSchedule->payrate_frequency_id;
-            }
+            unset($fields['id'], $fields['created_at'], $fields['updated_at'], $fields['payrate_frequency_id']);
 
             PayPeriodSchedule::create($fields);
 
@@ -149,8 +166,60 @@ class PayrollRunController extends Controller
     public function show(PayrollRun $payrollRun)
     {
         return response()->json(
-            $payrollRun->load(['payPeriodSchedule.payPeriodGroup', 'payrateFrequency'])
+            $payrollRun->load([
+                'payPeriodSchedule.payPeriodGroup',
+                'payrateFrequency',
+                'payrolls.employee',
+                'payrolls.department',
+                'payrolls.earningLines.earningCode',
+            ])
         );
+    }
+
+    public function employeeSummary(PayrollRun $payrollRun)
+    {
+        return response()->json(
+            $this->payrollRunCalculationService->calculate($payrollRun),
+        );
+    }
+
+    public function journalEntriesReport(PayrollRun $payrollRun)
+    {
+        try {
+            return response()->json(
+                $this->payrollRunJournalEntryReportService->build($payrollRun),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function payrollSummaryByDepartmentReport(PayrollRun $payrollRun)
+    {
+        try {
+            return response()->json(
+                $this->payrollSummaryByDepartmentReportService->build($payrollRun),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function payrollJournalDepartmentsReport(PayrollRun $payrollRun)
+    {
+        try {
+            return response()->json(
+                $this->payrollJournalDepartmentsReportService->build($payrollRun),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
     }
 
     public function update(Request $request, PayrollRun $payrollRun)

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PayrollRun extends Model
 {
@@ -47,5 +48,15 @@ class PayrollRun extends Model
     public function payrateFrequency(): BelongsTo
     {
         return $this->belongsTo(PayrateFrequency::class, 'payrate_frequency_id');
+    }
+
+    public function payrolls(): HasMany
+    {
+        return $this->hasMany(Payroll::class, 'payroll_run_id');
+    }
+
+    public function earningLines(): HasMany
+    {
+        return $this->hasMany(PayrollEarningLine::class, 'payroll_run_id');
     }
 }

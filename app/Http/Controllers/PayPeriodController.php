@@ -14,14 +14,10 @@ class PayPeriodController extends Controller
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $query = PayPeriodSchedule::with(['payPeriodGroup', 'payrateFrequency']);
+        $query = PayPeriodSchedule::with(['payPeriodGroup']);
 
         if ($request->has('pay_period_group_id')) {
             $query->where('pay_period_group_id', $request->input('pay_period_group_id'));
-        }
-
-        if ($request->has('payrate_frequency_id')) {
-            $query->where('payrate_frequency_id', $request->input('payrate_frequency_id'));
         }
 
         return response()->json(
@@ -37,20 +33,19 @@ class PayPeriodController extends Controller
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'pay_date' => ['required', 'date', 'after_or_equal:end_date'],
             'pay_period_group_id' => ['nullable', 'uuid', 'exists:pay_period_groups,id'],
-            'payrate_frequency_id' => ['nullable', 'integer', 'exists:payrate_frequency,id'],
         ]);
 
         $payPeriodSchedule = PayPeriodSchedule::create($data);
 
         return response()->json(
-            $payPeriodSchedule->load(['payPeriodGroup', 'payrateFrequency']),
+            $payPeriodSchedule->load(['payPeriodGroup']),
             Response::HTTP_CREATED
         );
     }
 
     public function show(PayPeriodSchedule $payPeriodSchedule)
     {
-        return response()->json($payPeriodSchedule->load(['payPeriodGroup', 'payrateFrequency']));
+        return response()->json($payPeriodSchedule->load(['payPeriodGroup']));
     }
 
     public function update(Request $request, PayPeriodSchedule $payPeriodSchedule)
@@ -60,12 +55,11 @@ class PayPeriodController extends Controller
             'end_date' => ['sometimes', 'required', 'date', 'after_or_equal:start_date'],
             'pay_date' => ['sometimes', 'required', 'date', 'after_or_equal:end_date'],
             'pay_period_group_id' => ['nullable', 'uuid', 'exists:pay_period_groups,id'],
-            'payrate_frequency_id' => ['nullable', 'integer', 'exists:payrate_frequency,id'],
         ]);
 
         $payPeriodSchedule->update($data);
 
-        return response()->json($payPeriodSchedule->load(['payPeriodGroup', 'payrateFrequency']));
+        return response()->json($payPeriodSchedule->load(['payPeriodGroup']));
     }
 
     public function destroy(PayPeriodSchedule $payPeriodSchedule)

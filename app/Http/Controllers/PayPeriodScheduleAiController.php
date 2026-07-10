@@ -108,7 +108,6 @@ class PayPeriodScheduleAiController extends Controller
             'records.*.end_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:records.*.start_date'],
             'records.*.pay_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:records.*.end_date'],
             'records.*.pay_period_group_id' => ['nullable', 'uuid', 'exists:pay_period_groups,id'],
-            'records.*.payrate_frequency_id' => ['nullable', 'integer', 'exists:payrate_frequency,id'],
             'operation' => ['required', 'in:insert,update'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -142,14 +141,13 @@ class PayPeriodScheduleAiController extends Controller
                     if ($operation === 'insert') {
                         // Remove id from record if present (will be auto-generated)
                         unset($record['id']);
-                        // Remove timestamps (will be auto-generated)
-                        unset($record['created_at'], $record['updated_at']);
+                        unset($record['created_at'], $record['updated_at'], $record['payrate_frequency_id']);
                         
                         $payPeriodSchedule = PayPeriodSchedule::create($record);
                         $results[] = [
                             'index' => $index,
                             'success' => true,
-                            'data' => $payPeriodSchedule->load(['payPeriodGroup', 'payrateFrequency']),
+                            'data' => $payPeriodSchedule->load(['payPeriodGroup']),
                         ];
                     } else {
                         // For update, we need the ID
@@ -160,14 +158,14 @@ class PayPeriodScheduleAiController extends Controller
 
                         // Remove id and timestamps from update fields
                         $updateFields = $record;
-                        unset($updateFields['id'], $updateFields['created_at']);
+                        unset($updateFields['id'], $updateFields['created_at'], $updateFields['payrate_frequency_id']);
                         
                         $payPeriodSchedule = PayPeriodSchedule::findOrFail($id);
                         $payPeriodSchedule->update($updateFields);
                         $results[] = [
                             'index' => $index,
                             'success' => true,
-                            'data' => $payPeriodSchedule->load(['payPeriodGroup', 'payrateFrequency']),
+                            'data' => $payPeriodSchedule->load(['payPeriodGroup']),
                         ];
                     }
                 } catch (\Exception $e) {

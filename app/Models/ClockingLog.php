@@ -22,6 +22,6 @@ class ClockingLog extends Model
     ];
 
     protected $casts = [
-        'punchDateTime' => 'datetime:Y-m-d H:i:s',
+        'punchDateTime' => 'datetime',
     ];
 }

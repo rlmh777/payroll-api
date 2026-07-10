@@ -23,14 +23,12 @@ class PayPeriodSchedule extends Model
         'end_date',
         'pay_date',
         'pay_period_group_id',
-        'payrate_frequency_id',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'pay_date' => 'date',
-        'payrate_frequency_id' => 'integer',
     ];
 
     protected static function boot()
@@ -47,10 +45,5 @@ class PayPeriodSchedule extends Model
     public function payPeriodGroup(): BelongsTo
     {
         return $this->belongsTo(PayPeriodGroup::class, 'pay_period_group_id');
-    }
-
-    public function payrateFrequency(): BelongsTo
-    {
-        return $this->belongsTo(PayrateFrequency::class, 'payrate_frequency_id');
     }
 }

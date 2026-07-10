@@ -23,8 +23,15 @@ class ApproveTimesheetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'approvalStatus' => ['required', 'string', 'in:APPROVED,REJECTED'],
+            'approvalStatus' => ['required', 'string', 'in:APPROVED,REJECTED,PENDING'],
             'remarks' => ['nullable', 'string', 'max:5000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'approvalStatus.in' => 'The selected approval status is invalid.',
         ];
     }
 }

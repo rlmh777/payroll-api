@@ -8,77 +8,75 @@ use Illuminate\Support\Facades\Validator;
 
 class EmployeeBankController extends Controller
 {
-    /**
-     * Display a listing of employee banks.
-     */
     public function index(Request $request)
     {
         $query = EmployeeBank::with(['employee', 'bank']);
 
-        // Filter by employee
-        if ($request->has('employee_id')) {
+        if ($request->filled('employee_id')) {
             $query->where('employeeId', $request->input('employee_id'));
         }
 
-        // Filter by bank
-        if ($request->has('bank_id')) {
+        if ($request->filled('employeeId')) {
+            $query->where('employeeId', $request->input('employeeId'));
+        }
+
+        if ($request->filled('bank_id')) {
             $query->where('bankId', $request->input('bank_id'));
         }
 
-        // Search by account number or notes
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('accountNumber', 'ilike', "%{$search}%")
-                ->orWhere('notes', 'ilike', "%{$search}%");
+            $query->where(function ($builder) use ($search) {
+                $builder->where('accountNumber', 'ilike', "%{$search}%")
+                    ->orWhere('notes', 'ilike', "%{$search}%");
+            });
         }
 
-        // Sort
-        $sortBy = $request->input('sort_by', 'created_at');
+        $sortBy = $request->input('sort_by', 'isPrimary');
         $sortDirection = $request->input('sort_direction', 'desc');
-        $query->orderBy($sortBy, $sortDirection);
+        $query->orderBy($sortBy, $sortDirection)
+            ->orderBy('created_at', 'desc');
 
-        // Paginate
-        $perPage = $request->input('per_page', 10);
+        $perPage = (int) $request->input('per_page', 10);
         $employeeBanks = $query->paginate($perPage);
 
         return response()->json($employeeBanks);
     }
 
-    /**
-     * Store a newly created employee bank.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'employeeId' => 'required|uuid|exists:employee,id',
             'bankId' => 'required|uuid|exists:bank,id',
             'accountNumber' => 'required|string|max:255',
-            'notes' => 'required|string'
+            'isPrimary' => 'sometimes|boolean',
+            'notes' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $employeeBank = EmployeeBank::create($request->all());
+        $data = $validator->validated();
+        $data['isPrimary'] = $this->resolvePrimaryFlag(
+            (string) $data['employeeId'],
+            $request->boolean('isPrimary'),
+            true,
+        );
+
+        $employeeBank = EmployeeBank::create($data);
 
         return response()->json([
             'message' => 'Employee bank created successfully',
-            'data' => $employeeBank->load(['employee', 'bank'])
+            'data' => $employeeBank->load(['employee', 'bank']),
         ], 201);
     }
 
-    /**
-     * Display the specified employee bank.
-     */
     public function show(EmployeeBank $employeeBank)
     {
         return response()->json($employeeBank->load(['employee', 'bank']));
     }
 
-    /**
-     * Update the specified employee bank.
-     */
     public function update(Request $request, EmployeeBank $employeeBank)
     {
         if ($request->isMethod('put') && empty($request->all())) {
@@ -89,30 +87,71 @@ class EmployeeBankController extends Controller
             'employeeId' => 'uuid|exists:employee,id',
             'bankId' => 'uuid|exists:bank,id',
             'accountNumber' => 'string|max:255',
-            'notes' => 'string'
+            'isPrimary' => 'sometimes|boolean',
+            'notes' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $employeeBank->update($request->all());
+        $data = $validator->validated();
+        $employeeId = (string) ($data['employeeId'] ?? $employeeBank->employeeId);
+
+        if (array_key_exists('isPrimary', $data)) {
+            $data['isPrimary'] = $this->resolvePrimaryFlag(
+                $employeeId,
+                (bool) $data['isPrimary'],
+                false,
+                (string) $employeeBank->id,
+            );
+        }
+
+        $employeeBank->update($data);
 
         return response()->json([
             'message' => 'Employee bank updated successfully',
-            'data' => $employeeBank->load(['employee', 'bank'])
+            'data' => $employeeBank->load(['employee', 'bank']),
         ]);
     }
 
-    /**
-     * Remove the specified employee bank.
-     */
     public function destroy(EmployeeBank $employeeBank)
     {
         $employeeBank->delete();
 
         return response()->json([
-            'message' => 'Employee bank deleted successfully'
+            'message' => 'Employee bank deleted successfully',
         ]);
     }
-} 
+
+    private function resolvePrimaryFlag(
+        string $employeeId,
+        bool $requestedPrimary,
+        bool $isCreate,
+        ?string $currentId = null,
+    ): bool {
+        $existingPrimaryQuery = EmployeeBank::query()
+            ->where('employeeId', $employeeId)
+            ->where('isPrimary', true);
+
+        if ($currentId) {
+            $existingPrimaryQuery->where('id', '!=', $currentId);
+        }
+
+        $hasOtherPrimary = $existingPrimaryQuery->exists();
+
+        if ($isCreate && !$hasOtherPrimary) {
+            return true;
+        }
+
+        if ($requestedPrimary) {
+            return true;
+        }
+
+        if (!$hasOtherPrimary && !$isCreate) {
+            return true;
+        }
+
+        return false;
+    }
+}
