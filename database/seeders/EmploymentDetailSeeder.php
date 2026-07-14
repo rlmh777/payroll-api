@@ -52,7 +52,7 @@ class EmploymentDetailSeeder extends Seeder
             return;
         }
 
-        $employees = Employee::query()->orderBy('lastName')->orderBy('firstName')->get();
+        $employees = Employee::query()->orderByPersonName('lastName', 'asc')->orderBy('person.firstName', 'asc')->get();
 
         if ($employees->isEmpty()) {
             $this->command?->warn('EmploymentDetailSeeder skipped: no employees found.');

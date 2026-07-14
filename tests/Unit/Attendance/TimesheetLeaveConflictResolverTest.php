@@ -3,8 +3,8 @@
 namespace Tests\Unit\Attendance;
 
 use App\Models\Timesheet;
-use App\Services\Attendance\TimesheetLeaveConflictResolver;
-use App\Services\Attendance\TimesheetLeaveConflictService;
+use App\Modules\Hr\Services\Attendance\TimesheetLeaveConflictResolver;
+use App\Modules\Hr\Services\Attendance\TimesheetLeaveConflictService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -15,7 +15,7 @@ class TimesheetLeaveConflictResolverTest extends TestCase
     {
         $resolver = new TimesheetLeaveConflictResolver(
             new TimesheetLeaveConflictService(),
-            $this->createMock(\App\Services\Attendance\TimesheetRoundOffService::class),
+            $this->createMock(\App\Modules\Hr\Services\Attendance\TimesheetRoundOffService::class),
         );
 
         $timesheet = new Timesheet([
@@ -30,7 +30,7 @@ class TimesheetLeaveConflictResolverTest extends TestCase
     {
         $resolver = new TimesheetLeaveConflictResolver(
             new TimesheetLeaveConflictService(),
-            $this->createMock(\App\Services\Attendance\TimesheetRoundOffService::class),
+            $this->createMock(\App\Modules\Hr\Services\Attendance\TimesheetRoundOffService::class),
         );
 
         $timesheet = new Timesheet([

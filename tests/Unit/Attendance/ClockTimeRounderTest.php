@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Attendance;
 
-use App\Services\Attendance\ClockTimeRounder;
+use App\Modules\Hr\Services\Attendance\ClockTimeRounder;
 use Carbon\Carbon;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;

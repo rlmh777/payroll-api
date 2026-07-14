@@ -19,13 +19,42 @@ class MenuSeeder extends Seeder
 
         // Create main navigation menus
         $this->createMenu('Dashboard', '/', 'fas fa-tachometer-alt', 'view-dashboard', 1);
-        $this->createMenu('Employees', '/employees', 'fas fa-user-friends', 'view-employees', 2);
+
+        $employees = Menu::query()
+            ->where('route', '/employees')
+            ->where('type', 'menu')
+            ->first();
+
+        if (!$employees) {
+            $employees = $this->createMenu('Employees', '/employees', 'fas fa-user-friends', 'view-employees', 2);
+        }
+
+        $this->ensureSubMenu($employees->id, 'Add Employee', '/employees/new', 'person_add', 'employees-crud', 1);
+        $this->ensureSubMenu($employees->id, 'Import Employees', '/employees/import', 'upload_file', 'employees-crud', 2);
+
         $settings = $this->createMenu('Settings', '/settings', 'fas fa-cog', 'view-settings', 3);
         $this->createMenu('Scheduler', '/scheduler', 'fas fa-calendar-week', 'view-calendars', 4);
         if (!Menu::query()->where('route', '/timesheet')->where('type', 'menu')->exists()) {
             $this->createMenu('Timesheet', '/timesheet', 'fas fa-clock', 'view-timesheets', 5);
         }
-        //$this->createMenu('Leaves', '/leaves', 'fas fa-calendar-check', 'view-leave', 8);
+
+        $leaves = Menu::query()
+            ->where('route', '/leaves')
+            ->where('type', 'menu')
+            ->first();
+
+        if (!$leaves) {
+            $leaves = $this->createMenu('Leaves', '/leaves', 'fas fa-calendar-check', 'view-leave', 6);
+        }
+
+        $this->ensureSubMenu($leaves->id, 'Leave List', '/leaves/list', 'list_alt', 'view-leave', 1);
+        $this->ensureSubMenu($leaves->id, 'Assign Leave', '/leaves/assign', 'event_available', 'leave-crud', 2);
+        $this->ensureSubMenu($leaves->id, 'Request Leave', '/leaves/request', 'add_task', 'view-leave', 3);
+        $this->ensureSubMenu($leaves->id, 'My Leave Usage', '/leaves/my-usage', 'pie_chart', 'view-leave', 4);
+        $this->ensureSubMenu($leaves->id, 'Leave Calendar', '/leaves/calendar', 'calendar_month', 'view-leave', 5);
+        $this->ensureSubMenu($leaves->id, 'Leave Entitlement', '/leaves/entitlement', 'card_membership', 'view-leave', 6);
+        $this->ensureSubMenu($leaves->id, 'Leave Types', '/leaves/types', 'event_busy', 'view-leave-types', 7);
+
         // Create Settings submenus
         $general = $this->createSubMenu($settings->id, 'General', '/settings', 'fas fa-sliders-h', 'view-general', 1);
         $this->createSubMenu($settings->id, 'Organization', '/settings/organization', 'fas fa-building', 'view-organization', 2);
@@ -56,7 +85,7 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($general->id, 'Public Holidays', '/settings/holidays', 'event', 'view-holidays', 13);
         $this->createSubMenu($general->id, 'Attendance', '/settings/attendance', 'schedule', 'view-attendance-settings', 14);
         $this->createSubMenu($general->id, 'Department Heads', '/settings/department-heads', 'supervisor_account', 'view-department-heads', 15);
-        $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 6);
+        $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 7);
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
         $this->createSubMenu($payroll->id, 'Pay Period', '/payroll/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 2);
         $this->createSubMenu($payroll->id, 'Payroll Run', '/payroll/payroll-run', 'fas fa-money-check-alt', 'view-payroll', 3);
@@ -66,7 +95,7 @@ class MenuSeeder extends Seeder
         // Create Roles and Menus submenus
         $this->createSubMenu($settings->id, 'Roles', '/settings/roles', 'fas fa-user-shield', 'view-roles', 9);
         $this->createSubMenu($settings->id, 'Menu', '/settings/menu', 'fas fa-bars', 'view-menu', 10);
-        $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'view-reports', 7);
+        $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'view-reports', 8);
     }
 
     /**
@@ -102,6 +131,27 @@ class MenuSeeder extends Seeder
         ]);
     }
 
+    private function ensureSubMenu($parentId, $title, $route, $icon, $permission, $order)
+    {
+        $existing = Menu::query()->where('route', $route)->first();
+
+        if ($existing) {
+            $existing->update([
+                'parent_id' => $parentId,
+                'title' => $title,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'is_active' => true,
+            ]);
+
+            return $existing;
+        }
+
+        return $this->createSubMenu($parentId, $title, $route, $icon, $permission, $order);
+    }
+
     /**
      * Create all necessary permissions
      */
@@ -110,7 +160,10 @@ class MenuSeeder extends Seeder
         $permissions = [
             // Main navigation permissions
             'view-dashboard',
+            'view-employees',
             'view-accounts',
+            'view-settings',
+            'view-reports',
             'list-reports',
             'list-settings',
             'view-payroll',
@@ -122,8 +175,28 @@ class MenuSeeder extends Seeder
             'view-calendars',
             'view-holidays',
             'view-roles-menus',
+            'view-roles',
+            'view-menu',
             'view-pay-items',
             'view-leave',
+            'view-leave-types',
+            'manager-users',
+            'manager-tax',
+            'manager-social-security',
+
+            // General settings view permissions
+            'view-country',
+            'view-district',
+            'view-locality',
+            'view-institution',
+            'view-relationship',
+            'view-bank-account-type',
+            'view-payroll-earning-codes',
+            'view-timesheet-templates',
+            'view-degree',
+            'view-department',
+            'view-worksite',
+            'view-pay-period-groups',
 
             // General settings CRUD permissions
             'country-crud',
@@ -162,10 +235,18 @@ class MenuSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
         }
 
-        $role = Role::firstOrCreate(['name' => 'super-admin']);
-        $role->givePermissionTo(Permission::all());
+        $role = Role::firstOrCreate([
+            'name' => 'super-admin',
+            'guard_name' => 'web',
+        ]);
+        $role->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

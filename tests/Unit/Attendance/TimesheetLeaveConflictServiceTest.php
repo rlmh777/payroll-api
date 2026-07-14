@@ -3,7 +3,7 @@
 namespace Tests\Unit\Attendance;
 
 use App\Models\EmployeeLeave;
-use App\Services\Attendance\TimesheetLeaveConflictService;
+use App\Modules\Hr\Services\Attendance\TimesheetLeaveConflictService;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

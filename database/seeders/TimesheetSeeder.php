@@ -9,11 +9,11 @@ use App\Models\PublicHoliday;
 use App\Models\Timesheet;
 use App\Models\TimesheetTemplate;
 use App\Models\TimesheetTemplateDepartment;
-use App\Services\Attendance\ClockTimeRounder;
-use App\Services\Attendance\LunchBreakHelper;
-use App\Services\Attendance\TimesheetOvertimeAllocator;
-use App\Services\Attendance\TimesheetRoundOffService;
-use App\Services\Employment\EmployeeCompensationResolver;
+use App\Modules\Hr\Services\Attendance\ClockTimeRounder;
+use App\Modules\Hr\Services\Attendance\LunchBreakHelper;
+use App\Modules\Hr\Services\Attendance\TimesheetOvertimeAllocator;
+use App\Modules\Hr\Services\Attendance\TimesheetRoundOffService;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -24,8 +24,8 @@ class TimesheetSeeder extends Seeder
     {
         $employees = Employee::query()
             ->with(['timesheetTemplate', 'employmentDetails', 'employeeCompensations'])
-            ->orderBy('lastName')
-            ->orderBy('firstName')
+            ->orderByPersonName('lastName', 'asc')
+            ->orderBy('person.firstName', 'asc')
             ->get();
 
         if ($employees->isEmpty()) {

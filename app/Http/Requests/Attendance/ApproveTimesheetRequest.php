@@ -23,7 +23,7 @@ class ApproveTimesheetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'approvalStatus' => ['required', 'string', 'in:APPROVED,REJECTED,PENDING'],
+            'approvalStatus' => ['required', 'string', 'in:APPROVED,REJECTED,PENDING,PENDING_SUPERVISOR'],
             'remarks' => ['nullable', 'string', 'max:5000'],
         ];
     }

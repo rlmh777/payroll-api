@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\MenuAuthorizationService;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -342,7 +343,7 @@ class UserController extends Controller
     /**
      * Get top-level menus accessible to the authenticated user based on permissions.
      */
-    public function topLevelMenus(Request $request)
+    public function topLevelMenus(Request $request, MenuAuthorizationService $menuAuthorizationService)
     {
         $user = $request->user();
 
@@ -350,14 +351,37 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $permissionNames = $user->getAllPermissions()->pluck('name');
+        $tree = $menuAuthorizationService->menuTreeForUser($user);
 
-        $menus = \App\Models\Menu::active()
-            ->rootMenus()
-            ->whereIn('permission', $permissionNames)
-            ->orderBy('order')
-            ->get(['id', 'title', 'route', 'icon', 'order']);
+        return response()->json(collect($tree)->map(function (array $menu) {
+            return [
+                'id' => $menu['id'],
+                'title' => $menu['title'],
+                'route' => $menu['route'],
+                'icon' => $menu['icon'],
+                'order' => $menu['order'],
+                'children' => collect($menu['children'] ?? [])->map(fn (array $child) => [
+                    'id' => $child['id'],
+                    'title' => $child['title'],
+                    'route' => $child['route'],
+                    'icon' => $child['icon'],
+                    'order' => $child['order'],
+                ])->values(),
+            ];
+        })->values());
+    }
 
-        return response()->json($menus);
+    /**
+     * Get the full menu tree accessible to the authenticated user.
+     */
+    public function userMenus(Request $request, MenuAuthorizationService $menuAuthorizationService)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        return response()->json($menuAuthorizationService->menuTreeForUser($user));
     }
 }

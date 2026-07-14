@@ -13,9 +13,9 @@ use App\Models\PayPeriodSchedule;
 use App\Models\PayrollRun;
 use App\Models\Timesheet;
 use App\Models\User;
-use App\Services\Attendance\TimesheetCompensationPayService;
-use App\Services\Payroll\PayrollRunFrequencyResolver;
-use App\Services\Payroll\PayrollTimesheetScopeService;
+use App\Modules\Hr\Services\Attendance\TimesheetCompensationPayService;
+use App\Modules\Payroll\Services\PayrollRunFrequencyResolver;
+use App\Modules\Payroll\Services\PayrollTimesheetScopeService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -166,7 +166,10 @@ class PayrollRunSeeder extends Seeder
             }
         }
 
-        $employeeId = Employee::query()->orderBy('lastName')->orderBy('firstName')->value('id');
+        $employeeId = Employee::query()
+            ->orderByPersonName('lastName', 'asc')
+            ->orderBy('person.firstName', 'asc')
+            ->value('employee.id');
 
         return $employeeId ? (string) $employeeId : null;
     }

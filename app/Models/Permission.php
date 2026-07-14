@@ -15,6 +15,7 @@ class Permission extends SpatiePermission
 
     protected $fillable = [
         'name',
+        'guard_name',
     ];
 
     protected static function boot()

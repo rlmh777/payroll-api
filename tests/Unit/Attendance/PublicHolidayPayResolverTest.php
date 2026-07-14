@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Attendance;
 
-use App\Services\Attendance\PublicHolidayPayResolver;
+use App\Modules\Hr\Services\Attendance\PublicHolidayPayResolver;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

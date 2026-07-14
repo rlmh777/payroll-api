@@ -4,7 +4,7 @@ namespace Tests\Unit\Employment;
 
 use App\Enums\CompensationMethod;
 use App\Models\EmployeeCompensation;
-use App\Services\Employment\EmployeeCompensationResolver;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Tests\TestCase;

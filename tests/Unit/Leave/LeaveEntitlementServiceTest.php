@@ -4,9 +4,9 @@ namespace Tests\Unit\Leave;
 
 use App\Enums\LeaveAccrualMethod;
 use App\Models\EmploymentDetail;
-use App\Services\Leave\LeaveEntitlementService;
-use App\Services\Leave\LeaveSupervisorAuthorizationService;
-use App\Services\Leave\LeaveWorkflowService;
+use App\Modules\Hr\Services\Leave\LeaveEntitlementService;
+use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
+use App\Modules\Hr\Services\Leave\LeaveWorkflowService;
 use Carbon\Carbon;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

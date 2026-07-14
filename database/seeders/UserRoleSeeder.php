@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Permission;
 use App\Models\UserRole;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -44,10 +45,35 @@ class UserRoleSeeder extends Seeder
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor']);
         $employeeRole = Role::firstOrCreate(['name' => 'employee']);
 
-        // Assign via Spatie for permission resolution
-        if (!$adminUser->hasRole($adminRole->name)) {
-            $adminUser->assignRole($adminRole->name);
+        $employeePermissions = [
+            'view-dashboard',
+            'view-leave',
+            'view-leave-types',
+        ];
+
+        $supervisorPermissions = [
+            'view-dashboard',
+            'view-employees',
+            'view-leave',
+            'view-leave-types',
+            'leave-crud',
+            'view-timesheets',
+            'timesheets-crud',
+        ];
+
+        foreach (array_unique([...$employeePermissions, ...$supervisorPermissions]) as $permission) {
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
+
+        $employeeRole->syncPermissions($employeePermissions);
+        $supervisorRole->syncPermissions($supervisorPermissions);
+
+        // Admin gets every permission via the super-admin role.
+        // Leave and employee menu/API permissions must always be present for johndoe.
+        $adminRole->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
+        $adminUser->syncRoles([$adminRole]);
+        $adminUser->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
+
         if (!$supervisorUser->hasRole($supervisorRole->name)) {
             $supervisorUser->assignRole($supervisorRole->name);
         }
@@ -55,7 +81,12 @@ class UserRoleSeeder extends Seeder
             $employeeUser->assignRole($employeeRole->name);
         }
 
-        // Ensure explicit pivot row exists in user_roles
+        // Ensure explicit pivot row exists in user_roles (super-admin only for admin)
+        UserRole::query()
+            ->where('user_id', $adminUser->id)
+            ->where('role_id', '!=', $adminRole->id)
+            ->delete();
+
         UserRole::firstOrCreate(
             [
                 'user_id' => $adminUser->id,

@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Payroll;
 
-use App\Services\Payroll\PayPeriodHelper;
+use App\Modules\Payroll\Services\PayPeriodHelper;
 use Carbon\Carbon;
 use Tests\TestCase;
 

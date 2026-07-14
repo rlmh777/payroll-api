@@ -48,6 +48,8 @@ class Timesheet extends Model
         'approvedBy',
         'approvedAt',
         'remarks',
+        'comment',
+        'updatedBy',
     ];
 
     protected $casts = [
@@ -91,6 +93,11 @@ class Timesheet extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'approvedBy');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updatedBy');
     }
 
     public function department(): BelongsTo

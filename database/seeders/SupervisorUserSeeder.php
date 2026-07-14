@@ -78,6 +78,20 @@ class SupervisorUserSeeder extends Seeder
             ]);
         }
 
+        $adminUser = User::query()->where('email', 'johndoe@gmail.com')->first();
+        if ($adminUser) {
+            $adminEmployee = Employee::query()
+                ->whereNull('user_id')
+                ->orderBy('code')
+                ->first();
+
+            if ($adminEmployee) {
+                $adminEmployee->update([
+                    'user_id' => $adminUser->id,
+                ]);
+            }
+        }
+
         if ($supervisorEmployee) {
             $subordinates = Employee::query()
                 ->skip(1)

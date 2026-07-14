@@ -3,7 +3,7 @@
 namespace Tests\Unit\Attendance;
 
 use App\Enums\OvernightShiftMode;
-use App\Services\Attendance\TimesheetShiftDaySplitter;
+use App\Modules\Hr\Services\Attendance\TimesheetShiftDaySplitter;
 use Carbon\Carbon;
 use Tests\TestCase;
 

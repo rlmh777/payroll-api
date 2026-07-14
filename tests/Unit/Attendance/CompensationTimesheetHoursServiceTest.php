@@ -3,7 +3,7 @@
 namespace Tests\Unit\Attendance;
 
 use App\Enums\CompensationMethod;
-use App\Services\Attendance\CompensationTimesheetHoursService;
+use App\Modules\Hr\Services\Attendance\CompensationTimesheetHoursService;
 use Tests\TestCase;
 
 class CompensationTimesheetHoursServiceTest extends TestCase

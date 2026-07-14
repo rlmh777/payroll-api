@@ -7,7 +7,7 @@ use App\Models\EmploymentDetail;
 use App\Models\PayPeriodSchedule;
 use App\Models\PayrollSetting;
 use App\Models\Timesheet;
-use App\Services\Attendance\TimesheetEditLockService;
+use App\Modules\Hr\Services\Attendance\TimesheetEditLockService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;

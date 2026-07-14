@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Attendance;
 
-use App\Services\Attendance\TimesheetPayFields;
+use App\Modules\Hr\Services\Attendance\TimesheetPayFields;
 use Tests\TestCase;
 
 class TimesheetPayFieldsTest extends TestCase

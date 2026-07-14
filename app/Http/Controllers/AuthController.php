@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\AuthUserPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -12,14 +13,12 @@ class AuthController extends Controller
 {
     public function authenticate(Request $request): JsonResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
+        $request->validate([
+            'email' => ['required', 'string', 'max:255'],
             'password' => ['required'],
         ]);
 
-        $user = User::query()
-            ->where('email', $request->email)
-            ->first();
+        $user = $this->findUserByLoginIdentifier($request->email);
 
         // if (
         //     !$user || is_null($user->email_verified_at)
@@ -43,18 +42,36 @@ class AuthController extends Controller
             ], 400);
         }
 
-        $token = $user->createToken($request->email)->plainTextToken;
+        $token = $user->createToken($user->email)->plainTextToken;
         return response()->json([
             'message' => 'Login successful',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->getRoleNames()->first() ?? 'employee',
-            ],
+            'user' => AuthUserPresenter::present($user),
             'token' => $token
         ], 200);
 
+    }
+
+    private function findUserByLoginIdentifier(string $identifier): ?User
+    {
+        $identifier = trim($identifier);
+
+        if ($identifier === '') {
+            return null;
+        }
+
+        $user = User::query()->where('email', $identifier)->first();
+        if ($user) {
+            return $user;
+        }
+
+        if (!str_contains($identifier, '@')) {
+            return User::query()
+                ->where('email', 'like', $identifier.'@%')
+                ->orderBy('email')
+                ->first();
+        }
+
+        return null;
     }
 
     public function createToken(Request $request): JsonResponse

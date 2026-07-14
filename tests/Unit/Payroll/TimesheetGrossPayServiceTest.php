@@ -4,9 +4,9 @@ namespace Tests\Unit\Payroll;
 
 use App\Enums\CompensationMethod;
 use App\Models\Timesheet;
-use App\Services\Employment\EmployeeCompensationResolver;
-use App\Services\Payroll\PayrollTimesheetScopeService;
-use App\Services\Payroll\TimesheetGrossPayService;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
+use App\Modules\Payroll\Services\PayrollTimesheetScopeService;
+use App\Modules\Payroll\Services\TimesheetGrossPayService;
 use Tests\TestCase;
 
 class TimesheetGrossPayServiceTest extends TestCase

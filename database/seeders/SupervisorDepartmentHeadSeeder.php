@@ -7,7 +7,7 @@ use App\Models\Employee;
 use App\Models\EmployeeReporting;
 use App\Models\EmploymentDetail;
 use App\Models\User;
-use App\Services\Department\DepartmentHeadAssignmentService;
+use App\Modules\Hr\Services\Department\DepartmentHeadAssignmentService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 

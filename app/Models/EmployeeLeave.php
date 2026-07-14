@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmployeeLeave extends Model
 {
@@ -61,6 +62,11 @@ class EmployeeLeave extends Model
 
     public function approver(): BelongsTo {
         return $this->belongsTo(Employee::class, 'approverId');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(EmployeeLeaveAttachment::class, 'employeeLeaveId');
     }
 
     public function getStatusCodeAttribute(): ?string

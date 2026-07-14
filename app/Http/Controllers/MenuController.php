@@ -3,17 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Models\Menu;
+use App\Services\MenuAuthorizationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 
 class MenuController extends Controller
 {
+    public function __construct(
+        private readonly MenuAuthorizationService $menuAuthorizationService,
+    ) {
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        if ($user && !$user->hasRole('super-admin') && !$user->can('menu-crud')) {
+            $menus = $this->menuAuthorizationService->menusForUser($user);
+
+            return response()->json($menus);
+        }
+
         $query = Menu::with(['children', 'parent']);
 
         // Filter by menu type

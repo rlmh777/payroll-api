@@ -30,4 +30,14 @@ return [
     ],
 
     'default_periods_per_year' => 26,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Employee user accounts
+    |--------------------------------------------------------------------------
+    | Login email is generated as {lastname}.{firstname}@{employee_login_domain}.
+    | Users can sign in with that username or the full email address.
+    */
+    'employee_default_password' => env('EMPLOYEE_DEFAULT_PASSWORD', 'ChangeMe123!'),
+    'employee_login_domain' => env('EMPLOYEE_LOGIN_DOMAIN', ''),
 ];

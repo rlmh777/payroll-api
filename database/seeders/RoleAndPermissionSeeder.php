@@ -17,15 +17,15 @@ class RoleAndPermissionSeeder extends Seeder
         //app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // create permissions
-        Permission::create(['name' => 'update']);
-        Permission::create(['name' => 'delete ']);
-        Permission::create(['name' => 'save ']);
+        Permission::firstOrCreate(['name' => 'update']);
+        Permission::firstOrCreate(['name' => 'delete']);
+        Permission::firstOrCreate(['name' => 'save']);
 
         // update cache to know about the newly created permissions (required if using WithoutModelEvents in seeders)
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $role = Role::create(['name' => 'super-admin']);
-        $role->givePermissionTo(Permission::all());
+        $role = Role::firstOrCreate(['name' => 'super-admin']);
+        $role->syncPermissions(Permission::all());
 
     }
 }

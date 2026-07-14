@@ -16,6 +16,17 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(StartSession::class);
 
+        $middleware->alias([
+            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'api.permission' => \App\Http\Middleware\EnsureApiPermission::class,
+        ]);
+
+        $middleware->appendToGroup('api', [
+            \App\Http\Middleware\EnsureApiPermission::class,
+        ]);
+
         // API-only auth: return 401 JSON instead of redirecting to a missing login route.
         $middleware->redirectGuestsTo(fn () => null);
     })

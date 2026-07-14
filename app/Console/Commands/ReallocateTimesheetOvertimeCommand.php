@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Timesheet;
-use App\Services\Attendance\TimesheetOvertimeAllocator;
+use App\Modules\Hr\Services\Attendance\TimesheetOvertimeAllocator;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 

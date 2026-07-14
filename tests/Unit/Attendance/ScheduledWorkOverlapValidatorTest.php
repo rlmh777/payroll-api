@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Attendance;
 
-use App\Services\Attendance\ScheduledWorkOverlapValidator;
+use App\Modules\Hr\Services\Attendance\ScheduledWorkOverlapValidator;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

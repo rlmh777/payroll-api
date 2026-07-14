@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Services\Attendance\TimesheetProcessingScheduler;
-use App\Services\Attendance\TimesheetProcessingService;
+use App\Modules\Hr\Services\Attendance\TimesheetProcessingScheduler;
+use App\Modules\Hr\Services\Attendance\TimesheetProcessingService;
 use Illuminate\Console\Command;
 
 class ProcessTimesheetsCommand extends Command

@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Attendance;
 
-use App\Services\Attendance\TimesheetOverlapValidator;
+use App\Modules\Hr\Services\Attendance\TimesheetOverlapValidator;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -4,8 +4,8 @@ namespace Tests\Unit\Attendance;
 
 use App\Enums\ScheduleComparisonSource;
 use App\Models\Timesheet;
-use App\Services\Attendance\TimesheetScheduleCoverageService;
-use App\Services\Attendance\TimesheetScheduledHoursResolver;
+use App\Modules\Hr\Services\Attendance\TimesheetScheduleCoverageService;
+use App\Modules\Hr\Services\Attendance\TimesheetScheduledHoursResolver;
 use Carbon\Carbon;
 use Tests\TestCase;
 

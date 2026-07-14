@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Employee;
+use App\Modules\Hr\Services\EmployeePersonSync;
 use App\Models\Locality;
 use App\Models\Country;
 use App\Models\Honorific;
@@ -52,7 +53,7 @@ class EmployeeModelSeeder extends Seeder
             // Determine if employee should have a maiden name (typically for married females)
             $hasMaidenName = $gender && strtolower($gender->name) === 'female' && $faker->boolean(30);
 
-            Employee::create([
+            EmployeePersonSync::create([
                 'id' => Str::uuid(),
                 'code' => str_pad($i, 6, '0', STR_PAD_LEFT), // Generate sequential codes: 000001, 000002, etc.
                 'internalId1' => 'INT' . strtoupper($faker->bothify('?##??')),

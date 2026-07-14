@@ -32,6 +32,8 @@ class DatabaseSeeder extends Seeder
             localitiesSeeder::class,
             EmployeeModelSeeder::class,
             RoleAndPermissionSeeder::class,
+            // Menus (and their permissions) must exist before role permission sync.
+            MenuSeeder::class,
             UserRoleSeeder::class,
             SupervisorUserSeeder::class,
             DegreeSeeder::class,
@@ -39,7 +41,6 @@ class DatabaseSeeder extends Seeder
             ContractTypeSeeder::class,
             EmploymentStatusSeeder::class,
             RelationshipSeeder::class,
-            MenuSeeder::class,
             AccountTypeSeeder::class,
             BankAccountTypeSeeder::class,
             SocialSecuritySeeder::class,
@@ -59,6 +60,7 @@ class DatabaseSeeder extends Seeder
             SchedulerSeeder::class,
             TimesheetSeeder::class,
             PayrollRunSeeder::class,
+            SuperAdminSeeder::class,
         ]);
     }
 }
