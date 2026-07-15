@@ -79,6 +79,7 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($general->id, 'Payroll Earning Codes', '/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8);
         $this->createSubMenu($general->id, 'Timesheet Templates', '/settings/timesheet-templates', 'fas fa-clock', 'view-timesheet-templates', 9);
         $this->createSubMenu($general->id, 'Degree', '/settings/degree', 'fas fa-graduation-cap', 'view-degree', 10);
+        $this->ensureSubMenu($general->id, 'Job Titles', '/settings/job-titles', 'work', 'view-job-title', 16);
         $this->createSubMenu($general->id, 'Department', '/settings/department', 'fas fa-sitemap', 'view-department', 11);
         // $this->createSubMenu($general->id, 'Gender', '/settings/gender', 'fas fa-venus-mars', 'view-gender', 12);
         $this->createSubMenu($general->id, 'Work Site', '/settings/worksite', 'fas fa-map', 'view-worksite', 12);
@@ -194,6 +195,7 @@ class MenuSeeder extends Seeder
             'view-payroll-earning-codes',
             'view-timesheet-templates',
             'view-degree',
+            'view-job-title',
             'view-department',
             'view-worksite',
             'view-pay-period-groups',
@@ -209,6 +211,7 @@ class MenuSeeder extends Seeder
             'payroll-earning-code-crud',
             'calendar-crud',
             'degree-crud',
+            'job-title-crud',
             'department-crud',
             'gender-crud',
             'worksite-crud',

@@ -11,6 +11,7 @@ class PayrollRunProcessingService
     public function __construct(
         private readonly PayrollRunCalculationService $payrollRunCalculationService,
         private readonly PayrollRunEarningLineBuilderService $payrollRunEarningLineBuilderService,
+        private readonly PayrollRunTimesheetPaidMarker $payrollRunTimesheetPaidMarker,
     ) {
     }
 
@@ -20,7 +21,8 @@ class PayrollRunProcessingService
      *     status: string,
      *     employeeCount: int,
      *     asOfDate: string,
-     *     totals: array<string, float>
+     *     totals: array<string, float>,
+     *     timesheetsMarkedPaid: int
      * }
      */
     public function process(PayrollRun $payrollRun): array
@@ -42,12 +44,18 @@ class PayrollRunProcessingService
             $payrollRun->update(['status' => 'posted']);
             $payrollRun->refresh();
 
+            $timesheetsMarkedPaid = $this->payrollRunTimesheetPaidMarker->markForProcessedRun(
+                $payrollRun,
+                $rows,
+            );
+
             return [
                 'payrollRunId' => (string) $payrollRun->id,
                 'status' => (string) $payrollRun->status,
                 'employeeCount' => count($rows),
                 'asOfDate' => (string) ($summary['asOfDate'] ?? ''),
                 'totals' => $summary['totals'] ?? [],
+                'timesheetsMarkedPaid' => $timesheetsMarkedPaid,
             ];
         });
     }

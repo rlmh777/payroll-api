@@ -63,7 +63,6 @@ class TimesheetPayrollPaidStatusService
             ->whereRaw('LOWER(payroll_runs.status) = ?', ['posted'])
             ->whereDate('pay_period_schedule.start_date', '<=', $maxDate)
             ->whereDate('pay_period_schedule.end_date', '>=', $minDate)
-            ->whereNotNull('payroll.paymentMethodId')
             ->get();
 
         foreach ($timesheets as $timesheet) {
@@ -91,11 +90,7 @@ class TimesheetPayrollPaidStatusService
                     return false;
                 }
 
-                if ($workDate < $start || $workDate > $end) {
-                    return false;
-                }
-
-                return $this->hasPaymentDetails($payroll);
+                return $workDate >= $start && $workDate <= $end;
             });
 
             $this->paidCache[$key] = $match !== null;
@@ -140,11 +135,6 @@ class TimesheetPayrollPaidStatusService
             'payDate' => null,
             'payrollId' => null,
         ];
-    }
-
-    private function hasPaymentDetails(object $payroll): bool
-    {
-        return !empty($payroll->paymentMethodId);
     }
 
     private function cacheKey(Timesheet $timesheet): ?string

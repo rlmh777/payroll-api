@@ -93,6 +93,7 @@ class EmployeePersonSync
             'employmentDetails.department',
             'employmentDetails.worksite',
             'employmentDetails.contractType',
+            'employmentDetails.jobTitle',
             'employmentDetails.defaultPayPeriodGroup',
             'employeeCompensations',
             'allowances',

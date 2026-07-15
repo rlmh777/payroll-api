@@ -57,9 +57,11 @@ class LocalityController extends Controller
             ]);
 
             $locality = Locality::create($validatedData);
+            $locality->load('district.country:id,name,code1,code2,nationalityName');
+
             return response()->json([
                 'message' => 'Locality created successfully',
-                'data' => $locality
+                'data' => $locality,
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -95,9 +97,11 @@ class LocalityController extends Controller
             ]);
 
             $locality->update($validatedData);
+            $locality->load('district.country:id,name,code1,code2,nationalityName');
+
             return response()->json([
                 'message' => 'Locality updated successfully',
-                'data' => $locality
+                'data' => $locality,
             ], 200);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);

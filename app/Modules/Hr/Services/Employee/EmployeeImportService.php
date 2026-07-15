@@ -17,6 +17,7 @@ use App\Models\EmploymentDetail;
 use App\Models\EmploymentStatus;
 use App\Models\Gender;
 use App\Models\Honorific;
+use App\Models\JobTitle;
 use App\Models\Locality;
 use App\Models\PaymentMethod;
 use App\Models\PayPeriodGroup;
@@ -317,6 +318,15 @@ class EmployeeImportService
             'payPeriodGroupName',
         );
 
+        $jobTitleName = $this->nullableString($row['jobTitle'] ?? null);
+        $jobTitleId = null;
+        if ($jobTitleName !== null) {
+            $jobTitleId = JobTitle::query()->firstOrCreate(
+                ['name' => $jobTitleName],
+                ['payScale' => null, 'jobDescriptionPath' => null],
+            )->id;
+        }
+
         return EmploymentDetail::create([
             'id' => (string) Str::uuid(),
             'employeeId' => $employee->id,
@@ -327,7 +337,7 @@ class EmployeeImportService
             'defaultPayPeriodGroupId' => $payPeriodGroupId,
             'startDate' => $this->requireString($row, 'startDate', 'startDate is required.'),
             'endDate' => $this->nullableDate($row['endDate'] ?? null),
-            'jobTitle' => $this->nullableString($row['jobTitle'] ?? null),
+            'jobTitleId' => $jobTitleId,
             'requiresClocking' => $this->toBool($row['requiresClocking'] ?? false),
             'isActive' => $this->toBool($row['isActive'] ?? true, true),
             'benefits' => trim((string) ($row['benefits'] ?? '')),

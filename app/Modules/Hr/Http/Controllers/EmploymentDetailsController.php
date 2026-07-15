@@ -17,6 +17,7 @@ class EmploymentDetailsController extends Controller
         'department',
         'worksite',
         'contractType',
+        'jobTitle',
         'chartOfAccount',
         'defaultPayPeriodGroup',
     ];
@@ -165,7 +166,7 @@ class EmploymentDetailsController extends Controller
             'startDate' => [$required, 'date'],
             'endDate' => ['nullable', 'date', 'after_or_equal:startDate'],
             'isActive' => ['boolean'],
-            'jobTitle' => ['nullable', 'string', 'max:255'],
+            'jobTitleId' => ['nullable', 'integer', 'exists:job_title,id'],
             'benefits' => ['nullable', 'string'],
         ];
     }
@@ -219,6 +220,10 @@ class EmploymentDetailsController extends Controller
     {
         if (array_key_exists('endDate', $data) && ($data['endDate'] === '' || $data['endDate'] === null)) {
             $data['endDate'] = null;
+        }
+
+        if (array_key_exists('jobTitleId', $data) && ($data['jobTitleId'] === '' || $data['jobTitleId'] === null)) {
+            $data['jobTitleId'] = null;
         }
 
         return $data;

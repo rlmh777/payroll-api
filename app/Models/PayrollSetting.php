@@ -11,6 +11,7 @@ class PayrollSetting extends Model
     protected $fillable = [
         'incomeTaxRate',
         'secondReliefAmount',
+        'timesheetLockBeforeDate',
         'timesheetUnlockStartDate',
         'timesheetUnlockEndDate',
     ];
@@ -18,6 +19,7 @@ class PayrollSetting extends Model
     protected $casts = [
         'incomeTaxRate' => 'decimal:4',
         'secondReliefAmount' => 'decimal:2',
+        'timesheetLockBeforeDate' => 'date:Y-m-d',
         'timesheetUnlockStartDate' => 'date:Y-m-d',
         'timesheetUnlockEndDate' => 'date:Y-m-d',
     ];

@@ -20,6 +20,7 @@ class EmployeeController extends Controller
         'employmentDetails.department',
         'employmentDetails.worksite',
         'employmentDetails.contractType',
+        'employmentDetails.jobTitle',
         'employmentDetails.defaultPayPeriodGroup',
         'employeeCompensations',
     ];

@@ -4,6 +4,7 @@ namespace App\Modules\Hr\Services\Attendance;
 
 use App\Models\DepartmentHeadAssignment;
 use App\Models\Employee;
+use App\Models\EmploymentDetail;
 use App\Models\Timesheet;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -137,6 +138,32 @@ class TimesheetScopeService
         }
 
         return $this->supervisedEmployeeIds($user)->contains((string) $timesheet->employeeId);
+    }
+
+    public function canAccessEmployee(User $user, Employee $employee, ?EmploymentDetail $employmentDetail = null): bool
+    {
+        if ($this->canViewAllEmployees($user)) {
+            return true;
+        }
+
+        $actor = $this->actorEmployee($user);
+        if (!$actor) {
+            return false;
+        }
+
+        if ((string) $employee->id === (string) $actor->id) {
+            return true;
+        }
+
+        $departmentIds = $this->headedDepartmentIds($user);
+        if (
+            $employmentDetail?->departmentId !== null
+            && $departmentIds->contains((int) $employmentDetail->departmentId)
+        ) {
+            return true;
+        }
+
+        return $this->supervisedEmployeeIds($user)->contains((string) $employee->id);
     }
 
     public function isDirectSupervisorOf(User $user, Timesheet $timesheet): bool

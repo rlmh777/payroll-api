@@ -16,24 +16,29 @@ class PayrollSettingController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'incomeTaxRate' => ['required', 'numeric', 'min:0', 'max:1'],
-            'secondReliefAmount' => ['required', 'numeric', 'min:0'],
-            'timesheetUnlockStartDate' => ['nullable', 'date', 'required_with:timesheetUnlockEndDate'],
-            'timesheetUnlockEndDate' => [
-                'nullable',
-                'date',
-                'required_with:timesheetUnlockStartDate',
-                'after_or_equal:timesheetUnlockStartDate',
-            ],
+            'incomeTaxRate' => ['sometimes', 'required', 'numeric', 'min:0', 'max:1'],
+            'secondReliefAmount' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'timesheetLockBeforeDate' => ['nullable', 'date'],
         ]);
 
         $setting = PayrollSetting::current();
-        $setting->update([
-            'incomeTaxRate' => $validated['incomeTaxRate'],
-            'secondReliefAmount' => $validated['secondReliefAmount'],
-            'timesheetUnlockStartDate' => $validated['timesheetUnlockStartDate'] ?? null,
-            'timesheetUnlockEndDate' => $validated['timesheetUnlockEndDate'] ?? null,
-        ]);
+        $payload = [];
+
+        if (array_key_exists('incomeTaxRate', $validated)) {
+            $payload['incomeTaxRate'] = $validated['incomeTaxRate'];
+        }
+
+        if (array_key_exists('secondReliefAmount', $validated)) {
+            $payload['secondReliefAmount'] = $validated['secondReliefAmount'];
+        }
+
+        if (array_key_exists('timesheetLockBeforeDate', $validated)) {
+            $payload['timesheetLockBeforeDate'] = $validated['timesheetLockBeforeDate'];
+        }
+
+        if ($payload !== []) {
+            $setting->update($payload);
+        }
 
         return response()->json([
             'message' => 'Payroll settings updated.',
@@ -46,8 +51,7 @@ class PayrollSettingController extends Controller
      *     incomeTaxRate: float,
      *     incomeTaxRatePercent: float,
      *     secondReliefAmount: float,
-     *     timesheetUnlockStartDate: ?string,
-     *     timesheetUnlockEndDate: ?string
+     *     timesheetLockBeforeDate: ?string
      * }
      */
     private function formatSetting(PayrollSetting $setting): array
@@ -58,8 +62,7 @@ class PayrollSettingController extends Controller
             'incomeTaxRate' => $rate,
             'incomeTaxRatePercent' => round($rate * 100, 2),
             'secondReliefAmount' => round((float) $setting->secondReliefAmount, 2),
-            'timesheetUnlockStartDate' => $setting->timesheetUnlockStartDate?->format('Y-m-d'),
-            'timesheetUnlockEndDate' => $setting->timesheetUnlockEndDate?->format('Y-m-d'),
+            'timesheetLockBeforeDate' => $setting->timesheetLockBeforeDate?->format('Y-m-d'),
         ];
     }
 }

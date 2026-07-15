@@ -137,6 +137,7 @@ class SchedulerEventController extends Controller
                 'employmentDetail.department',
                 'employmentDetail.worksite',
                 'employmentDetail.contractType',
+                'employmentDetail.jobTitle',
                 'employmentDetail.defaultPayPeriodGroup',
             ])
             ->whereDate('startDate', '<=', $end)
@@ -338,7 +339,7 @@ class SchedulerEventController extends Controller
 
     private function employmentContractLabel(EmploymentDetail $employmentDetail): string
     {
-        $title = $employmentDetail->jobTitle
+        $title = $employmentDetail->jobTitle?->name
             ?: $employmentDetail->contractType?->name
             ?: 'Contract';
         $department = $employmentDetail->department?->name ?: 'No department';

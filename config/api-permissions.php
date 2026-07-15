@@ -85,6 +85,7 @@ return [
         'historical-employee-deductions' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'honorifics' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'institutions' => ['view' => 'view-institution', 'write' => 'institution-crud'],
+        'job-titles' => ['view' => 'view-job-title', 'write' => 'job-title-crud'],
         'journal-entries' => ['view' => 'view-reports', 'write' => 'view-reports'],
         'journal-lines' => ['view' => 'view-reports', 'write' => 'view-reports'],
         'leave-statuses' => ['view' => 'view-leave', 'write' => 'leave-crud'],

@@ -16,6 +16,7 @@ use App\Modules\Hr\Http\Controllers\DepartmentController;
 use App\Modules\Hr\Http\Controllers\DepartmentHeadAssignmentController;
 use App\Modules\Hr\Http\Controllers\WorksiteController;
 use App\Http\Controllers\DegreeController;
+use App\Http\Controllers\JobTitleController;
 use App\Http\Controllers\LocalityController;
 use App\Http\Controllers\DistrictController;
 use App\Http\Controllers\GenderController;
@@ -222,6 +223,8 @@ Route::prefix('attendance-settings')->middleware('auth:sanctum')->group(function
 Route::prefix('timesheets')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [TimesheetController::class, 'index']);
     Route::get('/employee-summary', [TimesheetController::class, 'employeeSummary']);
+    Route::post('/', [TimesheetController::class, 'store']);
+    Route::patch('/{timesheet}', [TimesheetController::class, 'update']);
     Route::post('/recalculate-compensation', [TimesheetController::class, 'recalculateCompensation']);
     Route::patch('/approval/bulk', [TimesheetController::class, 'updateBulkApproval']);
     Route::patch('/{timesheet}/round-off', [TimesheetController::class, 'updateRoundOff']);
@@ -364,6 +367,16 @@ Route::prefix('degrees')->group(function () {
     Route::get('/{degree}', [DegreeController::class, 'show']);
     Route::put('/{degree}', [DegreeController::class, 'update']);
     Route::delete('/{degree}', [DegreeController::class, 'destroy']);
+});
+
+// Job title Routes
+Route::prefix('job-titles')->group(function () {
+    Route::get('/', [JobTitleController::class, 'index']);
+    Route::post('/', [JobTitleController::class, 'store']);
+    Route::get('/{jobTitle}', [JobTitleController::class, 'show']);
+    Route::put('/{jobTitle}', [JobTitleController::class, 'update']);
+    Route::post('/{jobTitle}', [JobTitleController::class, 'update']);
+    Route::delete('/{jobTitle}', [JobTitleController::class, 'destroy']);
 });
 
 // Locality routes

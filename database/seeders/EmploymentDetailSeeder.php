@@ -10,6 +10,7 @@ use App\Models\EmployeeCompensation;
 use App\Models\EmployeeStatus;
 use App\Models\EmploymentDetail;
 use App\Models\EmploymentStatus;
+use App\Models\JobTitle;
 use App\Models\PayPeriodGroup;
 use App\Models\Worksite;
 use Illuminate\Database\Seeder;
@@ -124,11 +125,16 @@ class EmploymentDetailSeeder extends Seeder
                 $employeePayPeriodGroup = $monthlyPayPeriodGroup;
             }
 
+            $jobTitle = JobTitle::query()->firstOrCreate(
+                ['name' => fake()->unique()->jobTitle()],
+                ['payScale' => null, 'jobDescriptionPath' => null],
+            );
+
             $payload = [
                 'startDate' => $startDate,
                 'endDate' => $endDate,
                 'isActive' => true,
-                'jobTitle' => fake()->jobTitle(),
+                'jobTitleId' => $jobTitle->id,
                 'requiresClocking' => $requiresClocking,
                 'benefits' => 'Standard health and pension benefits',
                 'accountId' => $account->id,

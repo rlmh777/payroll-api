@@ -20,7 +20,7 @@ class EmploymentDetail extends Model
         'startDate',
         'endDate',
         'isActive',
-        'jobTitle',
+        'jobTitleId',
         'requiresClocking',
         'benefits',
         'accountId',
@@ -52,6 +52,11 @@ class EmploymentDetail extends Model
     public function contractType(): BelongsTo
     {
         return $this->belongsTo(ContractType::class, 'contractTypeId');
+    }
+
+    public function jobTitle(): BelongsTo
+    {
+        return $this->belongsTo(JobTitle::class, 'jobTitleId');
     }
 
     public function department(): BelongsTo
