@@ -130,9 +130,18 @@ class PayrollRunEarningLineBuilderService
                     continue;
                 }
 
+                $earningCode = $earningCodes->get('ALLOWANCE');
+                $poolEarningCodeId = $allowanceLine['payrollEarningCodeId'] ?? null;
+                if (($allowanceLine['source'] ?? null) === 'pool' && $poolEarningCodeId) {
+                    $poolCode = PayrollEarningCode::query()->find($poolEarningCodeId);
+                    if ($poolCode) {
+                        $earningCode = $poolCode;
+                    }
+                }
+
                 $accountId = $this->resolveAllowanceAccountId(
                     $allowanceLine,
-                    $earningCodes->get('ALLOWANCE')?->account_id,
+                    $earningCode?->account_id ?? $earningCodes->get('ALLOWANCE')?->account_id,
                 );
 
                 $this->createLine(
@@ -140,7 +149,7 @@ class PayrollRunEarningLineBuilderService
                     $employeeId,
                     $payrollId,
                     $departmentId,
-                    $earningCodes->get('ALLOWANCE'),
+                    $earningCode,
                     null,
                     null,
                     $amount,

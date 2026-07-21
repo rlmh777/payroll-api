@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Company extends Model
 {
     protected $table = 'company';
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -32,6 +34,10 @@ class Company extends Model
         'secondaryColor' => '#26A69A',
     ];
 
+    protected $appends = [
+        'logoUrl',
+    ];
+
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Locality::class, 'localityId');
@@ -40,6 +46,15 @@ class Company extends Model
     public function companyBankAccounts(): HasMany
     {
         return $this->hasMany(CompanyBankAccount::class, 'companyId');
+    }
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        if (! $this->logoPath) {
+            return null;
+        }
+
+        return url(Storage::disk('public')->url($this->logoPath));
     }
 
     protected function socialSecurityNumber(): Attribute
@@ -68,4 +83,3 @@ class Company extends Model
         return $array;
     }
 }
-

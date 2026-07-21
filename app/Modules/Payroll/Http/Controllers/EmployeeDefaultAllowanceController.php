@@ -8,88 +8,77 @@ use Illuminate\Support\Facades\Validator;
 
 class EmployeeDefaultAllowanceController extends Controller
 {
-    /**
-     * Display a listing of employee default allowances.
-     */
+    private const RELATIONS = [
+        'employee',
+        'allowance',
+        'chartOfAccount',
+    ];
+
     public function index(Request $request)
     {
-        $query = EmployeeDefaultAllowance::with(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount']);
+        $query = EmployeeDefaultAllowance::with(self::RELATIONS);
 
-        // Filter by employee
         if ($request->has('employee_id')) {
             $query->where('employeeId', $request->input('employee_id'));
         }
 
-        // Filter by allowance
         if ($request->has('allowance_id')) {
             $query->where('allowanceId', $request->input('allowance_id'));
         }
 
-        // Filter by frequency
-        if ($request->has('frequency_id')) {
-            $query->where('frequencyId', $request->input('frequency_id'));
-        }
-
-        // Filter by chart of account
         if ($request->has('account_id')) {
             $query->where('accountId', $request->input('account_id'));
         }
 
-        // Search by note
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where('note', 'ilike', "%{$search}%");
         }
 
-        // Sort
         $sortBy = $request->input('sort_by', 'created_at');
         $sortDirection = $request->input('sort_direction', 'desc');
         $query->orderBy($sortBy, $sortDirection);
 
-        // Paginate
         $perPage = $request->input('per_page', 10);
         $allowances = $query->paginate($perPage);
 
         return response()->json($allowances);
     }
 
-    /**
-     * Store a newly created employee default allowance.
-     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'employeeId' => 'required|uuid|exists:employee,id',
             'allowanceId' => 'required|uuid|exists:allowance,id',
-            'frequencyId' => 'required|exists:payrate_frequency,id',
             'accountId' => 'required|uuid|exists:accounts,id',
             'note' => 'nullable|string|max:1024',
-            'amount' => 'required|numeric|min:0|max:999999999999.99'
+            'quantity' => 'required|numeric|min:0.0001|max:999999999.9999',
+            'unitAmount' => 'required|numeric|min:0|max:999999999999.99',
+            'amount' => 'nullable|numeric|min:0|max:999999999999.99',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $allowance = EmployeeDefaultAllowance::create($request->all());
+        $data = $validator->validated();
+        $data['quantity'] = round((float) $data['quantity'], 4);
+        $data['unitAmount'] = round((float) $data['unitAmount'], 2);
+        $data['amount'] = round($data['quantity'] * $data['unitAmount'], 2);
+
+        $allowance = EmployeeDefaultAllowance::create($data);
 
         return response()->json([
             'message' => 'Employee default allowance created successfully',
-            'data' => $allowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount'])
+            'data' => $allowance->load(self::RELATIONS),
         ], 201);
     }
 
-    /**
-     * Display the specified employee default allowance.
-     */
     public function show(EmployeeDefaultAllowance $employeeDefaultAllowance)
     {
-        return response()->json($employeeDefaultAllowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount']));
+        return response()->json($employeeDefaultAllowance->load(self::RELATIONS));
     }
 
-    /**
-     * Update the specified employee default allowance.
-     */
     public function update(Request $request, EmployeeDefaultAllowance $employeeDefaultAllowance)
     {
         if ($request->isMethod('put') && empty($request->all())) {
@@ -99,34 +88,46 @@ class EmployeeDefaultAllowanceController extends Controller
         $validator = Validator::make($request->all(), [
             'employeeId' => 'uuid|exists:employee,id',
             'allowanceId' => 'uuid|exists:allowance,id',
-            'frequencyId' => 'exists:payrate_frequency,id',
             'accountId' => 'uuid|exists:accounts,id',
             'note' => 'nullable|string|max:1024',
-            'amount' => 'numeric|min:0|max:999999999999.99'
+            'quantity' => 'numeric|min:0.0001|max:999999999.9999',
+            'unitAmount' => 'numeric|min:0|max:999999999999.99',
+            'amount' => 'nullable|numeric|min:0|max:999999999999.99',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $employeeDefaultAllowance->update($request->all());
+        $data = $validator->validated();
+
+        if (array_key_exists('quantity', $data) || array_key_exists('unitAmount', $data)) {
+            $quantity = array_key_exists('quantity', $data)
+                ? round((float) $data['quantity'], 4)
+                : (float) $employeeDefaultAllowance->quantity;
+            $unitAmount = array_key_exists('unitAmount', $data)
+                ? round((float) $data['unitAmount'], 2)
+                : (float) $employeeDefaultAllowance->unitAmount;
+
+            $data['quantity'] = $quantity;
+            $data['unitAmount'] = $unitAmount;
+            $data['amount'] = round($quantity * $unitAmount, 2);
+        }
+
+        $employeeDefaultAllowance->update($data);
 
         return response()->json([
             'message' => 'Employee default allowance updated successfully',
-            'data' => $employeeDefaultAllowance->load(['employee', 'allowance', 'payrateFrequency', 'chartOfAccount'])
+            'data' => $employeeDefaultAllowance->load(self::RELATIONS),
         ]);
     }
 
-    /**
-     * Remove the specified employee default allowance.
-     */
     public function destroy(EmployeeDefaultAllowance $employeeDefaultAllowance)
     {
         $employeeDefaultAllowance->delete();
 
         return response()->json([
-            'message' => 'Employee default allowance deleted successfully'
+            'message' => 'Employee default allowance deleted successfully',
         ]);
     }
 }
-

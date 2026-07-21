@@ -61,21 +61,27 @@ class TimesheetController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->recalculateCurrentAndFutureTimesheets($request);
+        // Recalculation is expensive; only run when explicitly requested.
+        if ($request->boolean('recalculate')) {
+            $this->recalculateCurrentAndFutureTimesheets($request);
+        }
 
         $query = Timesheet::query()
             ->with([
-                'employee',
-                'approver',
+                'employee:id,code,person_id',
+                'employee.person:id,firstName,middleName,lastName',
+                'approver:id,person_id',
+                'approver.person:id,firstName,lastName',
                 'updater:id,name,email',
                 'department:id,name',
                 'worksite:id,name',
-                'employmentDetail.department',
-                'employmentDetail.worksite',
-                'employmentDetail.contractType',
-                'employmentDetail.jobTitle',
-                'employmentDetail.defaultPayPeriodGroup',
-                'employeeCompensation',
+                'employmentDetail:id,employeeId,departmentId,worksiteId,contractTypeId,jobTitleId,defaultPayPeriodGroupId',
+                'employmentDetail.department:id,name',
+                'employmentDetail.worksite:id,name',
+                'employmentDetail.contractType:id,name',
+                'employmentDetail.jobTitle:id,name',
+                'employmentDetail.defaultPayPeriodGroup:id,name',
+                'employeeCompensation:id,compensationMethod,hourlyRate,yearlyRate,effectiveDate,endDate',
             ]);
 
         $this->applyFilters($query, $request);
@@ -352,7 +358,9 @@ class TimesheetController extends Controller
 
     public function employeeSummary(Request $request): JsonResponse
     {
-        $this->recalculateCurrentAndFutureTimesheets($request);
+        if ($request->boolean('recalculate')) {
+            $this->recalculateCurrentAndFutureTimesheets($request);
+        }
 
         $filteredQuery = Timesheet::query();
         $this->applyFilters($filteredQuery, $request);
@@ -1267,19 +1275,36 @@ class TimesheetController extends Controller
 
     private function transformTimesheet(Timesheet $timesheet, array $scheduleSlots = []): array
     {
+        $employee = $timesheet->employee;
+        $employeePerson = $employee?->person;
         $employeeName = trim(sprintf(
             '%s %s',
-            $timesheet->employee?->firstName ?? '',
-            $timesheet->employee?->lastName ?? ''
+            $employeePerson?->firstName ?? $employee?->firstName ?? '',
+            $employeePerson?->lastName ?? $employee?->lastName ?? ''
         ));
 
+        $approver = $timesheet->approver;
+        $approverPerson = $approver?->person;
         $approverName = trim(sprintf(
             '%s %s',
-            $timesheet->approver?->firstName ?? '',
-            $timesheet->approver?->lastName ?? ''
+            $approverPerson?->firstName ?? $approver?->firstName ?? '',
+            $approverPerson?->lastName ?? $approver?->lastName ?? ''
         ));
 
-        $lunchSettings = $this->lunchBreakResolver->lunchSettingsForTimesheet($timesheet);
+        // Prefer stored lunch fields on the timesheet to avoid per-row schedule lookups on list.
+        if ($timesheet->includeLunchHour !== null) {
+            $hours = max(0, (float) ($timesheet->lunchHourHours ?? 0));
+            $lunchSettings = [
+                'include_lunch_hour' => (bool) $timesheet->includeLunchHour && $hours > 0,
+                'lunch_hour_hours' => $hours,
+            ];
+        } else {
+            $lunchSettings = [
+                'include_lunch_hour' => false,
+                'lunch_hour_hours' => 0.0,
+            ];
+        }
+
         $lockInfo = $this->timesheetEditLockService->lockInfo($timesheet);
 
         return [

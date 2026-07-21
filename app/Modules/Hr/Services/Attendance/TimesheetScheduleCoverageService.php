@@ -77,18 +77,8 @@ class TimesheetScheduleCoverageService
 
         $this->mergeEmployeeScheduleSlots($slots, $employeeSchedules);
 
-        foreach ($collection as $timesheet) {
-            $key = $this->employeeSlotKey($timesheet);
-
-            if ($key !== null && isset($slots[$key])) {
-                continue;
-            }
-
-            $window = $this->scheduledHoursResolver->scheduledWindowForTimesheet($timesheet);
-            if ($window !== null && $key !== null) {
-                $slots[$key] = $window;
-            }
-        }
+        // Skip per-timesheet template fallback here — it is N+1 and list payloads
+        // already have schedule slots from scheduled_work / schedule_employee_timesheet.
 
         return $slots;
     }

@@ -4,6 +4,7 @@ namespace App\Modules\Payroll\Services;
 
 use App\Models\EmployeeDefaultAllowance;
 use App\Models\HistoricalEmployeeAllowance;
+use App\Models\PayrollRunPoolDistribution;
 use Illuminate\Support\Collection;
 
 class AllowanceResolutionService
@@ -29,7 +30,6 @@ class AllowanceResolutionService
         $defaults = EmployeeDefaultAllowance::query()
             ->with('allowance')
             ->where('employeeId', $employeeId)
-            ->when($payrateFrequencyId, fn ($query) => $query->where('frequencyId', $payrateFrequencyId))
             ->get();
 
         foreach ($defaults as $default) {
@@ -85,6 +85,43 @@ class AllowanceResolutionService
             $ssSubjectTotal = round($ssSubjectTotal + $line['ssSubjectAmount'], 2);
         }
 
+        $poolRows = PayrollRunPoolDistribution::query()
+            ->with(['poolDistributionType.payrollEarningCode', 'poolDistributionType.allowance'])
+            ->where('payroll_run_id', $payrollRunId)
+            ->where('employee_id', $employeeId)
+            ->where('is_eligible', true)
+            ->where('amount', '>', 0)
+            ->get();
+
+        foreach ($poolRows as $poolRow) {
+            $amount = round((float) $poolRow->amount, 2);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $type = $poolRow->poolDistributionType;
+            $isTaxable = (bool) ($type?->is_taxable ?? true);
+            $isSsSubject = (bool) ($type?->is_ss_subject ?? true);
+            $accountId = $type?->payrollEarningCode?->account_id;
+
+            $line = $this->classifyAllowanceAmount(
+                $amount,
+                $isTaxable,
+                $isSsSubject,
+                'pool',
+                (string) $poolRow->id,
+                filled($accountId) ? (string) $accountId : null,
+            );
+            $line['poolDistributionTypeId'] = $type?->id;
+            $line['poolLabel'] = $type?->name;
+            $line['payrollEarningCodeId'] = $type?->payroll_earning_code_id;
+
+            $lines[] = $line;
+            $taxableTotal = round($taxableTotal + $line['taxableAmount'], 2);
+            $nonTaxableTotal = round($nonTaxableTotal + $line['nonTaxableAmount'], 2);
+            $ssSubjectTotal = round($ssSubjectTotal + $line['ssSubjectAmount'], 2);
+        }
+
         return [
             'taxableTotal' => $taxableTotal,
             'nonTaxableTotal' => $nonTaxableTotal,
@@ -94,7 +131,7 @@ class AllowanceResolutionService
     }
 
     /**
-     * @param Collection<int, string> $employeeIds
+     * @param  Collection<int, string>  $employeeIds
      * @return array<string, array<string, mixed>>
      */
     public function forEmployees(

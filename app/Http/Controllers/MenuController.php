@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Menu;
 use App\Services\MenuAuthorizationService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class MenuController extends Controller
 {
     public function __construct(
         private readonly MenuAuthorizationService $menuAuthorizationService,
-    ) {
-    }
+    ) {}
 
     /**
      * Display a listing of the resource.
@@ -22,7 +21,7 @@ class MenuController extends Controller
     {
         $user = $request->user();
 
-        if ($user && !$user->hasRole('super-admin') && !$user->can('menu-crud')) {
+        if ($user && ! $user->can('menu-crud')) {
             $menus = $this->menuAuthorizationService->menusForUser($user);
 
             return response()->json($menus);
@@ -75,7 +74,7 @@ class MenuController extends Controller
             'permission' => 'nullable|string|max:255',
             'order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
-            'type' => 'nullable|string|in:menu,submenu'
+            'type' => 'nullable|string|in:menu,submenu',
         ]);
 
         if ($validator->fails()) {
@@ -83,7 +82,7 @@ class MenuController extends Controller
         }
 
         // Auto-set type based on parent_id
-        if (!$request->has('type')) {
+        if (! $request->has('type')) {
             $request->merge(['type' => $request->has('parent_id') ? 'submenu' : 'menu']);
         }
 
@@ -91,7 +90,7 @@ class MenuController extends Controller
 
         return response()->json([
             'message' => 'Menu created successfully',
-            'data' => $menu->load(['children', 'parent'])
+            'data' => $menu->load(['children', 'parent']),
         ], 201);
     }
 
@@ -116,7 +115,7 @@ class MenuController extends Controller
             'permission' => 'nullable|string|max:255',
             'order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
-            'type' => 'nullable|string|in:menu,submenu'
+            'type' => 'nullable|string|in:menu,submenu',
         ]);
 
         if ($validator->fails()) {
@@ -132,7 +131,7 @@ class MenuController extends Controller
 
         return response()->json([
             'message' => 'Menu updated successfully',
-            'data' => $menu->load(['children', 'parent'])
+            'data' => $menu->load(['children', 'parent']),
         ]);
     }
 
@@ -144,14 +143,14 @@ class MenuController extends Controller
         // Check if menu has children
         if ($menu->children()->exists()) {
             return response()->json([
-                'message' => 'Cannot delete menu with children. Delete children first.'
+                'message' => 'Cannot delete menu with children. Delete children first.',
             ], 422);
         }
 
         $menu->delete();
 
         return response()->json([
-            'message' => 'Menu deleted successfully'
+            'message' => 'Menu deleted successfully',
         ]);
     }
 }

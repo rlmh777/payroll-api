@@ -22,15 +22,11 @@ class EnsureApiPermission
         }
 
         $user = $this->resolveAuthenticatedUser($request);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         if ($this->isAuthOnlyRoute($routeKey, $method, $relativePath)) {
-            return $next($request);
-        }
-
-        if ($user->hasRole('super-admin')) {
             return $next($request);
         }
 
@@ -39,7 +35,7 @@ class EnsureApiPermission
             return $next($request);
         }
 
-        if (!$user->can($permission)) {
+        if (! $user->can($permission)) {
             return response()->json([
                 'message' => 'Forbidden. Missing required permission.',
                 'permission' => $permission,
@@ -53,15 +49,17 @@ class EnsureApiPermission
     {
         $user = $request->user('sanctum') ?? $request->user();
         if ($user instanceof User) {
+            $this->bindAuthenticatedUser($request, $user);
+
             return $user;
         }
 
         if ($token = $request->bearerToken()) {
             $accessToken = PersonalAccessToken::findToken($token);
-            if ($accessToken && (!$accessToken->expires_at || $accessToken->expires_at->isFuture())) {
+            if ($accessToken && (! $accessToken->expires_at || $accessToken->expires_at->isFuture())) {
                 $tokenUser = $accessToken->tokenable;
                 if ($tokenUser instanceof User) {
-                    $request->setUserResolver(static fn () => $tokenUser);
+                    $this->bindAuthenticatedUser($request, $tokenUser);
 
                     return $tokenUser;
                 }
@@ -70,11 +68,23 @@ class EnsureApiPermission
 
         if (Auth::guard('web')->check()) {
             $webUser = Auth::guard('web')->user();
+            if ($webUser instanceof User) {
+                $this->bindAuthenticatedUser($request, $webUser);
 
-            return $webUser instanceof User ? $webUser : null;
+                return $webUser;
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Ensure $request->user() (default guard) resolves for the rest of the request.
+     * Sanctum may authenticate via the "sanctum" guard while the default remains unset.
+     */
+    private function bindAuthenticatedUser(Request $request, User $user): void
+    {
+        $request->setUserResolver(static fn () => $user);
     }
 
     private function relativeApiPath(Request $request): string
@@ -137,12 +147,12 @@ class EnsureApiPermission
         }
 
         $segment = strtok($path, '/');
-        if (!$segment) {
+        if (! $segment) {
             return null;
         }
 
         $resources = config('api-permissions.resources', []);
-        if (!isset($resources[$segment])) {
+        if (! isset($resources[$segment])) {
             return null;
         }
 
@@ -159,7 +169,7 @@ class EnsureApiPermission
             return false;
         }
 
-        $regex = '#^' . preg_replace('/\{[^}]+\}/', '[^/]+', trim($patternPath, '/')) . '$#';
+        $regex = '#^'.preg_replace('/\{[^}]+\}/', '[^/]+', trim($patternPath, '/')).'$#';
 
         return (bool) preg_match($regex, $path);
     }

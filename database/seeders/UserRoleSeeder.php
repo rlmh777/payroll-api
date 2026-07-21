@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Role;
+use App\Models\User;
 use App\Models\UserRole;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -41,7 +41,7 @@ class UserRoleSeeder extends Seeder
             ]
         );
 
-        $adminRole = Role::firstOrCreate(['name' => 'super-admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $supervisorRole = Role::firstOrCreate(['name' => 'supervisor']);
         $employeeRole = Role::firstOrCreate(['name' => 'employee']);
 
@@ -59,6 +59,8 @@ class UserRoleSeeder extends Seeder
             'leave-crud',
             'view-timesheets',
             'timesheets-crud',
+            'view-payroll-allowances',
+            'payroll-allowances-crud',
         ];
 
         foreach (array_unique([...$employeePermissions, ...$supervisorPermissions]) as $permission) {
@@ -68,20 +70,20 @@ class UserRoleSeeder extends Seeder
         $employeeRole->syncPermissions($employeePermissions);
         $supervisorRole->syncPermissions($supervisorPermissions);
 
-        // Admin gets every permission via the super-admin role.
+        // Admin gets every permission via the admin role.
         // Leave and employee menu/API permissions must always be present for johndoe.
         $adminRole->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
         $adminUser->syncRoles([$adminRole]);
         $adminUser->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
 
-        if (!$supervisorUser->hasRole($supervisorRole->name)) {
+        if (! $supervisorUser->hasRole($supervisorRole->name)) {
             $supervisorUser->assignRole($supervisorRole->name);
         }
-        if (!$employeeUser->hasRole($employeeRole->name)) {
+        if (! $employeeUser->hasRole($employeeRole->name)) {
             $employeeUser->assignRole($employeeRole->name);
         }
 
-        // Ensure explicit pivot row exists in user_roles (super-admin only for admin)
+        // Ensure explicit pivot row exists in user_roles (admin only for johndoe)
         UserRole::query()
             ->where('user_id', $adminUser->id)
             ->where('role_id', '!=', $adminRole->id)
@@ -118,4 +120,3 @@ class UserRoleSeeder extends Seeder
         );
     }
 }
-

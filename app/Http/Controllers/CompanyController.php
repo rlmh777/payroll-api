@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CompanyController extends Controller
@@ -56,7 +58,8 @@ class CompanyController extends Controller
                 'alias' => 'nullable|string|max:255',
                 'socialSecurityNumber' => 'nullable|string|max:255',
                 'taxIdentificationNumber' => 'nullable|string|max:255',
-                'logoPath' => 'nullable|string|max:255',
+                'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120',
+                'removeLogo' => 'sometimes|boolean',
                 'phoneNumber1' => 'sometimes|required|string|max:255',
                 'phoneNumber2' => 'nullable|string|max:255',
                 'email' => 'sometimes|required|email|max:255',
@@ -66,7 +69,27 @@ class CompanyController extends Controller
                 'secondaryColor' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/'],
             ]);
 
+            unset($validated['logo'], $validated['removeLogo']);
+
+            $oldLogoPath = $company->logoPath;
+            if ($request->hasFile('logo')) {
+                $logo = $request->file('logo');
+                $fileName = 'company_'.$company->id.'_'.Str::uuid().'.'.$logo->extension();
+                $validated['logoPath'] = $logo->storeAs('companies/logos', $fileName, 'public');
+            } elseif ($request->boolean('removeLogo')) {
+                $validated['logoPath'] = null;
+            }
+
             $company->update($validated);
+
+            if (
+                array_key_exists('logoPath', $validated)
+                && $oldLogoPath
+                && $oldLogoPath !== $validated['logoPath']
+                && Storage::disk('public')->exists($oldLogoPath)
+            ) {
+                Storage::disk('public')->delete($oldLogoPath);
+            }
 
             return response()->json([
                 'message' => 'Company updated successfully',

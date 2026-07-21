@@ -12,24 +12,21 @@ class MenuAuthorizationService
     {
         $permissionNames = $user->getAllPermissions()->pluck('name');
 
-        if ($user->hasRole('super-admin')) {
-            return Menu::query()
-                ->active()
-                ->orderBy('order')
-                ->get();
-        }
-
         return Menu::query()
             ->active()
-            ->whereIn('permission', $permissionNames)
+            ->where(function ($query) use ($permissionNames) {
+                $query->whereIn('permission', $permissionNames)
+                    ->orWhereNull('permission')
+                    ->orWhere('permission', '');
+            })
             ->orderBy('order')
             ->get()
             ->filter(function (Menu $menu) use ($permissionNames) {
-                if ($menu->permission && $permissionNames->contains($menu->permission)) {
+                if (! $menu->permission) {
                     return true;
                 }
 
-                return false;
+                return $permissionNames->contains($menu->permission);
             })
             ->values();
     }
@@ -46,7 +43,7 @@ class MenuAuthorizationService
                 continue;
             }
 
-            if ($menu->parent_id && !$allowedIds->contains($menu->parent_id)) {
+            if ($menu->parent_id && ! $allowedIds->contains($menu->parent_id)) {
                 $parent = Menu::query()->find($menu->parent_id);
                 if ($parent && $parent->is_active) {
                     $byId->put($parent->id, $parent);
@@ -98,7 +95,7 @@ class MenuAuthorizationService
         usort($nodes, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         foreach ($nodes as &$node) {
-            if (!empty($node['children'])) {
+            if (! empty($node['children'])) {
                 $this->sortTree($node['children']);
             }
         }

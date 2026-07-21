@@ -90,8 +90,9 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
         $this->createSubMenu($payroll->id, 'Pay Period', '/payroll/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 2);
         $this->createSubMenu($payroll->id, 'Payroll Run', '/payroll/payroll-run', 'fas fa-money-check-alt', 'view-payroll', 3);
-        $this->createSubMenu($payroll->id, 'Generate Payslip', '/payroll/generate-payslip', 'fas fa-file-invoice-dollar', 'view-payroll', 4);
-        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 5);
+        $this->createSubMenu($payroll->id, 'Allowances', '/payroll/allowances', 'fas fa-hand-holding-usd', 'view-payroll-allowances', 4);
+        $this->createSubMenu($payroll->id, 'Generate Payslip', '/payroll/generate-payslip', 'fas fa-file-invoice-dollar', 'view-payroll', 5);
+        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 6);
 
         // Create Roles and Menus submenus
         $this->createSubMenu($settings->id, 'Roles', '/settings/roles', 'fas fa-user-shield', 'view-roles', 9);
@@ -245,7 +246,7 @@ class MenuSeeder extends Seeder
         }
 
         $role = Role::firstOrCreate([
-            'name' => 'super-admin',
+            'name' => 'admin',
             'guard_name' => 'web',
         ]);
         $role->syncPermissions(Permission::query()->where('guard_name', 'web')->get());

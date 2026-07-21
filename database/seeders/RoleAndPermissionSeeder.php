@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Database\Seeder;
 
 class RoleAndPermissionSeeder extends Seeder
 {
@@ -14,7 +14,7 @@ class RoleAndPermissionSeeder extends Seeder
     public function run(): void
     {
         // Reset cached roles and permissions
-        //app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        // app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // create permissions
         Permission::firstOrCreate(['name' => 'update']);
@@ -24,7 +24,7 @@ class RoleAndPermissionSeeder extends Seeder
         // update cache to know about the newly created permissions (required if using WithoutModelEvents in seeders)
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $role = Role::firstOrCreate(['name' => 'super-admin']);
+        $role = Role::firstOrCreate(['name' => 'admin']);
         $role->syncPermissions(Permission::all());
 
     }

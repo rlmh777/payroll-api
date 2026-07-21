@@ -25,14 +25,37 @@ class EmployeeController extends Controller
         'employeeCompensations',
     ];
 
+    /** Slim payload for scheduler/timesheet browsing (avoids heavy person lookups). */
+    private const SCHEDULER_RELATIONS = [
+        'employmentDetails.department:id,name',
+        'employmentDetails.worksite:id,name',
+        'employmentDetails.contractType:id,name',
+        'employmentDetails.jobTitle:id,name',
+        'employmentDetails.defaultPayPeriodGroup:id,name',
+        'employeeCompensations',
+    ];
+
     public function __construct(
         private readonly EmployeeCodeGenerator $codeGenerator,
     ) {
     }
-    public function byUser(string $userId)
+
+    /**
+     * @return array<int, string>
+     */
+    private function relationsForRequest(Request $request): array
+    {
+        if ($request->input('context') === 'scheduler') {
+            return self::SCHEDULER_RELATIONS;
+        }
+
+        return array_merge(self::EMPLOYMENT_RELATIONS, EmployeePersonSync::defaultRelations());
+    }
+
+    public function byUser(Request $request, string $userId)
     {
         $employee = Employee::query()
-            ->with(array_merge(self::EMPLOYMENT_RELATIONS, EmployeePersonSync::defaultRelations()))
+            ->with($this->relationsForRequest($request))
             ->where('user_id', $userId)
             ->first();
 
@@ -51,7 +74,7 @@ class EmployeeController extends Controller
             ->pluck('subordinate_id');
 
         $employees = Employee::query()
-            ->with(array_merge(self::EMPLOYMENT_RELATIONS, EmployeePersonSync::defaultRelations()))
+            ->with($this->relationsForRequest($request))
             ->when($reportingIds->isNotEmpty(), function ($query) use ($reportingIds) {
                 $query->whereIn('id', $reportingIds);
             }, function ($query) use ($employeeId) {
@@ -72,7 +95,7 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        $query = Employee::with(array_merge(self::EMPLOYMENT_RELATIONS, EmployeePersonSync::defaultRelations()));
+        $query = Employee::with($this->relationsForRequest($request));
 
         if ($request->has('search')) {
             EmployeeNameSearch::apply($query, $request->input('search'));
@@ -133,11 +156,6 @@ class EmployeeController extends Controller
         }
 
         $perPage = $request->input('per_page', 10);
-
-        Log::info('Employee search query', [
-            'search' => $request->input('search'),
-            'per_page' => $perPage,
-        ]);
 
         return response()->json($query->paginate($perPage));
     }

@@ -2,26 +2,36 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class EmployeeDefaultAllowance extends Model
 {
     use HasUuids;
 
     protected $table = 'employee_default_allowance';
+
     protected $primaryKey = 'id';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
         'employeeId',
         'allowanceId',
-        'frequencyId',
         'accountId',
         'note',
-        'amount'
+        'quantity',
+        'unitAmount',
+        'amount',
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'quantity' => 'decimal:4',
+        'unitAmount' => 'decimal:2',
     ];
 
     public function employee(): BelongsTo
@@ -34,14 +44,8 @@ class EmployeeDefaultAllowance extends Model
         return $this->belongsTo(Allowance::class, 'allowanceId');
     }
 
-    public function payrateFrequency(): BelongsTo
-    {
-        return $this->belongsTo(PayrateFrequency::class, 'frequencyId');
-    }
-
     public function chartOfAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'accountId');
     }
 }
-

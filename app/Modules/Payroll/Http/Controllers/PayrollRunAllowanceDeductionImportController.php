@@ -96,6 +96,8 @@ class PayrollRunAllowanceDeductionImportController extends Controller
                         HistoricalEmployeeAllowance::query()->create([
                             ...$payload,
                             'allowance_id' => $allowance->id,
+                            'quantity' => round((float) $detail['quantity'], 4),
+                            'unitAmount' => round((float) ($detail['rate'] ?? 0), 2),
                             'taxableAmount' => $isTaxable ? $amount : 0,
                             'ssSubjectAmount' => $isSsSubject ? $amount : 0,
                         ]);

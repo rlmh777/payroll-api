@@ -2,23 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class HistoricalEmployeeAllowance extends Model
 {
     use HasUuids;
 
     protected $table = 'historical_employee_allowance';
+
     protected $primaryKey = 'id';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
         'employee_id',
         'employeeId',
         'amount',
+        'quantity',
+        'unitAmount',
         'note',
         'payroll_run_id',
         'allowance_id',
@@ -32,22 +37,29 @@ class HistoricalEmployeeAllowance extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'quantity' => 'decimal:4',
+        'unitAmount' => 'decimal:2',
         'taxableAmount' => 'decimal:2',
         'ssSubjectAmount' => 'decimal:2',
     ];
-    public function employee(): BelongsTo {
+
+    public function employee(): BelongsTo
+    {
         return $this->belongsTo(Employee::class, 'employee_id');
     }
 
-    public function allowance(): BelongsTo {
+    public function allowance(): BelongsTo
+    {
         return $this->belongsTo(Allowance::class, 'allowance_id');
     }
 
-    public function payrollRun(): BelongsTo {
+    public function payrollRun(): BelongsTo
+    {
         return $this->belongsTo(PayrollRun::class, 'payroll_run_id');
     }
 
-    public function chartOfAccount(): BelongsTo {
+    public function chartOfAccount(): BelongsTo
+    {
         return $this->belongsTo(Account::class, 'account_id');
     }
 

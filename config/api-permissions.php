@@ -38,7 +38,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | GET/HEAD requests require "view", mutating methods require "write".
-    | Users with super-admin role bypass all checks.
+    | Users receive access through assigned permissions (via roles or direct).
+    | There is no hard-coded role bypass; grant permissions in the database.
     |
     */
     'resources' => [
@@ -82,6 +83,7 @@ return [
         'employment-leave-entitlements' => ['view' => 'view-leave', 'write' => 'leave-crud'],
         'employment-statuses' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'genders' => ['view' => 'view-employees', 'write' => 'employees-crud'],
+        'historical-employee-allowances' => ['view' => 'view-payroll-allowances', 'write' => 'payroll-allowances-crud'],
         'historical-employee-deductions' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'honorifics' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'institutions' => ['view' => 'view-institution', 'write' => 'institution-crud'],
@@ -107,6 +109,8 @@ return [
         'payrolls' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'permissions' => ['view' => 'view-roles', 'write' => 'permissions-crud'],
         'personal-relief' => ['view' => 'manager-tax', 'write' => 'manager-tax'],
+        'pool-distribution-types' => ['view' => 'view-pool-distribution-types', 'write' => 'pool-distribution-type-crud'],
+        'employee-pool-points' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'public-holidays' => ['view' => 'view-holidays', 'write' => 'public-holiday-crud'],
         'qualifications' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'relationships' => ['view' => 'view-relationship', 'write' => 'relationship-crud'],
@@ -139,6 +143,10 @@ return [
         'GET employees/{employee}/ss-contribution-preview' => 'manager-social-security',
         'GET employees/import/template' => 'employees-crud',
         'POST employees/import' => 'employees-crud',
+        'GET employees/{employee}/pool-points/current' => 'view-employees',
+        'GET employees/{employee}/hours-bank' => 'view-employees',
+        'POST employees/{employee}/hours-bank/adjust' => 'employees-crud',
+        'POST employees/{employee}/hours-bank/apply-to-leave' => 'leave-crud',
         'POST clocking-logs/import' => 'import-clocking-logs',
         'GET employee-leave-balances' => 'view-leave',
         'GET employee-leave-balances/selectable-employees' => 'view-leave',

@@ -8,23 +8,19 @@ use App\Models\Employee;
 use App\Models\EmployeeLeave;
 use App\Models\EmployeeReporting;
 use App\Models\User;
+use App\Support\Access;
 use Illuminate\Support\Collection;
 
 class LeaveSupervisorAuthorizationService
 {
-    /**
-     * @var array<int, string>
-     */
-    private const LEAVE_ADMIN_ROLES = ['super-admin', 'admin', 'hr-admin'];
-
     public function isLeaveAdmin(?User $user): bool
     {
-        return (bool) $user?->hasAnyRole(self::LEAVE_ADMIN_ROLES);
+        return Access::canManageAllLeave($user);
     }
 
     public function actorEmployee(?User $user): ?Employee
     {
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -39,7 +35,7 @@ class LeaveSupervisorAuthorizationService
     public function subordinateEmployeeIds(?User $user): Collection
     {
         $actor = $this->actorEmployee($user);
-        if (!$actor) {
+        if (! $actor) {
             return collect();
         }
 
@@ -65,7 +61,7 @@ class LeaveSupervisorAuthorizationService
     public function headedDepartmentIds(?User $user): Collection
     {
         $actor = $this->actorEmployee($user);
-        if (!$actor) {
+        if (! $actor) {
             return collect();
         }
 
@@ -88,7 +84,7 @@ class LeaveSupervisorAuthorizationService
      */
     public function canAccessLeaveList(?User $user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -107,7 +103,7 @@ class LeaveSupervisorAuthorizationService
      */
     public function visibleEmployeeIdsForLeaveList(?User $user): ?Collection
     {
-        if (!$user) {
+        if (! $user) {
             return collect();
         }
 
@@ -135,7 +131,7 @@ class LeaveSupervisorAuthorizationService
 
     public function canViewEmployeeLeaveBalances(?User $user, string $employeeId): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -188,7 +184,7 @@ class LeaveSupervisorAuthorizationService
      */
     public function canActAsSupervisor(?User $user, EmployeeLeave $leave): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -197,7 +193,7 @@ class LeaveSupervisorAuthorizationService
         }
 
         $approver = $this->actorEmployee($user);
-        if (!$approver) {
+        if (! $approver) {
             return false;
         }
 
@@ -213,7 +209,7 @@ class LeaveSupervisorAuthorizationService
      */
     public function canActAsDepartmentHead(?User $user, EmployeeLeave $leave): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -222,7 +218,7 @@ class LeaveSupervisorAuthorizationService
         }
 
         $approver = $this->actorEmployee($user);
-        if (!$approver) {
+        if (! $approver) {
             return false;
         }
 

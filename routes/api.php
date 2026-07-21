@@ -44,6 +44,7 @@ use App\Modules\Hr\Http\Controllers\EmploymentHistoryController;
 use App\Modules\Payroll\Http\Controllers\LoanTypeController;
 use App\Http\Controllers\PermissionController;
 use App\Modules\Payroll\Http\Controllers\HistoricalEmployeeDeductionController;
+use App\Modules\Payroll\Http\Controllers\HistoricalEmployeeAllowanceController;
 use App\Modules\Hr\Http\Controllers\LeaveStatusController;
 use App\Modules\Hr\Http\Controllers\LeaveTypeController;
 use App\Modules\Payroll\Http\Controllers\LoanController;
@@ -64,6 +65,10 @@ use App\Modules\Payroll\Http\Controllers\PayrollEarningLineController;
 use App\Modules\Payroll\Http\Controllers\PayrollRunAllowanceDeductionImportController;
 use App\Modules\Payroll\Http\Controllers\PayrollRunController;
 use App\Modules\Payroll\Http\Controllers\PayrollRunPayslipController;
+use App\Modules\Payroll\Http\Controllers\PayrollRunPoolController;
+use App\Modules\Payroll\Http\Controllers\PoolDistributionTypeController;
+use App\Modules\Payroll\Http\Controllers\EmployeePoolPointController;
+use App\Modules\Payroll\Http\Controllers\EmployeeHoursBankController;
 use App\Modules\Payroll\Http\Controllers\ReportController;
 use App\Modules\Payroll\Http\Controllers\PayrollContributionController;
 use App\Modules\Payroll\Http\Controllers\JournalEntryController;
@@ -379,6 +384,28 @@ Route::prefix('job-titles')->group(function () {
     Route::delete('/{jobTitle}', [JobTitleController::class, 'destroy']);
 });
 
+// Configurable pool distribution types (tips/shares/etc.)
+Route::prefix('pool-distribution-types')->group(function () {
+    Route::get('/', [PoolDistributionTypeController::class, 'index']);
+    Route::post('/', [PoolDistributionTypeController::class, 'store']);
+    Route::get('/{poolDistributionType}', [PoolDistributionTypeController::class, 'show']);
+    Route::put('/{poolDistributionType}', [PoolDistributionTypeController::class, 'update']);
+    Route::delete('/{poolDistributionType}', [PoolDistributionTypeController::class, 'destroy']);
+});
+
+Route::prefix('employee-pool-points')->group(function () {
+    Route::get('/', [EmployeePoolPointController::class, 'index']);
+    Route::post('/', [EmployeePoolPointController::class, 'store']);
+    Route::get('/{employeePoolPoint}', [EmployeePoolPointController::class, 'show']);
+    Route::put('/{employeePoolPoint}', [EmployeePoolPointController::class, 'update']);
+    Route::delete('/{employeePoolPoint}', [EmployeePoolPointController::class, 'destroy']);
+});
+
+Route::get('employees/{employee}/pool-points/current', [EmployeePoolPointController::class, 'currentForEmployee']);
+Route::get('employees/{employee}/hours-bank', [EmployeeHoursBankController::class, 'show']);
+Route::post('employees/{employee}/hours-bank/adjust', [EmployeeHoursBankController::class, 'adjust']);
+Route::post('employees/{employee}/hours-bank/apply-to-leave', [EmployeeHoursBankController::class, 'applyToLeave']);
+
 // Locality routes
 Route::prefix('localities')->group(function () {
     Route::get('/', [LocalityController::class, 'index']);
@@ -603,6 +630,16 @@ Route::prefix('employment-histories')->group(function () {
     Route::delete('/{employmentHistory}', [EmploymentHistoryController::class, 'destroy']);
 });
 
+// Historical Employee Allowance Routes
+Route::prefix('historical-employee-allowances')->group(function () {
+    Route::get('/bootstrap', [HistoricalEmployeeAllowanceController::class, 'bootstrap']);
+    Route::get('/', [HistoricalEmployeeAllowanceController::class, 'index']);
+    Route::post('/', [HistoricalEmployeeAllowanceController::class, 'store']);
+    Route::get('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'show']);
+    Route::put('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'update']);
+    Route::delete('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'destroy']);
+});
+
 // Historical Employee Deduction Routes
 Route::prefix('historical-employee-deductions')->group(function () {
     Route::get('/', [HistoricalEmployeeDeductionController::class, 'index']);
@@ -774,6 +811,7 @@ Route::prefix('pay-period-schedules')->group(function () {
 // Payroll Run Routes
 Route::prefix('reports')->group(function () {
     Route::get('/salary-review', [ReportController::class, 'salaryReview']);
+    Route::get('/scheduled-vs-worked-hours', [ReportController::class, 'scheduledVsWorkedHours']);
 });
 
 Route::prefix('payroll-runs')->group(function () {
@@ -788,6 +826,10 @@ Route::prefix('payroll-runs')->group(function () {
     Route::get('/{payrollRun}/payslips', [PayrollRunPayslipController::class, 'payslips']);
     Route::post('/{payrollRun}/allowance-deduction-import/preview', [PayrollRunAllowanceDeductionImportController::class, 'preview']);
     Route::post('/{payrollRun}/allowance-deduction-import/confirm', [PayrollRunAllowanceDeductionImportController::class, 'confirm']);
+    Route::get('/{payrollRun}/pool-totals', [PayrollRunPoolController::class, 'totals']);
+    Route::put('/{payrollRun}/pool-totals', [PayrollRunPoolController::class, 'saveTotals']);
+    Route::post('/{payrollRun}/pool-distribute', [PayrollRunPoolController::class, 'distribute']);
+    Route::get('/{payrollRun}/pool-distributions', [PayrollRunPoolController::class, 'distributions']);
     Route::get('/{payrollRun}', [PayrollRunController::class, 'show']);
     Route::put('/{payrollRun}', [PayrollRunController::class, 'update']);
     Route::delete('/{payrollRun}', [PayrollRunController::class, 'destroy']);

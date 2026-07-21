@@ -11,6 +11,9 @@ use App\Helpers\EmployeeLeaveHelper;
 use App\Modules\Hr\Services\Leave\LeaveEntitlementService;
 use App\Modules\Hr\Services\Leave\LeaveTeamListService;
 use App\Modules\Hr\Services\Leave\LeaveWorkflowService;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
+use App\Modules\Payroll\Services\EmployeeHoursBankService;
+use App\Models\EmployeeCompensation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,6 +35,8 @@ class EmployeeLeaveController extends Controller
         private readonly LeaveEntitlementService $entitlementService,
         private readonly LeaveWorkflowService $workflowService,
         private readonly LeaveTeamListService $teamListService,
+        private readonly EmployeeHoursBankService $hoursBankService,
+        private readonly EmployeeCompensationResolver $compensationResolver,
     ) {
     }
 
@@ -173,6 +178,8 @@ class EmployeeLeaveController extends Controller
             'totalDays' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
             'departmentId' => ['nullable', 'integer', 'exists:department,id'],
+            'applyHoursBank' => ['sometimes', 'boolean'],
+            'leaveHours' => ['nullable', 'numeric', 'min:0'],
             ...self::ATTACHMENT_RULES,
         ]);
 
@@ -221,8 +228,12 @@ class EmployeeLeaveController extends Controller
                 'multiplier' => $multiplier,
             ]));
             $this->attachUploadedFiles($employeeLeave, $uploadedFiles);
+            $hoursBank = $this->maybeApplyHoursBank($request, $employeeLeave);
 
-            return response()->json($employeeLeave->load(self::LEAVE_RELATIONS), 201);
+            return response()->json([
+                ...$employeeLeave->load(self::LEAVE_RELATIONS)->toArray(),
+                'hoursBank' => $hoursBank,
+            ], 201);
         }
 
         $isFullDay = in_array($duration, ['Full Day', 'All Days'], true);
@@ -260,8 +271,12 @@ class EmployeeLeaveController extends Controller
 
             $employeeLeave = EmployeeLeave::create($leaveData);
             $this->attachUploadedFiles($employeeLeave, $uploadedFiles);
+            $hoursBank = $this->maybeApplyHoursBank($request, $employeeLeave);
 
-            return response()->json($employeeLeave->load(self::LEAVE_RELATIONS), 201);
+            return response()->json([
+                ...$employeeLeave->load(self::LEAVE_RELATIONS)->toArray(),
+                'hoursBank' => $hoursBank,
+            ], 201);
         }
 
         $workingDays = EmployeeLeaveHelper::getWorkingDays($startDate, $endDate);
@@ -315,6 +330,8 @@ class EmployeeLeaveController extends Controller
                 'errors' => ['dateRange' => ['No working days found in the selected date range.']],
             ], 422);
         }
+
+        $this->maybeApplyHoursBank($request, $createdLeaves[0]);
 
         return response()->json($createdLeaves, 201);
     }
@@ -522,6 +539,48 @@ class EmployeeLeaveController extends Controller
         }
 
         return $leaveType->isPaid ? 1.0 : 0.0;
+    }
+
+    /**
+     * @return array<string, float>|null
+     */
+    private function maybeApplyHoursBank(Request $request, EmployeeLeave $employeeLeave): ?array
+    {
+        if (!$request->boolean('applyHoursBank')) {
+            return [
+                'balanceHours' => $this->hoursBankService->balance((string) $employeeLeave->employeeId),
+                'appliedHours' => 0.0,
+                'deficitHours' => 0.0,
+            ];
+        }
+
+        $leaveHours = $request->filled('leaveHours')
+            ? (float) $request->input('leaveHours')
+            : $this->estimateLeaveHours(
+                (string) $employeeLeave->employeeId,
+                (float) $employeeLeave->totalDays,
+                Carbon::parse($employeeLeave->startDate),
+            );
+
+        return $this->hoursBankService->applyToLeave(
+            (string) $employeeLeave->employeeId,
+            (string) $employeeLeave->id,
+            $leaveHours,
+            Carbon::parse($employeeLeave->startDate),
+            'Applied on leave request',
+        );
+    }
+
+    private function estimateLeaveHours(string $employeeId, float $totalDays, Carbon $asOf): float
+    {
+        $compensation = $this->compensationResolver->compensationForDate(
+            EmployeeCompensation::query()->where('employeeId', $employeeId)->get(),
+            $asOf,
+        );
+        $weekly = $this->compensationResolver->standardWeeklyHours($compensation);
+        $daily = $weekly > 0 ? $weekly / 5 : 8.0;
+
+        return round($totalDays * $daily, 4);
     }
 
     /**

@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 class SuperAdminSeeder extends Seeder
 {
     /**
-     * Ensure johndoe@gmail.com is super-admin with every permission (menus + API).
+     * Ensure johndoe@gmail.com has the admin role with every permission (menus + API).
      */
     public function run(): void
     {
@@ -28,7 +28,7 @@ class SuperAdminSeeder extends Seeder
         $this->ensureCorePermissionsExist();
 
         $adminRole = Role::firstOrCreate(
-            ['name' => 'super-admin', 'guard_name' => 'web']
+            ['name' => 'admin', 'guard_name' => 'web']
         );
 
         $adminRole->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
@@ -72,6 +72,8 @@ class SuperAdminSeeder extends Seeder
             'list-reports',
             'list-settings',
             'view-payroll',
+            'view-payroll-allowances',
+            'payroll-allowances-crud',
             'view-timesheets',
             'timesheets-crud',
             'view-organization',

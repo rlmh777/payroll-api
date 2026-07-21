@@ -19,11 +19,6 @@ class PayrateFrequency extends Model
         return $this->hasMany(Employee::class);
     }
 
-    public function employeeAllowance(): HasMany
-    {
-        return $this->hasMany(EmployeeDefaultAllowance::class);
-    }
-
     public function employeeDefaultDeductions(): HasMany
     {
         return $this->hasMany(EmployeeDefaultDeduction::class);

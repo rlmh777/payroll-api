@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\EmploymentDetail;
 use App\Models\Timesheet;
 use App\Models\User;
+use App\Support\Access;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -14,7 +15,7 @@ class TimesheetScopeService
 {
     public function canViewAllEmployees(User $user): bool
     {
-        return $user->hasAnyRole(['super-admin', 'admin', 'payroll-officer']);
+        return Access::canViewAllEmployees($user);
     }
 
     public function isTimesheetAdmin(User $user): bool
@@ -33,7 +34,7 @@ class TimesheetScopeService
     public function supervisedEmployeeIds(User $user): Collection
     {
         $employee = $this->actorEmployee($user);
-        if (!$employee) {
+        if (! $employee) {
             return collect();
         }
 
@@ -50,7 +51,7 @@ class TimesheetScopeService
     public function headedDepartmentIds(User $user): Collection
     {
         $employee = $this->actorEmployee($user);
-        if (!$employee) {
+        if (! $employee) {
             return collect();
         }
 
@@ -85,7 +86,7 @@ class TimesheetScopeService
         }
 
         $employee = $this->actorEmployee($user);
-        if (!$employee) {
+        if (! $employee) {
             $query->whereRaw('1 = 0');
 
             return;
@@ -120,7 +121,7 @@ class TimesheetScopeService
         }
 
         $employee = $this->actorEmployee($user);
-        if (!$employee) {
+        if (! $employee) {
             return false;
         }
 
@@ -147,7 +148,7 @@ class TimesheetScopeService
         }
 
         $actor = $this->actorEmployee($user);
-        if (!$actor) {
+        if (! $actor) {
             return false;
         }
 
@@ -192,7 +193,7 @@ class TimesheetScopeService
         $isAdmin = $this->isTimesheetAdmin($user);
 
         if ($requested === 'REJECTED') {
-            if (!$isAdmin && !$this->canActOnCurrentStep($user, $timesheet, $current)) {
+            if (! $isAdmin && ! $this->canActOnCurrentStep($user, $timesheet, $current)) {
                 abort(403, 'You are not allowed to reject this timesheet at its current step.');
             }
 
@@ -200,7 +201,7 @@ class TimesheetScopeService
         }
 
         if (in_array($requested, ['PENDING', 'PENDING_SUPERVISOR'], true)) {
-            if (!$isAdmin && !$this->canAccessTimesheet($user, $timesheet)) {
+            if (! $isAdmin && ! $this->canAccessTimesheet($user, $timesheet)) {
                 abort(403, 'You are not allowed to update this timesheet.');
             }
 
@@ -218,7 +219,7 @@ class TimesheetScopeService
         }
 
         if ($current === 'PENDING_SUPERVISOR') {
-            if (!$this->isDirectSupervisorOf($user, $timesheet)) {
+            if (! $this->isDirectSupervisorOf($user, $timesheet)) {
                 abort(403, 'Only the employee supervisor can approve at this step.');
             }
 
@@ -226,7 +227,7 @@ class TimesheetScopeService
         }
 
         if ($current === 'PENDING') {
-            if (!$this->isDepartmentHeadForTimesheet($user, $timesheet)) {
+            if (! $this->isDepartmentHeadForTimesheet($user, $timesheet)) {
                 abort(403, 'Only a department head can perform final timesheet approval.');
             }
 

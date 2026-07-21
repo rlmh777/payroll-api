@@ -76,6 +76,51 @@ class EmploymentContractAssignmentService
     }
 
     /**
+     * Prefetch compensations for many contracts over a date range (avoids N+1 on scheduler).
+     *
+     * @param  array<int, string>  $employmentDetailIds
+     * @return Collection<string, Collection<int, EmployeeCompensation>>
+     */
+    public function compensationsForContracts(array $employmentDetailIds, string $startDate, string $endDate): Collection
+    {
+        $ids = array_values(array_unique(array_filter($employmentDetailIds)));
+        if ($ids === []) {
+            return collect();
+        }
+
+        $start = Carbon::parse($startDate)->toDateString();
+        $end = Carbon::parse($endDate)->toDateString();
+
+        return EmployeeCompensation::query()
+            ->whereIn('employmentDetailId', $ids)
+            ->whereDate('effectiveDate', '<=', $end)
+            ->where(function ($query) use ($start) {
+                $query->whereNull('endDate')
+                    ->orWhereDate('endDate', '>=', $start);
+            })
+            ->orderByDesc('isActive')
+            ->orderByDesc('effectiveDate')
+            ->get()
+            ->groupBy(fn (EmployeeCompensation $row) => (string) $row->employmentDetailId);
+    }
+
+    public function pickCompensationForDate(Collection $compensations, string $date): ?EmployeeCompensation
+    {
+        $day = Carbon::parse($date)->toDateString();
+
+        return $compensations
+            ->first(function (EmployeeCompensation $compensation) use ($day) {
+                $effective = optional($compensation->effectiveDate)->toDateString()
+                    ?? (string) $compensation->effectiveDate;
+                $end = $compensation->endDate
+                    ? (optional($compensation->endDate)->toDateString() ?? (string) $compensation->endDate)
+                    : null;
+
+                return $effective <= $day && ($end === null || $end >= $day);
+            });
+    }
+
+    /**
      * @return Collection<int, EmploymentDetail>
      */
     private function activeContracts(string $employeeId, string $startDate, ?string $endDate = null): Collection

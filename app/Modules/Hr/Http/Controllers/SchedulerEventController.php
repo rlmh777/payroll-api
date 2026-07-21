@@ -115,7 +115,7 @@ class SchedulerEventController extends Controller
 
         $employeeIds = $this->resolveEmployeeIds($request);
         $schedulerOnly = $request->boolean('scheduler');
-        if ($employeeIds->isNotEmpty()) {
+        if ($employeeIds->isNotEmpty() && $request->boolean('recalculate')) {
             $this->timesheetRecalculationService->recalculate(
                 $employeeIds->values()->all(),
                 (string) $start,
@@ -132,16 +132,16 @@ class SchedulerEventController extends Controller
         $scheduledWorkQuery = ScheduledWork::query()
             ->with([
                 'employee',
-                'department',
-                'worksite',
-                'employmentDetail.department',
-                'employmentDetail.worksite',
-                'employmentDetail.contractType',
-                'employmentDetail.jobTitle',
-                'employmentDetail.defaultPayPeriodGroup',
+                'department:id,name',
+                'worksite:id,name',
+                'employmentDetail.department:id,name',
+                'employmentDetail.worksite:id,name',
+                'employmentDetail.contractType:id,name',
+                'employmentDetail.jobTitle:id,name',
+                'employmentDetail.defaultPayPeriodGroup:id,name',
             ])
-            ->whereDate('startDate', '<=', $end)
-            ->whereDate('endDate', '>=', $start);
+            ->where('startDate', '<=', $end)
+            ->where('endDate', '>=', $start);
 
         if ($employeeIds->isNotEmpty()) {
             $scheduledWorkQuery->where(function ($query) use ($employeeIds) {
@@ -150,17 +150,33 @@ class SchedulerEventController extends Controller
             });
         }
 
-        foreach ($scheduledWorkQuery->get() as $entry) {
+        $scheduledWorks = $scheduledWorkQuery->get();
+        $compensationsByContract = $this->contractAssignmentService->compensationsForContracts(
+            $scheduledWorks
+                ->pluck('employmentDetailId')
+                ->filter()
+                ->map(fn ($id) => (string) $id)
+                ->unique()
+                ->values()
+                ->all(),
+            (string) $start,
+            (string) $end,
+        );
+
+        foreach ($scheduledWorks as $entry) {
             $entryStartDate = $entry->startDate->format('Y-m-d');
             $entryEndDate = $entry->endDate->format('Y-m-d');
             $rangeStart = Carbon::parse($entryStartDate)->max(Carbon::parse($start));
             $rangeEnd = Carbon::parse($entryEndDate)->min(Carbon::parse($end));
             $employeeName = trim(sprintf('%s %s', $entry->employee?->firstName, $entry->employee?->lastName));
+            $contractCompensations = $entry->employmentDetailId
+                ? ($compensationsByContract->get((string) $entry->employmentDetailId) ?? collect())
+                : collect();
 
             for ($date = $rangeStart->copy(); $date->lte($rangeEnd); $date->addDay()) {
                 $workDate = $date->format('Y-m-d');
-                $compensation = $this->contractAssignmentService->compensationForContractDate(
-                    $entry->employmentDetailId ? (string) $entry->employmentDetailId : null,
+                $compensation = $this->contractAssignmentService->pickCompensationForDate(
+                    $contractCompensations,
                     $workDate,
                 );
                 $events->push([
