@@ -26,6 +26,7 @@ class EmployeeCompensation extends Model
         'requiresClocking',
         'hourlyRate',
         'yearlyRate',
+        'dailyRate',
         'standardWeeklyHours',
         'payscale',
         'payscalePoint',
@@ -41,8 +42,14 @@ class EmployeeCompensation extends Model
         'requiresClocking' => 'boolean',
         'hourlyRate' => 'decimal:2',
         'yearlyRate' => 'decimal:2',
+        'dailyRate' => 'decimal:2',
         'standardWeeklyHours' => 'decimal:2',
     ];
+
+    public function isDailyRateCompensation(): bool
+    {
+        return CompensationMethod::fromStored($this->compensationMethod)->isDailyRateBased();
+    }
 
     public function employee(): BelongsTo
     {

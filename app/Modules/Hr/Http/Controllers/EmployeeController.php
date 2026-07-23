@@ -8,6 +8,7 @@ use App\Models\EmployeeReporting;
 use App\Modules\Hr\Services\EmployeeNameSearch;
 use App\Modules\Hr\Services\EmployeePersonSync;
 use App\Modules\Hr\Services\Employee\EmployeeCodeGenerator;
+use App\Modules\Hr\Services\Activity\EmployeeTimeTravelService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -37,6 +38,7 @@ class EmployeeController extends Controller
 
     public function __construct(
         private readonly EmployeeCodeGenerator $codeGenerator,
+        private readonly EmployeeTimeTravelService $employeeTimeTravelService,
     ) {
     }
 
@@ -294,6 +296,21 @@ class EmployeeController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function timeTravel(Request $request, Employee $employee)
+    {
+        $filters = $request->validate([
+            'event' => ['nullable', 'string', 'in:created,updated,deleted'],
+            'resource' => ['nullable', 'string', 'max:128'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        return response()->json(
+            $this->employeeTimeTravelService->timeline($employee, $filters),
+        );
     }
 
     private static function validationRules(?string $employeeId = null, bool $partial = false): array

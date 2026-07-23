@@ -18,6 +18,8 @@ class Company extends Model
         'legalName',
         'alias',
         'socialSecurityNumber',
+        'socialSecurityElectronicEmployerNumber',
+        'bankBranchNumber',
         'taxIdentificationNumber',
         'logoPath',
         'phoneNumber1',

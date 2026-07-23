@@ -8,6 +8,7 @@ enum CompensationMethod: string
     case HourlyOt = 'HOURLY_OT';
     case BaseNoOt = 'BASE_NO_OT';
     case BaseOt = 'BASE_OT';
+    case DailyRate = 'DAILY_RATE';
 
     /**
      * @return list<string>
@@ -27,6 +28,7 @@ enum CompensationMethod: string
             'BASE_NO_OT', 'SALARY_NO_CLOCK', 'BASE_SALARY' => self::BaseNoOt,
             'BASE_OT', 'WEEKLY_SALARY_OT' => self::BaseOt,
             'WEEKLY_SALARY' => self::BaseNoOt,
+            'DAILY_RATE', 'DAY_RATE', 'TRIP_RATE', 'UNIT_RATE' => self::DailyRate,
             default => self::HourlyOt,
         };
     }
@@ -41,7 +43,15 @@ enum CompensationMethod: string
 
     public function isBaseBased(): bool
     {
-        return !$this->isHourlyBased();
+        return match ($this) {
+            self::BaseNoOt, self::BaseOt => true,
+            default => false,
+        };
+    }
+
+    public function isDailyRateBased(): bool
+    {
+        return $this === self::DailyRate;
     }
 
     public function allowsOvertime(): bool
@@ -56,7 +66,7 @@ enum CompensationMethod: string
     {
         return match ($this) {
             self::HourlyNoOt, self::HourlyOt, self::BaseOt => true,
-            self::BaseNoOt => false,
+            self::BaseNoOt, self::DailyRate => false,
         };
     }
 

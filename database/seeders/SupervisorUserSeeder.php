@@ -64,14 +64,16 @@ class SupervisorUserSeeder extends Seeder
             ]
         );
 
-        $supervisorEmployee = Employee::query()->first();
+        $supervisorEmployee = Employee::query()->where('code', '100001')->first()
+            ?? Employee::query()->orderBy('code')->first();
         if ($supervisorEmployee) {
             $supervisorEmployee->update([
                 'user_id' => $supervisorUser->id,
             ]);
         }
 
-        $employeeRecord = Employee::query()->skip(1)->first();
+        $employeeRecord = Employee::query()->where('code', '100002')->first()
+            ?? Employee::query()->where('code', '!=', $supervisorEmployee?->code)->orderBy('code')->first();
         if ($employeeRecord) {
             $employeeRecord->update([
                 'user_id' => $employeeUser->id,
@@ -94,7 +96,8 @@ class SupervisorUserSeeder extends Seeder
 
         if ($supervisorEmployee) {
             $subordinates = Employee::query()
-                ->skip(1)
+                ->where('id', '!=', $supervisorEmployee->id)
+                ->orderBy('code')
                 ->take(6)
                 ->pluck('id');
 

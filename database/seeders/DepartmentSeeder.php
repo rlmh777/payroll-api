@@ -17,6 +17,23 @@ class DepartmentSeeder extends Seeder
         $hr = Department::firstOrCreate(['name' => 'Human Resources'], ['parentId' => null]);
         $it = Department::firstOrCreate(['name' => 'IT'], ['parentId' => null]);
         $sales = Department::firstOrCreate(['name' => 'Sales'], ['parentId' => null]);
+        Department::firstOrCreate(['name' => 'Marketing'], ['parentId' => null]);
+
+        foreach ([
+            'Bar',
+            'Belize Rainforest Retreat',
+            'Dining',
+            'Gardeners',
+            'Guest Services',
+            'Kitchen',
+            'Natural History Center',
+            'Security',
+            'Staff Kitchen',
+            'Storeroom',
+            'Tours',
+        ] as $name) {
+            Department::firstOrCreate(['name' => $name], ['parentId' => null]);
+        }
 
         Department::firstOrCreate(['name' => 'Payroll'], ['parentId' => $finance->id]);
         Department::firstOrCreate(['name' => 'Accounting'], ['parentId' => $finance->id]);

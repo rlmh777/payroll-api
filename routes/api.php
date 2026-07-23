@@ -61,6 +61,9 @@ use App\Modules\Payroll\Http\Controllers\PayPeriodGroupController;
 use App\Modules\Payroll\Http\Controllers\PayPeriodScheduleAiController;
 use App\Modules\Payroll\Http\Controllers\PayrollController;
 use App\Modules\Payroll\Http\Controllers\PayrollEarningCodeController;
+use App\Modules\Payroll\Http\Controllers\PayrollAccountMappingController;
+use App\Modules\Core\Http\Controllers\DatabaseBackupController;
+use App\Modules\Payroll\Http\Controllers\DashboardController;
 use App\Modules\Payroll\Http\Controllers\PayrollEarningLineController;
 use App\Modules\Payroll\Http\Controllers\PayrollRunAllowanceDeductionImportController;
 use App\Modules\Payroll\Http\Controllers\PayrollRunController;
@@ -93,6 +96,7 @@ use App\Modules\Hr\Http\Controllers\EmployeeLeaveBalanceController;
 use App\Modules\Hr\Http\Controllers\EmployeeLeaveController;
 use App\Modules\Hr\Http\Controllers\EmploymentLeaveEntitlementController;
 use App\Modules\Hr\Http\Controllers\EmployeeReportingController;
+use App\Modules\Hr\Http\Controllers\Attendance\EmployeeDayWorkController;
 use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
 use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
 use App\Modules\Hr\Http\Controllers\Attendance\TimesheetController;
@@ -239,6 +243,18 @@ Route::prefix('timesheets')->middleware('auth:sanctum')->group(function () {
     Route::post('/{timesheet}/resolve-leave-conflict', [TimesheetController::class, 'resolveLeaveConflict']);
     Route::patch('/{timesheet}/approval', [TimesheetController::class, 'updateApproval']);
 });
+
+// Day / trip work (no-clock daily-rate employees)
+Route::prefix('employee-day-works')->group(function () {
+    Route::get('/bootstrap', [EmployeeDayWorkController::class, 'bootstrap']);
+    Route::get('/', [EmployeeDayWorkController::class, 'index']);
+    Route::post('/', [EmployeeDayWorkController::class, 'store']);
+    Route::get('/{employeeDayWork}', [EmployeeDayWorkController::class, 'show']);
+    Route::put('/{employeeDayWork}', [EmployeeDayWorkController::class, 'update']);
+    Route::delete('/{employeeDayWork}', [EmployeeDayWorkController::class, 'destroy']);
+});
+
+Route::get('dashboard', [DashboardController::class, 'show']);
 
 Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
@@ -514,6 +530,7 @@ Route::prefix('employees')->group(function () {
     Route::get('/', [EmployeeController::class, 'index']);
     Route::post('/', [EmployeeController::class, 'store']);
     Route::get('/{employee}', [EmployeeController::class, 'show']);
+    Route::get('/{employee}/time-travel', [EmployeeController::class, 'timeTravel']);
     Route::put('/{employee}', [EmployeeController::class, 'update']);
     Route::delete('/{employee}', [EmployeeController::class, 'destroy']);
     Route::post('/{employee}/picture', [EmployeeController::class, 'uploadPicture']);
@@ -812,6 +829,11 @@ Route::prefix('pay-period-schedules')->group(function () {
 Route::prefix('reports')->group(function () {
     Route::get('/salary-review', [ReportController::class, 'salaryReview']);
     Route::get('/scheduled-vs-worked-hours', [ReportController::class, 'scheduledVsWorkedHours']);
+    Route::get('/paye-employment-details', [ReportController::class, 'payeEmploymentDetails']);
+    Route::get('/social-security-payments-by-month', [ReportController::class, 'socialSecurityPaymentsByMonth']);
+    Route::get('/social-security-payments-by-month/periods', [ReportController::class, 'socialSecurityPaymentsByMonthPeriods']);
+    Route::post('/social-security-payments-by-month/recalculate', [ReportController::class, 'recalculateSocialSecurityPaymentsByMonth']);
+    Route::get('/bank-upload', [ReportController::class, 'bankUpload']);
 });
 
 Route::prefix('payroll-runs')->group(function () {
@@ -853,6 +875,14 @@ Route::prefix('payroll-earning-codes')->group(function () {
     Route::delete('/{payrollEarningCode}', [PayrollEarningCodeController::class, 'destroy']);
 });
 
+Route::prefix('payroll-account-mappings')->group(function () {
+    Route::get('/', [PayrollAccountMappingController::class, 'index']);
+    Route::post('/', [PayrollAccountMappingController::class, 'store']);
+    Route::get('/{payrollAccountMapping}', [PayrollAccountMappingController::class, 'show']);
+    Route::put('/{payrollAccountMapping}', [PayrollAccountMappingController::class, 'update']);
+    Route::delete('/{payrollAccountMapping}', [PayrollAccountMappingController::class, 'destroy']);
+});
+
 // Payroll earning lines
 Route::get('payroll-earning-lines', [PayrollEarningLineController::class, 'index']);
 
@@ -881,4 +911,15 @@ Route::prefix('journal-lines')->group(function () {
     Route::get('/{journalLine}', [JournalLineController::class, 'show']);
     Route::put('/{journalLine}', [JournalLineController::class, 'update']);
     Route::delete('/{journalLine}', [JournalLineController::class, 'destroy']);
+});
+
+// Database backups (settings)
+Route::prefix('database-backups')->group(function () {
+    Route::get('/', [DatabaseBackupController::class, 'index']);
+    Route::get('/settings', [DatabaseBackupController::class, 'settings']);
+    Route::post('/', [DatabaseBackupController::class, 'store']);
+    Route::post('/restore-upload', [DatabaseBackupController::class, 'restoreUpload']);
+    Route::get('/{databaseBackup}/download', [DatabaseBackupController::class, 'download']);
+    Route::post('/{databaseBackup}/restore', [DatabaseBackupController::class, 'restore']);
+    Route::delete('/{databaseBackup}', [DatabaseBackupController::class, 'destroy']);
 });

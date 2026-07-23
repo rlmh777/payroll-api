@@ -3,9 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,13 +12,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
-
         $this->call([
             GenderSeeder::class,
             HonorificSeeder::class,
@@ -30,12 +21,10 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             DistrictSeeder::class,
             localitiesSeeder::class,
-            EmployeeModelSeeder::class,
             RoleAndPermissionSeeder::class,
             // Menus (and their permissions) must exist before role permission sync.
             MenuSeeder::class,
             UserRoleSeeder::class,
-            SupervisorUserSeeder::class,
             DegreeSeeder::class,
             EmployeeStatusSeeder::class,
             ContractTypeSeeder::class,
@@ -52,14 +41,13 @@ class DatabaseSeeder extends Seeder
             CompanySeeder::class,
             DepartmentSeeder::class,
             WorksiteSeeder::class,
+            TimesheetTemplateSeeder::class,
             CalendarGroupSeeder::class,
             BelizePublicHolidays2026Seeder::class,
             PayPeriodGroupSeeder::class,
-            EmploymentDetailSeeder::class,
+            EmployeeImportTemplateSeeder::class,
+            SupervisorUserSeeder::class,
             SupervisorDepartmentHeadSeeder::class,
-            SchedulerSeeder::class,
-            TimesheetSeeder::class,
-            PayrollRunSeeder::class,
             SuperAdminSeeder::class,
         ]);
     }

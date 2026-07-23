@@ -61,6 +61,8 @@ class UserRoleSeeder extends Seeder
             'timesheets-crud',
             'view-payroll-allowances',
             'payroll-allowances-crud',
+            'view-employee-day-work',
+            'employee-day-work-crud',
         ];
 
         foreach (array_unique([...$employeePermissions, ...$supervisorPermissions]) as $permission) {

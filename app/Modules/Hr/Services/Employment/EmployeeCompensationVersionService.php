@@ -13,7 +13,7 @@ class EmployeeCompensationVersionService
      */
     public function compensationFieldsChanged(EmployeeCompensation $existing, array $data): bool
     {
-        foreach (['compensationMethod', 'requiresClocking', 'hourlyRate', 'yearlyRate', 'standardWeeklyHours', 'payscale', 'payscalePoint'] as $field) {
+        foreach (['compensationMethod', 'requiresClocking', 'hourlyRate', 'yearlyRate', 'dailyRate', 'standardWeeklyHours', 'payscale', 'payscalePoint'] as $field) {
             if (!array_key_exists($field, $data)) {
                 continue;
             }

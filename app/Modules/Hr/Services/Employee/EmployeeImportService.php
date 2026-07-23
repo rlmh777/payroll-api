@@ -10,7 +10,6 @@ use App\Models\ClockingLog;
 use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Department;
-use App\Models\Employee;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeStatus;
 use App\Models\EmploymentDetail;
@@ -25,9 +24,12 @@ use App\Models\PayrateFrequency;
 use App\Models\ScheduledWork;
 use App\Models\TimesheetTemplate;
 use App\Models\Worksite;
+use App\Modules\Hr\Models\Employee;
 use App\Modules\Hr\Services\Attendance\ScheduledWorkOverlapValidator;
+use App\Modules\Hr\Services\Attendance\TimesheetProcessingService;
 use App\Modules\Hr\Services\EmployeePersonSync;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -42,6 +44,7 @@ class EmployeeImportService
     public function __construct(
         private readonly EmployeeCompensationResolver $compensationResolver,
         private readonly ScheduledWorkOverlapValidator $overlapValidator,
+        private readonly TimesheetProcessingService $timesheetProcessingService,
     ) {
     }
 
@@ -67,6 +70,7 @@ class EmployeeImportService
             'compensationCreated' => 0,
             'scheduledWorkCreated' => 0,
             'clockingLogsCreated' => 0,
+            'timesheetsCreated' => 0,
             'failed' => 0,
         ];
         $errors = [];
@@ -177,6 +181,15 @@ class EmployeeImportService
                         $errors[] = $this->error('ClockingLogs', $rowNumber, $code, $this->exceptionMessage($e));
                     }
                 }
+
+                if ($summary['clockingLogsCreated'] > 0) {
+                    $timesheetResult = $this->processTimesheetsFromClockingRows($clockingRows);
+                    $summary['timesheetsCreated'] = $timesheetResult['processedTimesheets'];
+
+                    foreach ($timesheetResult['errors'] as $message) {
+                        $errors[] = $this->error('Timesheets', null, null, $message);
+                    }
+                }
             }
         }
 
@@ -184,6 +197,75 @@ class EmployeeImportService
             'summary' => $summary,
             'errors' => $errors,
             'createdEmployeeIds' => $createdEmployeeIds,
+        ];
+    }
+
+    /**
+     * Build timesheets from imported clocking logs using each employee's
+     * employment department, worksite, and compensation defaults.
+     *
+     * @param list<array<string, mixed>> $clockingRows
+     * @return array{processedTimesheets: int, errors: list<string>}
+     */
+    private function processTimesheetsFromClockingRows(array $clockingRows): array
+    {
+        $range = $this->punchDateRangeFromRows($clockingRows);
+        if ($range === null) {
+            return [
+                'processedTimesheets' => 0,
+                'errors' => ['Timesheet processing skipped: no valid punch dates in clocking logs.'],
+            ];
+        }
+
+        try {
+            $result = $this->timesheetProcessingService->process($range);
+
+            return [
+                'processedTimesheets' => (int) ($result['processedTimesheets'] ?? 0),
+                'errors' => [],
+            ];
+        } catch (Throwable $e) {
+            return [
+                'processedTimesheets' => 0,
+                'errors' => ['Timesheet processing failed: '.$this->exceptionMessage($e)],
+            ];
+        }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return array{startDate: string, endDate: string}|null
+     */
+    private function punchDateRangeFromRows(array $rows): ?array
+    {
+        $dates = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $value = $row['punchDateTime'] ?? null;
+            if ($value === null || trim((string) $value) === '') {
+                continue;
+            }
+
+            try {
+                $dates[] = Carbon::parse((string) $value, config('app.timezone', 'UTC'))->toDateString();
+            } catch (Throwable) {
+                continue;
+            }
+        }
+
+        if ($dates === []) {
+            return null;
+        }
+
+        sort($dates);
+
+        return [
+            'startDate' => $dates[0],
+            'endDate' => $dates[array_key_last($dates)],
         ];
     }
 
@@ -257,7 +339,7 @@ class EmployeeImportService
             'middleName' => $this->nullableString($row['middleName'] ?? null),
             'lastName' => $this->requireString($row, 'lastName', 'lastName is required.'),
             'maidenName' => $this->nullableString($row['maidenName'] ?? null),
-            'birthdate' => $this->requireString($row, 'birthdate', 'birthdate is required.'),
+            'birthdate' => $this->requireDate($row, 'birthdate', 'birthdate is required.'),
             'address1' => $this->requireString($row, 'address1', 'address1 is required.'),
             'address2' => $this->nullableString($row['address2'] ?? null),
             'localityId' => $localityId,
@@ -335,7 +417,7 @@ class EmployeeImportService
             'accountId' => $accountId,
             'contractTypeId' => $contractTypeId,
             'defaultPayPeriodGroupId' => $payPeriodGroupId,
-            'startDate' => $this->requireString($row, 'startDate', 'startDate is required.'),
+            'startDate' => $this->requireDate($row, 'startDate', 'startDate is required.'),
             'endDate' => $this->nullableDate($row['endDate'] ?? null),
             'jobTitleId' => $jobTitleId,
             'requiresClocking' => $this->toBool($row['requiresClocking'] ?? false),
@@ -364,6 +446,14 @@ class EmployeeImportService
         }
 
         $methodRaw = strtoupper($this->requireString($row, 'compensationMethod', 'compensationMethod is required.'));
+        $methodAliases = [
+            'BASE_YES_OT' => 'BASE_OT',
+            'HOURLY_YES_OT' => 'HOURLY_OT',
+            'HOURLY_NO' => 'HOURLY_NO_OT',
+            'BASE_NO' => 'BASE_NO_OT',
+        ];
+        $methodRaw = $methodAliases[$methodRaw] ?? $methodRaw;
+
         $allowedMethods = array_merge(CompensationMethod::values(), [
             'HOURLY',
             'SALARY_NO_CLOCK',
@@ -396,7 +486,7 @@ class EmployeeImportService
         $payload = [
             'employeeId' => $employee->id,
             'employmentDetailId' => $employmentDetail->id,
-            'effectiveDate' => $this->requireString($row, 'effectiveDate', 'effectiveDate is required.'),
+            'effectiveDate' => $this->requireDate($row, 'effectiveDate', 'effectiveDate is required.'),
             'endDate' => $this->nullableDate($row['endDate'] ?? null),
             'isActive' => $isActive,
             'compensationMethod' => $method->storedPayType(),
@@ -405,6 +495,7 @@ class EmployeeImportService
                 : $method->defaultRequiresClocking(),
             'hourlyRate' => $this->nullableFloat($row['hourlyRate'] ?? null),
             'yearlyRate' => $this->nullableFloat($row['yearlyRate'] ?? null),
+            'dailyRate' => $this->nullableFloat($row['dailyRate'] ?? null),
             'standardWeeklyHours' => $this->nullableFloat($row['standardWeeklyHours'] ?? null)
                 ?? EmployeeCompensationResolver::DEFAULT_STANDARD_WEEKLY_HOURS,
             'payscale' => $this->nullableString($row['payscale'] ?? null),
@@ -440,7 +531,7 @@ class EmployeeImportService
             'worksiteName',
         );
 
-        $startDate = $this->requireString($row, 'startDate', 'startDate is required.');
+        $startDate = $this->requireDate($row, 'startDate', 'startDate is required.');
         $endDate = $this->nullableDate($row['endDate'] ?? null) ?? $startDate;
         if ($endDate < $startDate) {
             [$startDate, $endDate] = [$endDate, $startDate];
@@ -486,7 +577,7 @@ class EmployeeImportService
     {
         $biometricUserId = $this->requireString($row, 'biometricUserId', 'biometricUserId is required.');
         $deviceId = $this->requireString($row, 'deviceId', 'deviceId is required.');
-        $punchDateTime = $this->requireString($row, 'punchDateTime', 'punchDateTime is required.');
+        $punchDateTime = $this->requireDateTime($row, 'punchDateTime', 'punchDateTime is required.');
         $punchType = $this->nullableString($row['punchType'] ?? null);
 
         if ($punchType !== null) {
@@ -496,13 +587,17 @@ class EmployeeImportService
             }
         }
 
-        return ClockingLog::create([
-            'id' => (string) Str::uuid(),
-            'biometricUserId' => $biometricUserId,
-            'deviceId' => $deviceId,
-            'punchDateTime' => $punchDateTime,
-            'punchType' => $punchType,
-        ]);
+        return ClockingLog::firstOrCreate(
+            [
+                'biometricUserId' => $biometricUserId,
+                'deviceId' => $deviceId,
+                'punchDateTime' => $punchDateTime,
+            ],
+            [
+                'id' => (string) Str::uuid(),
+                'punchType' => $punchType,
+            ],
+        );
     }
 
     private function clockingLogsAvailable(): bool
@@ -546,15 +641,27 @@ class EmployeeImportService
             $payload['yearlyRate'] = (float) (
                 $this->compensationResolver->derivedYearlyRateFromHourly($hourlyRate, $compensation) ?? 0.0
             );
+            $payload['dailyRate'] = 0;
             $payload['requiresClocking'] = true;
+        } elseif ($method->isDailyRateBased()) {
+            $payload['dailyRate'] = (float) ($payload['dailyRate'] ?? 0);
+            $payload['hourlyRate'] = 0;
+            $payload['yearlyRate'] = 0;
+            $payload['requiresClocking'] = false;
         } else {
             if ($hourlyRate <= 0 && $yearlyRate > 0) {
                 $hourlyRate = (float) (
                     $this->compensationResolver->derivedHourlyRateFromYearly($yearlyRate, $compensation) ?? 0.0
                 );
             }
+            if ($yearlyRate <= 0 && $hourlyRate > 0) {
+                $yearlyRate = (float) (
+                    $this->compensationResolver->derivedYearlyRateFromHourly($hourlyRate, $compensation) ?? 0.0
+                );
+            }
             $payload['hourlyRate'] = $hourlyRate;
             $payload['yearlyRate'] = $yearlyRate;
+            $payload['dailyRate'] = 0;
         }
 
         return $payload;
@@ -567,6 +674,7 @@ class EmployeeImportService
     {
         $hourlyRate = (float) ($payload['hourlyRate'] ?? 0);
         $yearlyRate = (float) ($payload['yearlyRate'] ?? 0);
+        $dailyRate = (float) ($payload['dailyRate'] ?? 0);
         $standardWeeklyHours = (float) ($payload['standardWeeklyHours'] ?? 0);
 
         if ($method->isHourlyBased() && $hourlyRate <= 0) {
@@ -577,7 +685,11 @@ class EmployeeImportService
             throw new \RuntimeException('Annual base rate is required for base-rate pay methods.');
         }
 
-        if ($standardWeeklyHours <= 0) {
+        if ($method->isDailyRateBased() && $dailyRate <= 0) {
+            throw new \RuntimeException('Daily rate is required for day / trip pay methods.');
+        }
+
+        if (! $method->isDailyRateBased() && $standardWeeklyHours <= 0) {
             throw new \RuntimeException('Standard weekly hours must be greater than zero.');
         }
     }
@@ -685,11 +797,75 @@ class EmployeeImportService
         return $this->stringValue($value);
     }
 
+    private function requireDate(array $row, string $key, string $message): string
+    {
+        $value = $this->nullableDate($row[$key] ?? null);
+        if ($value === null) {
+            throw new \RuntimeException($message);
+        }
+
+        return $value;
+    }
+
+    private function requireDateTime(array $row, string $key, string $message): string
+    {
+        $value = $this->nullableDateTime($row[$key] ?? null);
+        if ($value === null) {
+            throw new \RuntimeException($message);
+        }
+
+        return $value;
+    }
+
     private function nullableDate(mixed $value): ?string
     {
-        $string = $this->stringValue($value);
+        $parsed = $this->parseTemporal($value);
+        if ($parsed === null) {
+            return null;
+        }
 
-        return $string;
+        return $parsed->toDateString();
+    }
+
+    private function nullableDateTime(mixed $value): ?string
+    {
+        $parsed = $this->parseTemporal($value);
+        if ($parsed === null) {
+            return null;
+        }
+
+        return $parsed->format('Y-m-d H:i:s');
+    }
+
+    private function parseTemporal(mixed $value): ?\Carbon\Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return \Carbon\Carbon::instance(\DateTimeImmutable::createFromInterface($value));
+        }
+
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/', $string, $matches) === 1) {
+            $year = (int) $matches[3];
+            if ($year < 100) {
+                $year += $year >= 70 ? 1900 : 2000;
+            }
+
+            return \Carbon\Carbon::createFromDate($year, (int) $matches[1], (int) $matches[2])->startOfDay();
+        }
+
+        try {
+            return \Carbon\Carbon::parse($string);
+        } catch (\Throwable) {
+            throw new \RuntimeException("Invalid date/time value: {$string}");
+        }
     }
 
     private function nullableFloat(mixed $value): ?float

@@ -603,7 +603,8 @@ class TimesheetProcessingService
 
                     if (
                         $compensation
-                        && !$this->compensationResolver->requiresClocking($compensation)
+                        && ! $this->compensationResolver->requiresClocking($compensation)
+                        && ! $this->compensationResolver->method($compensation)->isDailyRateBased()
                         && $this->scheduledHoursResolver->forEmployeeDate(
                             (string) $employeeId,
                             $date,

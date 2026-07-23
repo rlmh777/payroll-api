@@ -9,6 +9,7 @@ use App\Models\EmployeeDefaultDeduction;
 use App\Models\HistoricalEmployeeAllowance;
 use App\Models\HistoricalEmployeeDeduction;
 use App\Models\PayPeriodSchedule;
+use App\Models\PayrollAccountMapping;
 use App\Models\PayrollEarningCode;
 use App\Models\PayrollEarningLine;
 use App\Models\PayrollRun;
@@ -23,6 +24,7 @@ class PayrollRunJournalEntryReportService
     public function __construct(
         private readonly PayrollRunCalculationService $payrollRunCalculationService,
         private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly PayrollAccountMappingService $payrollAccountMappingService,
     ) {
     }
 
@@ -38,7 +40,7 @@ class PayrollRunJournalEntryReportService
         $payrollRun->load(['payPeriodSchedule.payPeriodGroup', 'payrateFrequency']);
         $schedule = $payrollRun->payPeriodSchedule;
 
-        if (!$schedule?->start_date || !$schedule?->end_date) {
+        if (! $schedule?->start_date || ! $schedule?->end_date) {
             throw new InvalidArgumentException('Pay period schedule is missing for this payroll run.');
         }
 
@@ -55,16 +57,14 @@ class PayrollRunJournalEntryReportService
             throw new InvalidArgumentException('No payroll data is available for this payroll run.');
         }
 
-        $accountsByCode = Account::query()
-            ->get(['id', 'name', 'description', 'code1', 'code2'])
-            ->keyBy(fn (Account $account) => (string) $account->code1);
-
-        $earningAccounts = $this->earningAccountsByCode($accountsByCode);
-        $wagesPayableAccountId = $this->accountKeyForCode($accountsByCode, '2100');
-        $deductionsPayableAccountId = $this->accountKeyForCode($accountsByCode, '6199');
-        $incomeTaxAccountId = $this->accountKeyForCode($accountsByCode, '2101');
-        $socialSecurityAccountId = $this->accountKeyForCode($accountsByCode, '2102');
-        $employerSocialSecurityAccountId = $this->accountKeyForCode($accountsByCode, '6201');
+        $earningAccounts = $this->earningAccountsByCode();
+        $wagesPayableAccountId = $this->payrollAccountMappingService->journalAccountKey('WAGES_PAYABLE');
+        $deductionsPayableAccountId = $this->payrollAccountMappingService->journalAccountKey('DEDUCTIONS_PAYABLE');
+        $incomeTaxAccountId = $this->payrollAccountMappingService->journalAccountKey('INCOME_TAX_PAYABLE');
+        $socialSecurityAccountId = $this->payrollAccountMappingService->journalAccountKey('EMPLOYEE_SOCIAL_SECURITY_PAYABLE');
+        $employerSocialSecurityAccountId = $this->payrollAccountMappingService->journalAccountKey('EMPLOYER_SOCIAL_SECURITY_EXPENSE');
+        $departmentWagesFallback = $this->payrollAccountMappingService->journalAccountKey('DEPARTMENT_WAGES');
+        $allowancesFallback = $this->payrollAccountMappingService->journalAccountKey('ALLOWANCES');
 
         $departmentIds = $rows
             ->pluck('departmentId')
@@ -109,7 +109,11 @@ class PayrollRunJournalEntryReportService
                 if ($regularAmount > 0) {
                     $this->addDebit(
                         $lines,
-                        $this->resolveDepartmentWageAccountId($departmentId, $departmentsById, $earningAccounts['REGULAR']),
+                        $this->resolveDepartmentWageAccountId(
+                            $departmentId,
+                            $departmentsById,
+                            $earningAccounts['REGULAR'] ?? $departmentWagesFallback,
+                        ),
                         $regularAmount,
                     );
                 }
@@ -117,7 +121,11 @@ class PayrollRunJournalEntryReportService
                 if ($overtimeAmount > 0) {
                     $this->addDebit(
                         $lines,
-                        $this->resolveDepartmentWageAccountId($departmentId, $departmentsById, $earningAccounts['OVERTIME']),
+                        $this->resolveDepartmentWageAccountId(
+                            $departmentId,
+                            $departmentsById,
+                            $earningAccounts['OVERTIME'] ?? $departmentWagesFallback,
+                        ),
                         $overtimeAmount,
                     );
                 }
@@ -125,7 +133,11 @@ class PayrollRunJournalEntryReportService
                 if ($holidayAmount > 0) {
                     $this->addDebit(
                         $lines,
-                        $this->resolveDepartmentWageAccountId($departmentId, $departmentsById, $earningAccounts['HOLIDAY']),
+                        $this->resolveDepartmentWageAccountId(
+                            $departmentId,
+                            $departmentsById,
+                            $earningAccounts['HOLIDAY'] ?? $departmentWagesFallback,
+                        ),
                         $holidayAmount,
                     );
                 }
@@ -137,7 +149,10 @@ class PayrollRunJournalEntryReportService
                         continue;
                     }
 
-                    $accountId = $this->resolveAllowanceAccountId($allowanceLine, $earningAccounts['ALLOWANCE']);
+                    $accountId = $this->resolveAllowanceAccountId(
+                        $allowanceLine,
+                        $earningAccounts['ALLOWANCE'] ?? $allowancesFallback,
+                    );
                     $this->addDebit($lines, $accountId, $amount);
                 }
             }
@@ -177,7 +192,7 @@ class PayrollRunJournalEntryReportService
         }
 
         $accountIds = collect(array_keys($lines))
-            ->filter(fn (string $key) => !str_starts_with($key, 'code:'))
+            ->filter(fn (string $key) => ! str_starts_with($key, 'mapping:'))
             ->values()
             ->all();
 
@@ -186,15 +201,20 @@ class PayrollRunJournalEntryReportService
             ->get(['id', 'name', 'description', 'code1', 'code2'])
             ->keyBy('id');
 
+        $mappingsByCode = PayrollAccountMapping::query()
+            ->get(['code', 'name'])
+            ->keyBy(fn (PayrollAccountMapping $mapping) => strtoupper((string) $mapping->code));
+
         $reportRows = collect($lines)
-            ->map(function (array $line, string $accountKey) use ($accounts) {
-                if (str_starts_with($accountKey, 'code:')) {
-                    $code = substr($accountKey, 5);
+            ->map(function (array $line, string $accountKey) use ($accounts, $mappingsByCode) {
+                if (str_starts_with($accountKey, 'mapping:')) {
+                    $code = strtoupper(substr($accountKey, 8));
+                    $mapping = $mappingsByCode->get($code);
 
                     return [
                         'accountId' => null,
                         'accountNumber' => $code,
-                        'accountDescription' => $this->fallbackAccountName($code),
+                        'accountDescription' => $mapping?->name ?? "Unmapped {$code}",
                         'debit' => round($line['debit'], 2),
                         'credit' => round($line['credit'], 2),
                     ];
@@ -261,7 +281,7 @@ class PayrollRunJournalEntryReportService
             ->orderByDesc('hourlyRate')
             ->first();
 
-        if (!$timesheet) {
+        if (! $timesheet) {
             return 0.0;
         }
 
@@ -279,64 +299,21 @@ class PayrollRunJournalEntryReportService
     }
 
     /**
-     * @param Collection<string, Account> $accountsByCode
-     * @return array{REGULAR:string,OVERTIME:string,HOLIDAY:string,ALLOWANCE:string}
+     * @return array<string, string>
      */
-    private function earningAccountsByCode(Collection $accountsByCode): array
+    private function earningAccountsByCode(): array
     {
-        $codes = PayrollEarningCode::query()
-            ->whereIn('code', ['REGULAR', 'OVERTIME', 'HOLIDAY', 'ALLOWANCE'])
+        return PayrollEarningCode::query()
+            ->whereNotNull('account_id')
             ->get(['code', 'account_id'])
-            ->keyBy('code');
-
-        return [
-            'REGULAR' => $this->earningAccountKey($codes->get('REGULAR')?->account_id, $accountsByCode, '6101'),
-            'OVERTIME' => $this->earningAccountKey($codes->get('OVERTIME')?->account_id, $accountsByCode, '6102'),
-            'HOLIDAY' => $this->earningAccountKey($codes->get('HOLIDAY')?->account_id, $accountsByCode, '6103'),
-            'ALLOWANCE' => $this->earningAccountKey($codes->get('ALLOWANCE')?->account_id, $accountsByCode, '6106'),
-        ];
+            ->mapWithKeys(fn (PayrollEarningCode $code) => [
+                strtoupper((string) $code->code) => (string) $code->account_id,
+            ])
+            ->all();
     }
 
     /**
-     * @param Collection<string, Account> $accountsByCode
-     */
-    private function earningAccountKey(?string $accountId, Collection $accountsByCode, string $fallbackCode): string
-    {
-        if (filled($accountId)) {
-            return (string) $accountId;
-        }
-
-        return $this->accountKeyForCode($accountsByCode, $fallbackCode);
-    }
-
-    /**
-     * @param Collection<string, Account> $accountsByCode
-     */
-    private function accountKeyForCode(Collection $accountsByCode, string $code): string
-    {
-        $account = $accountsByCode->get($code);
-
-        return $account ? (string) $account->id : "code:{$code}";
-    }
-
-    private function fallbackAccountName(string $code): string
-    {
-        return match ($code) {
-            '6101' => 'Regular Wages',
-            '6102' => 'Overtime Wages',
-            '6103' => 'Holiday Pay',
-            '6106' => 'Allowances',
-            '6199' => 'Other Deductions',
-            '6201' => 'Employer Social Security',
-            '2100' => 'Wages Payable',
-            '2101' => 'Income Tax Payable',
-            '2102' => 'Social Security Payable',
-            default => "Account {$code}",
-        };
-    }
-
-    /**
-     * @param array<string, array{accountId:string,accountNumber:string,accountDescription:string,debit:float,credit:float}> $lines
+     * @param  array<string, array{accountId:string,accountNumber:string,accountDescription:string,debit:float,credit:float}>  $lines
      */
     private function addDebit(array &$lines, string $accountId, float $amount): void
     {
@@ -355,7 +332,7 @@ class PayrollRunJournalEntryReportService
     }
 
     /**
-     * @param array<string, array{accountId:string,accountNumber:string,accountDescription:string,debit:float,credit:float}> $lines
+     * @param  array<string, array{accountId:string,accountNumber:string,accountDescription:string,debit:float,credit:float}>  $lines
      */
     private function addCredit(array &$lines, string $accountId, float $amount): void
     {
@@ -374,7 +351,7 @@ class PayrollRunJournalEntryReportService
     }
 
     /**
-     * @param Collection<int, Department> $departmentsById
+     * @param  Collection<int, Department>  $departmentsById
      */
     private function resolveDepartmentWageAccountId(
         ?int $departmentId,
@@ -392,7 +369,7 @@ class PayrollRunJournalEntryReportService
     }
 
     /**
-     * @param array<string, mixed> $line
+     * @param  array<string, mixed>  $line
      */
     private function resolveAllowanceAccountId(array $line, string $fallbackAccountId): string
     {
@@ -412,7 +389,7 @@ class PayrollRunJournalEntryReportService
     }
 
     /**
-     * @param array<string, mixed> $line
+     * @param  array<string, mixed>  $line
      */
     private function resolveDeductionAccountId(array $line, string $fallbackAccountId): string
     {

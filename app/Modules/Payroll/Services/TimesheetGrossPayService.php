@@ -4,9 +4,11 @@ namespace App\Modules\Payroll\Services;
 
 use App\Enums\CompensationMethod;
 use App\Models\EmployeeCompensation;
+use App\Models\EmployeeDayWork;
 use App\Models\Timesheet;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class TimesheetGrossPayService
@@ -70,16 +72,23 @@ class TimesheetGrossPayService
             $employeeCompensationId,
         );
         $flatPeriodBasePay = $this->compensationResolver->flatPeriodBasePay($compensation, $payrateFrequencyId);
+        $dayWorkEarnings = $this->dayWorkEarningsForEmployee(
+            $employeeId,
+            $startDate,
+            $endDate,
+            $payPeriodGroupId,
+            $payrateFrequencyId,
+        );
 
         if ($flatPeriodBasePay !== null) {
             return [
-                'baseEarnings' => $flatPeriodBasePay,
+                'baseEarnings' => round($flatPeriodBasePay + $dayWorkEarnings['baseEarnings'], 2),
                 'regularHours' => $regularHours,
                 'overtimeHours' => $overtimeHours,
                 'holidayHours' => $holidayHours,
-                'employmentDetailId' => $employmentDetailId,
-                'employeeCompensationId' => $employeeCompensationId,
-                'departmentId' => $departmentId,
+                'employmentDetailId' => $employmentDetailId ?? $dayWorkEarnings['employmentDetailId'],
+                'employeeCompensationId' => $employeeCompensationId ?? $dayWorkEarnings['employeeCompensationId'],
+                'departmentId' => $departmentId ?? $dayWorkEarnings['departmentId'],
             ];
         }
 
@@ -89,13 +98,13 @@ class TimesheetGrossPayService
         }
 
         return [
-            'baseEarnings' => $baseEarnings,
+            'baseEarnings' => round($baseEarnings + $dayWorkEarnings['baseEarnings'], 2),
             'regularHours' => $regularHours,
             'overtimeHours' => $overtimeHours,
             'holidayHours' => $holidayHours,
-            'employmentDetailId' => $employmentDetailId,
-            'employeeCompensationId' => $employeeCompensationId,
-            'departmentId' => $departmentId,
+            'employmentDetailId' => $employmentDetailId ?? $dayWorkEarnings['employmentDetailId'],
+            'employeeCompensationId' => $employeeCompensationId ?? $dayWorkEarnings['employeeCompensationId'],
+            'departmentId' => $departmentId ?? $dayWorkEarnings['departmentId'],
         ];
     }
 
@@ -170,6 +179,100 @@ class TimesheetGrossPayService
         }
 
         return 0.0;
+    }
+
+    /**
+     * @return array{
+     *     baseEarnings: float,
+     *     employmentDetailId: string|null,
+     *     employeeCompensationId: string|null,
+     *     departmentId: int|null
+     * }
+     */
+    public function dayWorkEarningsForEmployee(
+        string $employeeId,
+        Carbon $startDate,
+        Carbon $endDate,
+        string $payPeriodGroupId,
+        ?int $payrateFrequencyId = null,
+    ): array {
+        $entries = $this->dayWorkScopeQuery(
+            $startDate,
+            $endDate,
+            $payPeriodGroupId,
+            $payrateFrequencyId,
+        )
+            ->where('employeeId', $employeeId)
+            ->whereRaw('UPPER("approvalStatus") = ?', ['APPROVED'])
+            ->orderBy('date')
+            ->get();
+
+        $baseEarnings = 0.0;
+        $employmentDetailId = null;
+        $employeeCompensationId = null;
+        $departmentId = null;
+
+        foreach ($entries as $entry) {
+            $baseEarnings = round($baseEarnings + (float) $entry->amount, 2);
+            $employmentDetailId ??= $entry->employmentDetailId ? (string) $entry->employmentDetailId : null;
+            $employeeCompensationId ??= $entry->employeeCompensationId ? (string) $entry->employeeCompensationId : null;
+            $departmentId ??= $entry->departmentId !== null ? (int) $entry->departmentId : null;
+        }
+
+        return [
+            'baseEarnings' => $baseEarnings,
+            'employmentDetailId' => $employmentDetailId,
+            'employeeCompensationId' => $employeeCompensationId,
+            'departmentId' => $departmentId,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function dayWorkEmployeeIds(
+        Carbon $startDate,
+        Carbon $endDate,
+        string $payPeriodGroupId,
+        ?int $payrateFrequencyId = null,
+    ): array {
+        return $this->dayWorkScopeQuery($startDate, $endDate, $payPeriodGroupId, $payrateFrequencyId)
+            ->whereRaw('UPPER("approvalStatus") = ?', ['APPROVED'])
+            ->distinct()
+            ->pluck('employeeId')
+            ->map(fn ($id) => (string) $id)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function dayWorkScopeQuery(
+        Carbon $startDate,
+        Carbon $endDate,
+        string $payPeriodGroupId,
+        ?int $payrateFrequencyId = null,
+    ): Builder {
+        $query = EmployeeDayWork::query()
+            ->whereDate('date', '>=', $startDate->toDateString())
+            ->whereDate('date', '<=', $endDate->toDateString())
+            ->whereHas('employmentDetail', function (Builder $employmentQuery) use ($payPeriodGroupId, $startDate, $endDate) {
+                $employmentQuery
+                    ->where('defaultPayPeriodGroupId', $payPeriodGroupId)
+                    ->where('isActive', true)
+                    ->whereDate('startDate', '<=', $endDate->toDateString())
+                    ->where(function (Builder $inner) use ($startDate) {
+                        $inner->whereNull('endDate')
+                            ->orWhereDate('endDate', '>=', $startDate->toDateString());
+                    });
+            });
+
+        if ($payrateFrequencyId !== null) {
+            $query->whereHas('employee', function (Builder $employeeQuery) use ($payrateFrequencyId) {
+                $employeeQuery->where('payrateFrequencyId', $payrateFrequencyId);
+            });
+        }
+
+        return $query;
     }
 
     private function resolveCompensation(

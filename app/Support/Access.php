@@ -58,4 +58,15 @@ class Access
             'employees-crud',
         ]);
     }
+
+    /**
+     * Company-wide day / trip work entry (not limited to subordinates).
+     */
+    public static function canManageCompanyDayWork(?User $user): bool
+    {
+        return self::canAny($user, [
+            'pay-employees-crud',
+            'employees-crud',
+        ]);
+    }
 }

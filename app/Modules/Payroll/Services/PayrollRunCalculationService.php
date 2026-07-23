@@ -313,6 +313,15 @@ class PayrollRunCalculationService
             ),
         );
 
+        $fromDayWork = collect(
+            $this->timesheetGrossPayService->dayWorkEmployeeIds(
+                $startDate,
+                $endDate,
+                $payPeriodGroupId,
+                $frequencyId,
+            ),
+        );
+
         $fromImports = HistoricalEmployeeAllowance::query()
             ->where('payroll_run_id', $payrollRun->id)
             ->pluck('employee_id')
@@ -321,10 +330,13 @@ class PayrollRunCalculationService
                     ->where('payroll_run_id', $payrollRun->id)
                     ->pluck('employee_id'),
             )
-            ->map(fn ($id) => (string) $id)
-            ->filter(fn (string $employeeId) => $fromTimesheets->contains($employeeId));
+            ->map(fn ($id) => (string) $id);
 
-        return $fromTimesheets
+        $baseEmployees = $fromTimesheets->merge($fromDayWork)->unique()->values();
+
+        $fromImports = $fromImports->filter(fn (string $employeeId) => $baseEmployees->contains($employeeId));
+
+        return $baseEmployees
             ->merge($fromImports)
             ->unique()
             ->values();

@@ -42,18 +42,15 @@ v1 bulk import applies: **Employees**, **Employment**, **Compensation**, **Sched
 
 Lookups are by **name/code**, not database IDs. Valid values are listed on the **Lookups** sheet and match a freshly seeded database.
 
-## Sample employees (`100001`–`100006`)
+## Sample employees
 
-Codes start at `100001` so they do not collide with `EmployeeModelSeeder` (`000001`–`000100`).
+Loaded from [`templates/employee-import-template.xlsx`](./templates/employee-import-template.xlsx) by `EmployeeImportTemplateSeeder` (replaces the old Faker employee seeders).
 
-| Code | Profile | Pay | Clocks |
-|------|---------|-----|--------|
-| 100001 | Operations, Full-Time, Monthly | `HOURLY_OT` $15.50 | Yes (`DEV-01`) |
-| 100002 | Finance, Full-Time, Monthly | `BASE_NO_OT` $42,000 | No (scheduled only) |
-| 100003 | Sales, Full-Time, Biweekly | `HOURLY_OT` $18.75 | Yes (`DEV-02`) |
-| 100004 | HR, Part-Time, Monthly | `HOURLY_NO_OT` $14.00 / 20 hrs | Yes (`DEV-01`) |
-| 100005 | IT Manager, Full-Time, Monthly | `BASE_OT` $65,000 | No (scheduled only) |
-| 100006 | Operations temp, Probation, Biweekly | `HOURLY_NO_OT` $13.25 | Yes (`DEV-02`) |
+Populate a fresh database with:
+
+```bash
+./vendor/bin/sail artisan migrate:fresh --seed
+```
 
 ## Sample attendance week
 

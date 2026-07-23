@@ -23,10 +23,16 @@ class PayrollRun extends Model
         'pay_period_schedule_id',
         'payrate_frequency_id',
         'status',
+        'payroll_number',
     ];
 
     protected $casts = [
         'payrate_frequency_id' => 'integer',
+        'payroll_number' => 'integer',
+    ];
+
+    protected $appends = [
+        'payrollNumberFormatted',
     ];
 
     protected static function boot()
@@ -37,7 +43,23 @@ class PayrollRun extends Model
             if (empty($model->id)) {
                 $model->id = (string) Str::uuid();
             }
+
+            if (empty($model->payroll_number)) {
+                $model->payroll_number = static::nextPayrollNumber();
+            }
         });
+    }
+
+    public static function nextPayrollNumber(): int
+    {
+        $max = (int) static::query()->max('payroll_number');
+
+        return $max + 1;
+    }
+
+    public function getPayrollNumberFormattedAttribute(): string
+    {
+        return str_pad((string) ($this->payroll_number ?? 0), 9, '0', STR_PAD_LEFT);
     }
 
     public function payPeriodSchedule(): BelongsTo

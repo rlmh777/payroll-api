@@ -193,6 +193,7 @@ class EmployeeCompensationController extends Controller
             'requiresClocking' => ['boolean'],
             'hourlyRate' => ['nullable', 'numeric', 'min:0'],
             'yearlyRate' => ['nullable', 'numeric', 'min:0'],
+            'dailyRate' => ['nullable', 'numeric', 'min:0'],
             'standardWeeklyHours' => ['nullable', 'numeric', 'min:0.5', 'max:168'],
             'payscale' => ['nullable', 'string', 'max:16'],
             'payscalePoint' => ['nullable', 'string', 'max:8'],
@@ -224,15 +225,24 @@ class EmployeeCompensationController extends Controller
             ], 422);
         }
 
-        $standardWeeklyHours = (float) (
-            $data['standardWeeklyHours']
-            ?? $existing?->standardWeeklyHours
-            ?? EmployeeCompensationResolver::DEFAULT_STANDARD_WEEKLY_HOURS
-        );
-        if ($standardWeeklyHours <= 0) {
+        $dailyRate = (float) ($data['dailyRate'] ?? $existing?->dailyRate ?? 0);
+        if ($method->isDailyRateBased() && $dailyRate <= 0) {
             return response()->json([
-                'errors' => ['standardWeeklyHours' => ['Standard weekly hours must be greater than zero.']],
+                'errors' => ['dailyRate' => ['Daily rate is required for day / trip pay methods.']],
             ], 422);
+        }
+
+        if (! $method->isDailyRateBased()) {
+            $standardWeeklyHours = (float) (
+                $data['standardWeeklyHours']
+                ?? $existing?->standardWeeklyHours
+                ?? EmployeeCompensationResolver::DEFAULT_STANDARD_WEEKLY_HOURS
+            );
+            if ($standardWeeklyHours <= 0) {
+                return response()->json([
+                    'errors' => ['standardWeeklyHours' => ['Standard weekly hours must be greater than zero.']],
+                ], 422);
+            }
         }
 
         return null;
@@ -292,6 +302,18 @@ class EmployeeCompensationController extends Controller
                 $resolver->derivedYearlyRateFromHourly($hourlyRate, $compensation)
                 ?? 0.0
             );
+            $data['dailyRate'] = 0;
+        } elseif ($method->isDailyRateBased()) {
+            $dailyRate = (float) ($data['dailyRate'] ?? $existing?->dailyRate ?? 0);
+            $data['dailyRate'] = $dailyRate;
+            $data['hourlyRate'] = 0;
+            $data['yearlyRate'] = 0;
+            $data['standardWeeklyHours'] = (float) (
+                $data['standardWeeklyHours']
+                ?? $existing?->standardWeeklyHours
+                ?? EmployeeCompensationResolver::DEFAULT_STANDARD_WEEKLY_HOURS
+            );
+            $data['requiresClocking'] = false;
         } else {
             $hourlyRate = (float) ($data['hourlyRate'] ?? $existing?->hourlyRate ?? 0);
             $yearlyRate = (float) ($data['yearlyRate'] ?? $existing?->yearlyRate ?? 0);
@@ -314,9 +336,10 @@ class EmployeeCompensationController extends Controller
 
             $data['hourlyRate'] = $hourlyRate;
             $data['yearlyRate'] = $yearlyRate;
+            $data['dailyRate'] = 0;
         }
 
-        if (!array_key_exists('requiresClocking', $data)) {
+        if (! array_key_exists('requiresClocking', $data)) {
             $data['requiresClocking'] = $existing?->requiresClocking ?? $method->defaultRequiresClocking();
         } else {
             $data['requiresClocking'] = (bool) $data['requiresClocking'];
@@ -324,6 +347,10 @@ class EmployeeCompensationController extends Controller
 
         if ($method->isHourlyBased()) {
             $data['requiresClocking'] = true;
+        }
+
+        if ($method->isDailyRateBased()) {
+            $data['requiresClocking'] = false;
         }
 
         if (array_key_exists('endDate', $data) && ($data['endDate'] === '' || $data['endDate'] === null)) {

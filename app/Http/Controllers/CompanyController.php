@@ -57,6 +57,8 @@ class CompanyController extends Controller
                 'legalName' => 'sometimes|required|string|max:255',
                 'alias' => 'nullable|string|max:255',
                 'socialSecurityNumber' => 'nullable|string|max:255',
+                'socialSecurityElectronicEmployerNumber' => 'nullable|string|max:255',
+                'bankBranchNumber' => 'nullable|string|max:32',
                 'taxIdentificationNumber' => 'nullable|string|max:255',
                 'logo' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120',
                 'removeLogo' => 'sometimes|boolean',

@@ -12,3 +12,15 @@ Schedule::command('timesheets:process')
     ->dailyAt(config('attendance.timesheet_processing.schedule_time', '02:00'))
     ->withoutOverlapping()
     ->onOneServer();
+
+foreach (config('database-backup.schedule_times', []) as $time) {
+    if (! is_string($time) || $time === '') {
+        continue;
+    }
+
+    Schedule::command('db:backup')
+        ->dailyAt($time)
+        ->name('db-backup-'.$time)
+        ->withoutOverlapping()
+        ->onOneServer();
+}

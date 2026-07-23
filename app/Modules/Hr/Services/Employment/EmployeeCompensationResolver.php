@@ -157,7 +157,7 @@ class EmployeeCompensationResolver
         }
 
         $method = $this->method($compensation);
-        if ($method->allowsOvertime()) {
+        if ($method->isDailyRateBased() || $method->allowsOvertime()) {
             return null;
         }
 
@@ -218,6 +218,7 @@ class EmployeeCompensationResolver
      *   hourlyRate:?float,
      *   weeklySalary:null,
      *   baseSalary:?float,
+     *   dailyRate:?float,
      *   standardWeeklyHours:?float
      * }
      */
@@ -226,6 +227,7 @@ class EmployeeCompensationResolver
         $method = $this->method($compensation);
         $hourlyRate = $compensation ? (float) $compensation->hourlyRate : 0.0;
         $yearlyRate = $compensation ? (float) $compensation->yearlyRate : 0.0;
+        $dailyRate = $compensation ? (float) ($compensation->dailyRate ?? 0) : 0.0;
         $standardWeeklyHours = $this->standardWeeklyHours($compensation);
 
         if ($method->isHourlyBased() && $yearlyRate <= 0 && $hourlyRate > 0) {
@@ -236,6 +238,11 @@ class EmployeeCompensationResolver
             $hourlyRate = (float) ($this->derivedHourlyRateFromYearly($yearlyRate, $compensation) ?? 0.0);
         }
 
+        if ($method->isDailyRateBased()) {
+            $hourlyRate = 0.0;
+            $yearlyRate = 0.0;
+        }
+
         return [
             'employeeCompensationId' => $compensation?->id ? (string) $compensation->id : null,
             'payType' => $method->storedPayType(),
@@ -243,7 +250,19 @@ class EmployeeCompensationResolver
             'hourlyRate' => $hourlyRate > 0 ? $hourlyRate : null,
             'weeklySalary' => null,
             'baseSalary' => $yearlyRate > 0 ? $yearlyRate : null,
+            'dailyRate' => $dailyRate > 0 ? $dailyRate : null,
             'standardWeeklyHours' => $standardWeeklyHours,
         ];
+    }
+
+    public function effectiveDailyRate(?EmployeeCompensation $compensation): ?float
+    {
+        if (! $compensation) {
+            return null;
+        }
+
+        $dailyRate = (float) ($compensation->dailyRate ?? 0);
+
+        return $dailyRate > 0 ? $dailyRate : null;
     }
 }

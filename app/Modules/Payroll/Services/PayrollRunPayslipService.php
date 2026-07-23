@@ -134,9 +134,8 @@ class PayrollRunPayslipService
             ->get()
             ->keyBy('id');
 
-        $payrollNumber = PayrollRun::query()
-            ->where('created_at', '<=', $payrollRun->created_at)
-            ->count();
+        $payrollNumber = (int) ($payrollRun->payroll_number
+            ?: PayrollRun::query()->where('created_at', '<=', $payrollRun->created_at)->count());
 
         $company = Company::query()->first();
         $otMultiplier = (float) config('payroll.overtime_multiplier', 1.5);
