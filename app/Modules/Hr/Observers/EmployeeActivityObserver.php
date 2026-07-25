@@ -68,8 +68,8 @@ class EmployeeActivityObserver
         };
 
         foreach ($employeeIds as $employeeId) {
-            activity(config('employee-activity.log_name', 'employee'))
-                ->causedBy(auth()->user())
+            \activity(config('employee-activity.log_name', 'employee'))
+                ->causedBy(\auth()->user())
                 ->performedOn($model)
                 ->event($event)
                 ->withProperties([
