@@ -1,0 +1,96 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [dev, prod]
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build & deploy (${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'dev') }})
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'dev') }}
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      CONTAINER_APP_API: ${{ vars.CONTAINER_APP_API }}
+      CONTAINER_APP_QUEUE: ${{ vars.CONTAINER_APP_QUEUE }}
+      CONTAINER_APP_SCHEDULER: ${{ vars.CONTAINER_APP_SCHEDULER }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push API image
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          IMAGE="${ACR_LOGIN_SERVER}/payroll-api:${IMAGE_TAG}"
+          LATEST="${ACR_LOGIN_SERVER}/payroll-api:latest"
+
+          docker buildx build \
+            --platform linux/amd64 \
+            --file Dockerfile \
+            --tag "$IMAGE" \
+            --tag "$LATEST" \
+            --push \
+            .
+
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy Container Apps
+        run: |
+          set -euo pipefail
+          for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
+            echo "Updating $app -> $IMAGE"
+            az containerapp update \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --image "$IMAGE" \
+              --output none
+          done
+
+      - name: Ensure API runs migrations on start
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP_API" \
+            --resource-group "$RESOURCE_GROUP" \
+            --set-env-vars "RUN_MIGRATIONS=true" "RUN_SEEDERS=false" \
+            --output none
+
+      - name: Summary
+        run: |
+          FQDN=$(az containerapp show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_API" --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Environment: \`${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'dev') }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://$FQDN" >> "$GITHUB_STEP_SUMMARY"
