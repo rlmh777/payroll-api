@@ -158,6 +158,14 @@ class UserController extends Controller
     }
 
     /**
+     * Add roles to a user (alias of assignRoles for PUT /users/{user}/roles).
+     */
+    public function addRoles(Request $request, User $user)
+    {
+        return $this->assignRoles($request, $user);
+    }
+
+    /**
      * Remove specific roles from a user.
      */
     public function removeRoles(Request $request, User $user)
