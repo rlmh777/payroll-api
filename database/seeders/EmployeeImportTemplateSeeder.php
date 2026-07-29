@@ -61,27 +61,36 @@ class EmployeeImportTemplateSeeder extends Seeder
 
     private function ensureReferenceData(): void
     {
-        $departments = [
+        // Keep in sync with DepartmentSeeder / current org chart.
+        $operations = Department::firstOrCreate(['name' => 'Operations'], ['parentId' => null]);
+        $finance = Department::firstOrCreate(['name' => 'Finance'], ['parentId' => null]);
+        $hr = Department::firstOrCreate(['name' => 'Human Resources'], ['parentId' => null]);
+        $it = Department::firstOrCreate(['name' => 'IT'], ['parentId' => null]);
+        $sales = Department::firstOrCreate(['name' => 'Sales'], ['parentId' => null]);
+        Department::firstOrCreate(['name' => 'Marketing'], ['parentId' => null]);
+
+        foreach ([
             'Bar',
             'Belize Rainforest Retreat',
             'Dining',
-            'Finance',
             'Gardeners',
             'Guest Services',
             'Kitchen',
-            'Marketing',
             'Natural History Center',
-            'Operations',
-            'Sales',
             'Security',
             'Staff Kitchen',
             'Storeroom',
             'Tours',
-        ];
-
-        foreach ($departments as $name) {
+        ] as $name) {
             Department::firstOrCreate(['name' => $name], ['parentId' => null]);
         }
+
+        Department::firstOrCreate(['name' => 'Payroll'], ['parentId' => $finance->id]);
+        Department::firstOrCreate(['name' => 'Accounting'], ['parentId' => $finance->id]);
+        Department::firstOrCreate(['name' => 'Recruiting'], ['parentId' => $hr->id]);
+        Department::firstOrCreate(['name' => 'Support'], ['parentId' => $operations->id]);
+        Department::firstOrCreate(['name' => 'Infrastructure'], ['parentId' => $it->id]);
+        Department::firstOrCreate(['name' => 'Field Sales'], ['parentId' => $sales->id]);
 
         $locality = Locality::query()->whereRaw('LOWER(name) = ?', ['san ignacio'])->first()
             ?? Locality::query()->first();
@@ -97,19 +106,23 @@ class EmployeeImportTemplateSeeder extends Seeder
             }
         }
 
-        foreach (['Business Office', 'Guava Limb Café', 'Resort', 'Head Office', 'Branch Office'] as $name) {
-            if (! $locality) {
-                continue;
+        if ($locality) {
+            foreach ([
+                ['name' => 'Head Office', 'address1' => '1 Administration Drive'],
+                ['name' => 'Branch Office', 'address1' => '45 Commerce Street'],
+                ['name' => 'Business Office', 'address1' => 'Business Office'],
+                ['name' => 'Guava Limb Café', 'address1' => 'Guava Limb Café'],
+                ['name' => 'Resort', 'address1' => 'Resort'],
+            ] as $site) {
+                Worksite::updateOrCreate(
+                    ['name' => $site['name']],
+                    [
+                        'address1' => $site['address1'],
+                        'address2' => null,
+                        'localityId' => $locality->id,
+                    ],
+                );
             }
-
-            Worksite::firstOrCreate(
-                ['name' => $name],
-                [
-                    'address1' => $name,
-                    'address2' => null,
-                    'localityId' => $locality->id,
-                ],
-            );
         }
     }
 

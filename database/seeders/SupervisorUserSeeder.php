@@ -95,10 +95,12 @@ class SupervisorUserSeeder extends Seeder
         }
 
         if ($supervisorEmployee) {
+            // Align 100002–100006 under the supervisor (Finance head). Leave 100007+
+            // on their seeded departments (e.g. Security) so re-seed matches current data.
             $subordinates = Employee::query()
                 ->where('id', '!=', $supervisorEmployee->id)
                 ->orderBy('code')
-                ->take(6)
+                ->take(5)
                 ->pluck('id');
 
             foreach ($subordinates as $subordinateId) {
