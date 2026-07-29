@@ -3,7 +3,6 @@
 namespace App\Modules\Hr\Http\Controllers;
 
 use App\Models\EmploymentDetail;
-use App\Modules\Hr\Services\Employment\EmploymentDetailVersionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,11 +20,6 @@ class EmploymentDetailsController extends Controller
         'chartOfAccount',
         'defaultPayPeriodGroup',
     ];
-
-    public function __construct(
-        private readonly EmploymentDetailVersionService $versionService,
-    ) {
-    }
 
     public function index(Request $request): JsonResponse
     {
@@ -97,38 +91,11 @@ class EmploymentDetailsController extends Controller
         $data = $this->normalizeOptionalTextFields($data);
         $data = $this->normalizeOptionalDates($data);
 
-        if (!$employmentDetails->isActive) {
-            if ($this->versionService->assignmentFieldsChanged($employmentDetails, $data)) {
-                return response()->json([
-                    'message' => 'Department, work site, and pay period group can only be changed on the active employment contract.',
-                ], 422);
-            }
-
-            $employmentDetails->update($data);
-
-            return response()->json([
-                'message' => 'Employment detail updated successfully',
-                'data' => $employmentDetails->fresh()->load(self::RELATIONS),
-                'revised' => false,
-            ]);
-        }
-
-        if ($this->versionService->assignmentFieldsChanged($employmentDetails, $data)) {
-            $successor = $this->versionService->revise($employmentDetails, $data);
-
-            return response()->json([
-                'message' => 'Employment contract revised with updated assignment.',
-                'data' => $successor->load(self::RELATIONS),
-                'revised' => true,
-            ]);
-        }
-
         $employmentDetails->update($data);
 
         return response()->json([
             'message' => 'Employment detail updated successfully',
             'data' => $employmentDetails->fresh()->load(self::RELATIONS),
-            'revised' => false,
         ]);
     }
 
