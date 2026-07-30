@@ -5,7 +5,6 @@ namespace Tests\Unit\Attendance;
 use App\Enums\ScheduleComparisonSource;
 use App\Models\Timesheet;
 use App\Modules\Hr\Services\Attendance\TimesheetScheduleCoverageService;
-use App\Modules\Hr\Services\Attendance\TimesheetScheduledHoursResolver;
 use Carbon\Carbon;
 use Tests\TestCase;
 
@@ -159,9 +158,7 @@ class TimesheetScheduleCoverageServiceTest extends TestCase
 
     private function makeService(): TimesheetScheduleCoverageService
     {
-        return new TimesheetScheduleCoverageService(
-            $this->createMock(TimesheetScheduledHoursResolver::class),
-        );
+        return new TimesheetScheduleCoverageService();
     }
 
     /**

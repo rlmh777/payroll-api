@@ -18,18 +18,29 @@ class AttendanceSetting extends Model
         'clockRoundOffMinutes' => 'integer',
     ];
 
+    private static ?self $cachedCurrent = null;
+
     public static function current(): self
     {
+        if (self::$cachedCurrent !== null) {
+            return self::$cachedCurrent;
+        }
+
         $setting = static::query()->first();
 
         if ($setting) {
-            return $setting;
+            return self::$cachedCurrent = $setting;
         }
 
-        return static::query()->create([
+        return self::$cachedCurrent = static::query()->create([
             'clockRoundOffMinutes' => (int) config('attendance.clock_round_off_minutes', 30),
             'scheduleComparisonSource' => config('attendance.schedule_comparison_source', ScheduleComparisonSource::Rounded->value),
         ]);
+    }
+
+    public static function clearCurrentCache(): void
+    {
+        self::$cachedCurrent = null;
     }
 
     public function scheduleComparisonSourceEnum(): ScheduleComparisonSource

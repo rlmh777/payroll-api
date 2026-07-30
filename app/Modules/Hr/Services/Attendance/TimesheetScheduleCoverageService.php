@@ -14,11 +14,6 @@ class TimesheetScheduleCoverageService
 {
     private ?ScheduleComparisonSource $comparisonSource = null;
 
-    public function __construct(
-        private readonly TimesheetScheduledHoursResolver $scheduledHoursResolver,
-    ) {
-    }
-
     public function setComparisonSource(?ScheduleComparisonSource $comparisonSource): void
     {
         $this->comparisonSource = $comparisonSource;
@@ -137,7 +132,10 @@ class TimesheetScheduleCoverageService
             }
         }
 
-        return $this->scheduledHoursResolver->scheduledWindowForTimesheet($timesheet);
+        // Do not fall back to TimesheetScheduledHoursResolver here: that path is N+1
+        // (template + employment lookups per row). List endpoints already bulk-load
+        // schedule slots via buildScheduleSlots(); missing slot => outside schedule.
+        return null;
     }
 
     /**
@@ -210,7 +208,9 @@ class TimesheetScheduleCoverageService
             return $this->comparisonSource;
         }
 
-        return AttendanceSetting::current()->scheduleComparisonSourceEnum();
+        $this->comparisonSource = AttendanceSetting::current()->scheduleComparisonSourceEnum();
+
+        return $this->comparisonSource;
     }
 
     /**

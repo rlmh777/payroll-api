@@ -27,6 +27,8 @@ class AttendanceSettingController extends Controller
 
         $setting = AttendanceSetting::current();
         $setting->update($validated);
+        AttendanceSetting::clearCurrentCache();
+        $setting = AttendanceSetting::current();
 
         return response()->json([
             'message' => 'Attendance settings updated.',

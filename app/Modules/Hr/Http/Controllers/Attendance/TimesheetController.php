@@ -95,6 +95,8 @@ class TimesheetController extends Controller
             ->paginate(max(1, min($perPage, 500)));
 
         $scheduleSlots = $this->scheduleCoverage->buildScheduleSlots($timesheets->getCollection());
+        $scheduleComparisonSource = AttendanceSetting::current()->scheduleComparisonSourceEnum();
+        $this->scheduleCoverage->setComparisonSource($scheduleComparisonSource);
         $this->timesheetEditLockService->warmCache($timesheets->getCollection());
         $this->timesheetPayrollPaidStatusService->warmCache($timesheets->getCollection());
 
@@ -104,7 +106,7 @@ class TimesheetController extends Controller
 
         $payload = $timesheets->toArray();
         $payload['summary'] = $this->formatSummary($summary);
-        $payload['scheduleComparisonSource'] = AttendanceSetting::current()->scheduleComparisonSourceEnum()->value;
+        $payload['scheduleComparisonSource'] = $scheduleComparisonSource->value;
 
         return response()->json($payload);
     }
