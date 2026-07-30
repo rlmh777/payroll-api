@@ -41,7 +41,7 @@ class WorksiteController extends Controller
             $query->orderBy('name', 'asc');
         }
 
-        $perPage = (int) $request->get('per_page', 10);
+        $perPage = (int) $request->get('per_page', 20);
         $worksites = $query->paginate($perPage);
 
         return response()->json($worksites);

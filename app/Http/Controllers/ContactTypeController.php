@@ -33,7 +33,7 @@ class ContactTypeController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $contactTypes = $query->paginate($perPage);
 
         return response()->json($contactTypes);

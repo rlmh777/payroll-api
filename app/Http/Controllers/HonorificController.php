@@ -33,7 +33,7 @@ class HonorificController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $honorifics = $query->paginate($perPage);
 
         return response()->json($honorifics);

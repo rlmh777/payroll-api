@@ -38,7 +38,7 @@ class CountryController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $countries = $query->paginate($perPage);
 
         return response()->json($countries);
@@ -151,7 +151,7 @@ class CountryController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $districts = $query->paginate($perPage);
 
         return response()->json([

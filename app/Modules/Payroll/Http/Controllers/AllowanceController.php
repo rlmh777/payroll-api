@@ -52,7 +52,7 @@ class AllowanceController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $allowances = $query->paginate($perPage);
 
         return response()->json($allowances);

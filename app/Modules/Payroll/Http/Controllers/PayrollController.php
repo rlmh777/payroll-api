@@ -61,7 +61,7 @@ class PayrollController extends Controller
             $query->orderByDesc('date');
         }
 
-        return response()->json($query->paginate((int) $request->get('per_page', 10)));
+        return response()->json($query->paginate((int) $request->get('per_page', 20)));
     }
 
     public function store(Request $request): JsonResponse

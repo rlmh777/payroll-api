@@ -37,7 +37,7 @@ class EmployeeBankController extends Controller
         $query->orderBy($sortBy, $sortDirection)
             ->orderBy('created_at', 'desc');
 
-        $perPage = (int) $request->input('per_page', 10);
+        $perPage = (int) $request->input('per_page', 20);
         $employeeBanks = $query->paginate($perPage);
 
         return response()->json($employeeBanks);

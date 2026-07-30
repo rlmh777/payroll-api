@@ -45,7 +45,7 @@ class PersonalReliefController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $personalReliefs = $query->paginate($perPage);
 
         return response()->json($personalReliefs);

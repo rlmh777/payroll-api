@@ -30,7 +30,7 @@ class BankAccountTypeController extends Controller
             $query->orderBy('name', 'asc');
         }
 
-        $bankAccountTypes = $query->paginate((int) $request->input('per_page', 10));
+        $bankAccountTypes = $query->paginate((int) $request->input('per_page', 20));
 
         return response()->json($bankAccountTypes);
     }

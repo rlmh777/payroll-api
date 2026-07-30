@@ -33,7 +33,7 @@ class GenderController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $genders = $query->paginate($perPage);
 
         return response()->json($genders);

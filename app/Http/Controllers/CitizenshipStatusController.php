@@ -33,7 +33,7 @@ class CitizenshipStatusController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $citizenshipStatuses = $query->paginate($perPage);
 
         return response()->json($citizenshipStatuses);

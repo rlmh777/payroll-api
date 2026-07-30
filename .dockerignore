@@ -1,3 +1,4 @@
+# Azure production image context (copied into payroll-api during deploy)
 .git
 .github
 .idea
@@ -13,8 +14,5 @@ bootstrap/cache/*
 .env
 .env.*
 !.env.example
-docs
-tests
-phpunit.xml
-docker-compose.yml
-run-sail.sh
+Dockerfile.azure
+docker-entrypoint.azure.sh

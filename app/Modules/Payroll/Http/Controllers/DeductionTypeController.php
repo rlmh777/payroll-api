@@ -41,7 +41,7 @@ class DeductionTypeController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $deductionTypes = $query->paginate($perPage);
 
         return response()->json($deductionTypes);

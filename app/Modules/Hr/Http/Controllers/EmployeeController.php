@@ -157,7 +157,7 @@ class EmployeeController extends Controller
             $query->orderByPersonName('lastName', 'asc');
         }
 
-        $perPage = $request->input('per_page', 10);
+        $perPage = $request->input('per_page', 20);
 
         return response()->json($query->paginate($perPage));
     }

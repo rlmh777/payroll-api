@@ -28,7 +28,7 @@ class CompanyController extends Controller
         }
 
         $company = $query->first();
-        $perPage = max((int) $request->get('per_page', 10), 1);
+        $perPage = max((int) $request->get('per_page', 20), 1);
 
         return response()->json([
             'data' => $company ? [$company] : [],

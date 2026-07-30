@@ -39,7 +39,7 @@ class EmployeeDefaultAllowanceController extends Controller
         $sortDirection = $request->input('sort_direction', 'desc');
         $query->orderBy($sortBy, $sortDirection);
 
-        $perPage = $request->input('per_page', 10);
+        $perPage = $request->input('per_page', 20);
         $allowances = $query->paginate($perPage);
 
         return response()->json($allowances);

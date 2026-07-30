@@ -45,7 +45,7 @@ class DepartmentController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $departments = $query->paginate($perPage);
 
         return response()->json($departments);

@@ -53,7 +53,7 @@ class SocialSecurityController extends Controller
         }
 
         // Pagination
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 20);
         $socialSecurities = $query->paginate($perPage);
 
         return response()->json($socialSecurities);

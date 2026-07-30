@@ -49,7 +49,7 @@ class QualificationController extends Controller
         $query->orderBy($sortBy, $sortDirection);
 
         // Paginate
-        $perPage = $request->input('per_page', 10);
+        $perPage = $request->input('per_page', 20);
         $qualifications = $query->paginate($perPage);
 
         return response()->json($qualifications);
