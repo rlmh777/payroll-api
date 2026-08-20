@@ -110,6 +110,10 @@ return [
         'payroll-earning-lines' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'payroll-runs' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'payroll-settings' => ['view' => 'manager-tax', 'write' => 'manager-tax'],
+        'tax-calculator-rates' => ['view' => 'view-tax-calculator', 'write' => 'tax-calculator-crud'],
+        'tax-calculator-accounts' => ['view' => 'view-tax-calculator', 'write' => 'tax-calculator-crud'],
+        'tax-calculator-runs' => ['view' => 'view-reports', 'write' => 'tax-calculator-crud'],
+        'tax-calculator-purchase-ledger' => ['view' => 'view-reports', 'write' => 'tax-calculator-crud'],
         'payrolls' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'permissions' => ['view' => 'view-roles', 'write' => 'permissions-crud'],
         'personal-relief' => ['view' => 'manager-tax', 'write' => 'manager-tax'],
@@ -154,5 +158,6 @@ return [
         'POST clocking-logs/import' => 'import-clocking-logs',
         'GET employee-leave-balances' => 'view-leave',
         'GET employee-leave-balances/selectable-employees' => 'view-leave',
+        'POST tax-calculator-runs/preview' => 'view-reports',
     ],
 ];

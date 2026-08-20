@@ -108,6 +108,8 @@ class SuperAdminSeeder extends Seeder
             'view-pay-period-groups',
             'view-overview',
             'view-taxes',
+            'view-tax-calculator',
+            'tax-calculator-crud',
             'view-clocking-logs',
             'import-clocking-logs',
             'view-attendance-settings',

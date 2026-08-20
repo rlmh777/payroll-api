@@ -30,6 +30,11 @@ class Account extends Model
         return $this->hasMany(EmployeeDefaultDeduction::class, 'accountId');
     }
 
+    public function taxCalculatorAccount(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(TaxCalculatorAccount::class, 'account_id');
+    }
+
     public function employmentDetails(): HasMany {
         return $this->hasMany(EmploymentDetail::class, 'accountId');
     }

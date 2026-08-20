@@ -64,7 +64,8 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($settings->id, 'Social Security', '/settings/social-security', 'fa-solid fa-city', 'manager-social-security', 6);
         $this->createSubMenu($settings->id, 'Personal Relief', '/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7);
         $this->createSubMenu($settings->id, 'Payroll Settings', '/settings/payroll-settings', 'fa-solid fa-percent', 'manager-tax', 8);
-        $this->createSubMenu($settings->id, 'Users', '/settings/users', 'fa-solid fa-users', 'manager-users', 9);
+        $this->createSubMenu($settings->id, 'GST Calculator', '/settings/tax-calculator-accounts', 'fa-solid fa-file-invoice-dollar', 'view-tax-calculator', 9);
+        $this->createSubMenu($settings->id, 'Users', '/settings/users', 'fa-solid fa-users', 'manager-users', 11);
         $this->createSubMenu($settings->id, 'Database Backup', '/settings/database-backup', 'fas fa-database', 'view-database-backup', 20);
         // $holidays = $this->createSubMenu($settings->id, 'Holidays', '/settings/holidays', 'fas fa-calendar-times', 'view-holidays', 4);
         // $rolesAndMenus = $this->createSubMenu($settings->id, 'Roles and Menus', '/settings/roles-menus', 'fas fa-users-cog', 'view-roles-menus', 5);
@@ -242,6 +243,8 @@ class MenuSeeder extends Seeder
             'view-employee-day-work',
             'employee-day-work-crud',
             'view-taxes',
+            'view-tax-calculator',
+            'tax-calculator-crud',
 
             // Roles and Menus permissions
             'roles-crud',

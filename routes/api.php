@@ -62,6 +62,10 @@ use App\Modules\Payroll\Http\Controllers\PayPeriodScheduleAiController;
 use App\Modules\Payroll\Http\Controllers\PayrollController;
 use App\Modules\Payroll\Http\Controllers\PayrollEarningCodeController;
 use App\Modules\Payroll\Http\Controllers\PayrollAccountMappingController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorAccountController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorRateController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorRunController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorPurchaseLedgerController;
 use App\Modules\Core\Http\Controllers\DatabaseBackupController;
 use App\Modules\Payroll\Http\Controllers\DashboardController;
 use App\Modules\Payroll\Http\Controllers\PayrollEarningLineController;
@@ -881,6 +885,38 @@ Route::prefix('payroll-account-mappings')->group(function () {
     Route::get('/{payrollAccountMapping}', [PayrollAccountMappingController::class, 'show']);
     Route::put('/{payrollAccountMapping}', [PayrollAccountMappingController::class, 'update']);
     Route::delete('/{payrollAccountMapping}', [PayrollAccountMappingController::class, 'destroy']);
+});
+
+Route::prefix('tax-calculator-rates')->group(function () {
+    Route::get('/', [TaxCalculatorRateController::class, 'index']);
+    Route::post('/', [TaxCalculatorRateController::class, 'store']);
+    Route::get('/{taxCalculatorRate}', [TaxCalculatorRateController::class, 'show']);
+    Route::put('/{taxCalculatorRate}', [TaxCalculatorRateController::class, 'update']);
+    Route::delete('/{taxCalculatorRate}', [TaxCalculatorRateController::class, 'destroy']);
+});
+
+Route::prefix('tax-calculator-accounts')->group(function () {
+    Route::get('/', [TaxCalculatorAccountController::class, 'index']);
+    Route::post('/', [TaxCalculatorAccountController::class, 'store']);
+    Route::get('/{taxCalculatorAccount}', [TaxCalculatorAccountController::class, 'show']);
+    Route::put('/{taxCalculatorAccount}', [TaxCalculatorAccountController::class, 'update']);
+    Route::delete('/{taxCalculatorAccount}', [TaxCalculatorAccountController::class, 'destroy']);
+});
+
+Route::prefix('tax-calculator-purchase-ledger')->group(function () {
+    Route::get('/exclusions', [TaxCalculatorPurchaseLedgerController::class, 'exclusions']);
+    Route::post('/exclusions', [TaxCalculatorPurchaseLedgerController::class, 'storeExclusion']);
+    Route::delete('/exclusions/{exclusion}', [TaxCalculatorPurchaseLedgerController::class, 'destroyExclusion']);
+});
+
+Route::prefix('tax-calculator-runs')->group(function () {
+    Route::get('/', [TaxCalculatorRunController::class, 'index']);
+    Route::get('/workspace', [TaxCalculatorRunController::class, 'workspace']);
+    Route::post('/preview', [TaxCalculatorRunController::class, 'preview']);
+    Route::post('/import', [TaxCalculatorRunController::class, 'import']);
+    Route::post('/purchase-ledger/import', [TaxCalculatorRunController::class, 'importPurchaseLedger']);
+    Route::post('/', [TaxCalculatorRunController::class, 'store']);
+    Route::delete('/{taxCalculatorRun}', [TaxCalculatorRunController::class, 'destroy']);
 });
 
 // Payroll earning lines
