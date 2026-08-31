@@ -48,6 +48,10 @@ class MenuController extends Controller
             $query->where('is_active', $request->boolean('is_active'));
         }
 
+        if ($request->filled('module_code')) {
+            $query->where('module_code', $request->input('module_code'));
+        }
+
         // Get hierarchy if requested
         if ($request->boolean('hierarchy')) {
             $query->rootMenus();
@@ -75,6 +79,9 @@ class MenuController extends Controller
             'order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
             'type' => 'nullable|string|in:menu,submenu',
+            'module_code' => 'nullable|string|max:64|exists:modules,code',
+            'source' => 'nullable|string|in:system,custom',
+            'system_key' => 'nullable|string|max:128|unique:menus,system_key',
         ]);
 
         if ($validator->fails()) {
@@ -84,6 +91,14 @@ class MenuController extends Controller
         // Auto-set type based on parent_id
         if (! $request->has('type')) {
             $request->merge(['type' => $request->has('parent_id') ? 'submenu' : 'menu']);
+        }
+
+        if (! $request->has('source')) {
+            $request->merge(['source' => 'custom']);
+        }
+
+        if (! $request->filled('module_code')) {
+            $request->merge(['module_code' => config('modules.default_module', 'payroll')]);
         }
 
         $menu = Menu::create($request->all());
@@ -116,6 +131,9 @@ class MenuController extends Controller
             'order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
             'type' => 'nullable|string|in:menu,submenu',
+            'module_code' => 'nullable|string|max:64|exists:modules,code',
+            'source' => 'nullable|string|in:system,custom',
+            'system_key' => 'nullable|string|max:128|unique:menus,system_key,'.$menu->id,
         ]);
 
         if ($validator->fails()) {

@@ -39,6 +39,7 @@ class DatabaseSeeder extends Seeder
             PayrollChartOfAccountsSeeder::class,
             PayrollEarningCodeSeeder::class,
             CompanySeeder::class,
+            ModuleSeeder::class,
             DepartmentSeeder::class,
             WorksiteSeeder::class,
             TimesheetTemplateSeeder::class,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\CompanyModuleService;
 use App\Services\MenuAuthorizationService;
 use App\Models\Role;
 use Illuminate\Http\Request;
@@ -351,7 +352,7 @@ class UserController extends Controller
     /**
      * Get top-level menus accessible to the authenticated user based on permissions.
      */
-    public function topLevelMenus(Request $request, MenuAuthorizationService $menuAuthorizationService)
+    public function topLevelMenus(Request $request, MenuAuthorizationService $menuAuthorizationService, CompanyModuleService $companyModuleService)
     {
         $user = $request->user();
 
@@ -359,7 +360,7 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $tree = $menuAuthorizationService->menuTreeForUser($user);
+        $tree = $menuAuthorizationService->menuTreeForUser($user, $companyModuleService->enabledModuleCodes());
 
         return response()->json(collect($tree)->map(function (array $menu) {
             return [
@@ -382,7 +383,7 @@ class UserController extends Controller
     /**
      * Get the full menu tree accessible to the authenticated user.
      */
-    public function userMenus(Request $request, MenuAuthorizationService $menuAuthorizationService)
+    public function userMenus(Request $request, MenuAuthorizationService $menuAuthorizationService, CompanyModuleService $companyModuleService)
     {
         $user = $request->user();
 
@@ -390,6 +391,8 @@ class UserController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        return response()->json($menuAuthorizationService->menuTreeForUser($user));
+        $enabledCodes = $companyModuleService->enabledModuleCodes();
+
+        return response()->json($menuAuthorizationService->menuTreeForUser($user, $enabledCodes));
     }
 }

@@ -2,171 +2,268 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Menu;
 use App\Models\Permission;
 use App\Models\Role;
+use Illuminate\Database\Seeder;
 
 class MenuSeeder extends Seeder
 {
+    private const MODULE_CODE = 'payroll';
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        // Create permissions first
         $this->createPermissions();
 
-        // Create main navigation menus
-        $this->createMenu('Dashboard', '/', 'fas fa-tachometer-alt', 'view-dashboard', 1);
-
-        $employees = Menu::query()
-            ->where('route', '/employees')
-            ->where('type', 'menu')
-            ->first();
-
-        if (!$employees) {
-            $employees = $this->createMenu('Employees', '/employees', 'fas fa-user-friends', 'view-employees', 2);
-        }
-
-        $this->ensureSubMenu($employees->id, 'Add Employee', '/employees/new', 'person_add', 'employees-crud', 1);
-        $this->ensureSubMenu($employees->id, 'Import Employees', '/employees/import', 'upload_file', 'employees-crud', 2);
-
-        $settings = $this->createMenu('Settings', '/settings', 'fas fa-cog', 'view-settings', 3);
-        $this->createMenu('Scheduler', '/scheduler', 'fas fa-calendar-week', 'view-calendars', 4);
-        if (!Menu::query()->where('route', '/timesheet')->where('type', 'menu')->exists()) {
-            $this->createMenu('Timesheet', '/timesheet', 'fas fa-clock', 'view-timesheets', 5);
-        }
-
-        $leaves = Menu::query()
-            ->where('route', '/leaves')
-            ->where('type', 'menu')
-            ->first();
-
-        if (!$leaves) {
-            $leaves = $this->createMenu('Leaves', '/leaves', 'fas fa-calendar-check', 'view-leave', 6);
-        }
-
-        $this->ensureSubMenu($leaves->id, 'Leave List', '/leaves/list', 'list_alt', 'view-leave', 1);
-        $this->ensureSubMenu($leaves->id, 'Assign Leave', '/leaves/assign', 'event_available', 'leave-crud', 2);
-        $this->ensureSubMenu($leaves->id, 'Request Leave', '/leaves/request', 'add_task', 'view-leave', 3);
-        $this->ensureSubMenu($leaves->id, 'My Leave Usage', '/leaves/my-usage', 'pie_chart', 'view-leave', 4);
-        $this->ensureSubMenu($leaves->id, 'Leave Calendar', '/leaves/calendar', 'calendar_month', 'view-leave', 5);
-        $this->ensureSubMenu($leaves->id, 'Leave Entitlement', '/leaves/entitlement', 'card_membership', 'view-leave', 6);
-        $this->ensureSubMenu($leaves->id, 'Leave Types', '/leaves/types', 'event_busy', 'view-leave-types', 7);
-
-        // Create Settings submenus
-        $general = $this->createSubMenu($settings->id, 'General', '/settings', 'fas fa-sliders-h', 'view-general', 1);
-        $this->createSubMenu($settings->id, 'Organization', '/settings/organization', 'fas fa-building', 'view-organization', 2);
-        $this->createSubMenu($settings->id, 'Accounts', '/settings/accounts', 'fas fa-wallet', 'view-accounts', 3);
-        $this->createSubMenu($settings->id, 'Account Mapping', '/settings/account-mapping', 'fas fa-project-diagram', 'view-account-mappings', 4);
-        //$calendars = $this->createSubMenu($settings->id, 'Calendars', '/settings/calendars', 'fas fa-calendar', 'view-calendars', 5);
-        $this->createSubMenu($settings->id, 'Social Security', '/settings/social-security', 'fa-solid fa-city', 'manager-social-security', 6);
-        $this->createSubMenu($settings->id, 'Personal Relief', '/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7);
-        $this->createSubMenu($settings->id, 'Payroll Settings', '/settings/payroll-settings', 'fa-solid fa-percent', 'manager-tax', 8);
-        $this->createSubMenu($settings->id, 'GST Calculator', '/settings/tax-calculator-accounts', 'fa-solid fa-file-invoice-dollar', 'view-tax-calculator', 9);
-        $this->createSubMenu($settings->id, 'Users', '/settings/users', 'fa-solid fa-users', 'manager-users', 11);
-        $this->createSubMenu($settings->id, 'Database Backup', '/settings/database-backup', 'fas fa-database', 'view-database-backup', 20);
-        // $holidays = $this->createSubMenu($settings->id, 'Holidays', '/settings/holidays', 'fas fa-calendar-times', 'view-holidays', 4);
-        // $rolesAndMenus = $this->createSubMenu($settings->id, 'Roles and Menus', '/settings/roles-menus', 'fas fa-users-cog', 'view-roles-menus', 5);
-        // $payItems = $this->createSubMenu($settings->id, 'Pay Items', '/settings/pay-items', 'fas fa-money-bill-wave', 'view-pay-items', 6);
-
-        // Create General submenus (under Settings > General)
-        $this->createSubMenu($general->id, 'Country', '/settings/country', 'fas fa-globe', 'view-country', 1);
-        $this->createSubMenu($general->id, 'District', '/settings/district', 'fas fa-map-marker-alt', 'view-district', 2);
-        $this->createSubMenu($general->id, 'Locality', '/settings/locality', 'fas fa-map-pin', 'view-locality', 3);
-        $this->createSubMenu($general->id, 'Institution', '/settings/institution', 'fas fa-university', 'view-institution', 4);
-        // $this->createSubMenu($general->id, 'Honorific', '/settings/honorific', 'fas fa-user-tie', 'view-honorific', 5);
-        $this->createSubMenu($general->id, 'Relationship', '/settings/relationship', 'fas fa-users', 'view-relationship', 6);
-        $this->createSubMenu($general->id, 'Bank Account Type', '/settings/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7);
-        $this->createSubMenu($general->id, 'Payroll Earning Codes', '/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8);
-        $this->ensureSubMenu($general->id, 'Pool Distribution', '/settings/pool-distribution-types', 'fas fa-chart-pie', 'view-pool-distribution-types', 9);
-        $this->createSubMenu($general->id, 'Timesheet Templates', '/settings/timesheet-templates', 'fas fa-clock', 'view-timesheet-templates', 9);
-        $this->createSubMenu($general->id, 'Degree', '/settings/degree', 'fas fa-graduation-cap', 'view-degree', 10);
-        $this->ensureSubMenu($general->id, 'Job Titles', '/settings/job-titles', 'work', 'view-job-title', 16);
-        $this->createSubMenu($general->id, 'Department', '/settings/department', 'fas fa-sitemap', 'view-department', 11);
-        // $this->createSubMenu($general->id, 'Gender', '/settings/gender', 'fas fa-venus-mars', 'view-gender', 12);
-        $this->createSubMenu($general->id, 'Work Site', '/settings/worksite', 'fas fa-map', 'view-worksite', 12);
-        $this->createSubMenu($general->id, 'Public Holidays', '/settings/holidays', 'event', 'view-holidays', 13);
-        $this->createSubMenu($general->id, 'Attendance', '/settings/attendance', 'schedule', 'view-attendance-settings', 14);
-        $this->ensureSubMenu($general->id, 'Employee Groups', '/settings/employee-groups', 'groups', 'view-employee-groups', 15);
-        $this->createSubMenu($general->id, 'Department Heads', '/settings/department-heads', 'supervisor_account', 'view-department-heads', 16);
-        $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 7);
-        $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
-        $this->createSubMenu($payroll->id, 'Pay Period', '/payroll/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 2);
-        $this->createSubMenu($payroll->id, 'Payroll Run', '/payroll/payroll-run', 'fas fa-money-check-alt', 'view-payroll', 3);
-        $this->createSubMenu($payroll->id, 'Other Payments', '/payroll/allowances', 'fas fa-hand-holding-usd', 'view-payroll-allowances', 4);
-        $this->createSubMenu($payroll->id, 'Day / trip work', '/payroll/day-work', 'fas fa-route', 'view-employee-day-work', 5);
-        $this->createSubMenu($payroll->id, 'Generate Payslip', '/payroll/generate-payslip', 'fas fa-file-invoice-dollar', 'view-payroll', 6);
-        $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 7);
-
-        // Create Roles and Menus submenus
-        $this->createSubMenu($settings->id, 'Roles', '/settings/roles', 'fas fa-user-shield', 'view-roles', 9);
-        $this->createSubMenu($settings->id, 'Menu', '/settings/menu', 'fas fa-bars', 'view-menu', 10);
-        $this->createMenu('Reports', '/reports', 'fas fa-chart-bar', 'view-reports', 8);
-    }
-
-    /**
-     * Create a main menu item
-     */
-    private function createMenu($title, $route, $icon, $permission, $order)
-    {
-        return Menu::create([
-            'title' => $title,
-            'route' => $route,
-            'icon' => $icon,
-            'permission' => $permission,
-            'order' => $order,
+        $this->ensureMenu([
+            'title' => 'Dashboard',
+            'route' => '/',
+            'icon' => 'fas fa-tachometer-alt',
+            'permission' => 'view-dashboard',
+            'order' => 1,
             'type' => 'menu',
-            'is_active' => true
+            'system_key' => 'core.dashboard',
         ]);
-    }
 
-    /**
-     * Create a submenu item
-     */
-    private function createSubMenu($parentId, $title, $route, $icon, $permission, $order)
-    {
-        return Menu::create([
-            'parent_id' => $parentId,
-            'title' => $title,
-            'route' => $route,
-            'icon' => $icon,
-            'permission' => $permission,
-            'order' => $order,
+        $employees = $this->ensureMenu([
+            'title' => 'Employees',
+            'route' => '/payroll/employees',
+            'icon' => 'fas fa-user-friends',
+            'permission' => 'view-employees',
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'hr.employees',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $employees->id,
+            'title' => 'Add Employee',
+            'route' => '/payroll/employees/new',
+            'icon' => 'person_add',
+            'permission' => 'employees-crud',
+            'order' => 1,
             'type' => 'submenu',
-            'is_active' => true
         ]);
-    }
 
-    private function ensureSubMenu($parentId, $title, $route, $icon, $permission, $order)
-    {
-        $existing = Menu::query()->where('route', $route)->first();
+        $this->ensureMenu([
+            'parent_id' => $employees->id,
+            'title' => 'Import Employees',
+            'route' => '/payroll/employees/import',
+            'icon' => 'upload_file',
+            'permission' => 'employees-crud',
+            'order' => 2,
+            'type' => 'submenu',
+        ]);
 
-        if ($existing) {
-            $existing->update([
-                'parent_id' => $parentId,
+        $settings = $this->ensureMenu([
+            'title' => 'Settings',
+            'route' => '/payroll/settings',
+            'icon' => 'fas fa-cog',
+            'permission' => 'view-settings',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'admin.settings',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Scheduler',
+            'route' => '/payroll/scheduler',
+            'icon' => 'fas fa-calendar-week',
+            'permission' => 'view-calendars',
+            'order' => 4,
+            'type' => 'menu',
+            'system_key' => 'hr.scheduler',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Timesheet',
+            'route' => '/payroll/timesheet',
+            'icon' => 'fas fa-clock',
+            'permission' => 'view-timesheets',
+            'order' => 5,
+            'type' => 'menu',
+            'system_key' => 'hr.timesheet',
+        ]);
+
+        $leaves = $this->ensureMenu([
+            'title' => 'Leaves',
+            'route' => '/payroll/leaves',
+            'icon' => 'fas fa-calendar-check',
+            'permission' => 'view-leave',
+            'order' => 6,
+            'type' => 'menu',
+            'system_key' => 'hr.leaves',
+        ]);
+
+        $leaveSubmenus = [
+            ['Leave List', '/payroll/leaves/list', 'list_alt', 'view-leave', 1],
+            ['Assign Leave', '/payroll/leaves/assign', 'event_available', 'leave-crud', 2],
+            ['Request Leave', '/payroll/leaves/request', 'add_task', 'view-leave', 3],
+            ['My Leave Usage', '/payroll/leaves/my-usage', 'pie_chart', 'view-leave', 4],
+            ['Leave Calendar', '/payroll/leaves/calendar', 'calendar_month', 'view-leave', 5],
+            ['Leave Entitlement', '/payroll/leaves/entitlement', 'card_membership', 'view-leave', 6],
+            ['Leave Types', '/payroll/leaves/types', 'event_busy', 'view-leave-types', 7],
+        ];
+
+        foreach ($leaveSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $leaves->id,
                 'title' => $title,
+                'route' => $route,
                 'icon' => $icon,
                 'permission' => $permission,
                 'order' => $order,
                 'type' => 'submenu',
-                'is_active' => true,
             ]);
-
-            return $existing;
         }
 
-        return $this->createSubMenu($parentId, $title, $route, $icon, $permission, $order);
+        $general = $this->ensureMenu([
+            'parent_id' => $settings->id,
+            'title' => 'General',
+            'route' => '/payroll/settings',
+            'icon' => 'fas fa-sliders-h',
+            'permission' => 'view-general',
+            'order' => 1,
+            'type' => 'submenu',
+        ]);
+
+        $settingsSubmenus = [
+            ['Organization', '/payroll/settings/organization', 'fas fa-building', 'view-organization', 2],
+            ['Accounts', '/payroll/settings/accounts', 'fas fa-wallet', 'view-accounts', 3],
+            ['Account Mapping', '/payroll/settings/account-mapping', 'fas fa-project-diagram', 'view-account-mappings', 4],
+            ['Social Security', '/payroll/settings/social-security', 'fa-solid fa-city', 'manager-social-security', 6],
+            ['Personal Relief', '/payroll/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7],
+            ['Payroll Settings', '/payroll/settings/payroll-settings', 'fa-solid fa-percent', 'manager-tax', 8],
+            ['GST Calculator', '/payroll/settings/tax-calculator-accounts', 'fa-solid fa-file-invoice-dollar', 'view-tax-calculator', 9],
+            ['Roles', '/payroll/settings/roles', 'fas fa-user-shield', 'view-roles', 9],
+            ['Menu', '/payroll/settings/menu', 'fas fa-bars', 'view-menu', 10],
+            ['Modules', '/payroll/settings/modules', 'apps', 'manage-modules', 11],
+            ['Users', '/payroll/settings/users', 'fa-solid fa-users', 'manager-users', 12],
+            ['Database Backup', '/payroll/settings/database-backup', 'fas fa-database', 'view-database-backup', 20],
+        ];
+
+        foreach ($settingsSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $settings->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'system_key' => $route === '/payroll/settings/modules' ? 'admin.modules' : null,
+            ]);
+        }
+
+        $generalSubmenus = [
+            ['Country', '/payroll/settings/country', 'fas fa-globe', 'view-country', 1],
+            ['District', '/payroll/settings/district', 'fas fa-map-marker-alt', 'view-district', 2],
+            ['Locality', '/payroll/settings/locality', 'fas fa-map-pin', 'view-locality', 3],
+            ['Institution', '/payroll/settings/institution', 'fas fa-university', 'view-institution', 4],
+            ['Relationship', '/payroll/settings/relationship', 'fas fa-users', 'view-relationship', 6],
+            ['Bank Account Type', '/payroll/settings/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7],
+            ['Payroll Earning Codes', '/payroll/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8],
+            ['Pool Distribution', '/payroll/settings/pool-distribution-types', 'fas fa-chart-pie', 'view-pool-distribution-types', 9],
+            ['Timesheet Templates', '/payroll/settings/timesheet-templates', 'fas fa-clock', 'view-timesheet-templates', 9],
+            ['Degree', '/payroll/settings/degree', 'fas fa-graduation-cap', 'view-degree', 10],
+            ['Job Titles', '/payroll/settings/job-titles', 'work', 'view-job-title', 16],
+            ['Department', '/payroll/settings/department', 'fas fa-sitemap', 'view-department', 11],
+            ['Work Site', '/payroll/settings/worksite', 'fas fa-map', 'view-worksite', 12],
+            ['Public Holidays', '/payroll/settings/holidays', 'event', 'view-holidays', 13],
+            ['Attendance', '/payroll/settings/attendance', 'schedule', 'view-attendance-settings', 14],
+            ['Employee Groups', '/payroll/settings/employee-groups', 'groups', 'view-employee-groups', 15],
+            ['Department Heads', '/payroll/settings/department-heads', 'supervisor_account', 'view-department-heads', 16],
+        ];
+
+        foreach ($generalSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $general->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+            ]);
+        }
+
+        $payroll = $this->ensureMenu([
+            'title' => 'Payroll',
+            'route' => '/payroll',
+            'icon' => 'fas fa-money-check-alt',
+            'permission' => 'view-payroll',
+            'order' => 7,
+            'type' => 'menu',
+            'system_key' => 'payroll.root',
+        ]);
+
+        $payrollSubmenus = [
+            ['Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1],
+            ['Pay Period', '/payroll/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 2],
+            ['Payroll Run', '/payroll/payroll-run', 'fas fa-money-check-alt', 'view-payroll', 3],
+            ['Other Payments', '/payroll/allowances', 'fas fa-hand-holding-usd', 'view-payroll-allowances', 4],
+            ['Day / trip work', '/payroll/day-work', 'fas fa-route', 'view-employee-day-work', 5],
+            ['Generate Payslip', '/payroll/generate-payslip', 'fas fa-file-invoice-dollar', 'view-payroll', 6],
+            ['Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 7],
+        ];
+
+        foreach ($payrollSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $payroll->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+            ]);
+        }
+
+        $this->ensureMenu([
+            'title' => 'Reports',
+            'route' => '/payroll/reports',
+            'icon' => 'fas fa-chart-bar',
+            'permission' => 'view-reports',
+            'order' => 8,
+            'type' => 'menu',
+            'system_key' => 'core.reports',
+        ]);
     }
 
-    /**
-     * Create all necessary permissions
-     */
-    private function createPermissions()
+    private function ensureMenu(array $attributes): Menu
+    {
+        $systemKey = $attributes['system_key'] ?? null;
+        $route = $attributes['route'] ?? null;
+
+        $existing = null;
+        if ($systemKey) {
+            $existing = Menu::query()->where('system_key', $systemKey)->first();
+        }
+        if (! $existing && $route) {
+            $existing = Menu::query()->where('route', $route)->first();
+        }
+
+        $payload = array_merge([
+            'module_code' => self::MODULE_CODE,
+            'source' => 'system',
+            'is_active' => true,
+        ], $attributes);
+
+        if ($existing) {
+            $existing->update($payload);
+
+            return $existing->fresh();
+        }
+
+        return Menu::create($payload);
+    }
+
+    private function createPermissions(): void
     {
         $permissions = [
-            // Main navigation permissions
             'view-dashboard',
             'view-employees',
             'view-accounts',
@@ -180,8 +277,6 @@ class MenuSeeder extends Seeder
             'list-settings',
             'view-payroll',
             'view-timesheets',
-
-            // Settings permissions
             'view-organization',
             'view-general',
             'view-calendars',
@@ -195,8 +290,6 @@ class MenuSeeder extends Seeder
             'manager-users',
             'manager-tax',
             'manager-social-security',
-
-            // General settings view permissions
             'view-country',
             'view-district',
             'view-locality',
@@ -212,8 +305,6 @@ class MenuSeeder extends Seeder
             'view-department',
             'view-worksite',
             'view-pay-period-groups',
-
-            // General settings CRUD permissions
             'country-crud',
             'district-crud',
             'locality-crud',
@@ -222,7 +313,6 @@ class MenuSeeder extends Seeder
             'relationship-crud',
             'bank-account-type-crud',
             'payroll-earning-code-crud',
-            'pool-distribution-type-crud',
             'calendar-crud',
             'degree-crud',
             'job-title-crud',
@@ -236,8 +326,6 @@ class MenuSeeder extends Seeder
             'department-head-crud',
             'view-employee-groups',
             'employee-groups-crud',
-
-            // Payroll permissions
             'view-overview',
             'employees-crud',
             'leave-crud',
@@ -252,11 +340,10 @@ class MenuSeeder extends Seeder
             'view-taxes',
             'view-tax-calculator',
             'tax-calculator-crud',
-
-            // Roles and Menus permissions
             'roles-crud',
             'menu-crud',
             'permissions-crud',
+            'manage-modules',
         ];
 
         foreach ($permissions as $permission) {

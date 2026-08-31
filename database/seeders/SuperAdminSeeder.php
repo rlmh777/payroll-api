@@ -140,6 +140,7 @@ class SuperAdminSeeder extends Seeder
             'roles-crud',
             'menu-crud',
             'permissions-crud',
+            'manage-modules',
         ];
 
         // Also ensure every permission referenced by menus exists.

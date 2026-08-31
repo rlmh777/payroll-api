@@ -24,7 +24,10 @@ class Menu extends Model
         'permission',
         'order',
         'is_active',
-        'type' // 'menu' or 'submenu'
+        'type',
+        'module_code',
+        'source',
+        'system_key',
     ];
 
     protected $casts = [

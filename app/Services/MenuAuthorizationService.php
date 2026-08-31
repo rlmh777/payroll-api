@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 class MenuAuthorizationService
 {
-    public function menusForUser(User $user): Collection
+    public function menusForUser(User $user, ?Collection $enabledModuleCodes = null): Collection
     {
         $permissionNames = $user->getAllPermissions()->pluck('name');
 
@@ -18,6 +18,12 @@ class MenuAuthorizationService
                 $query->whereIn('permission', $permissionNames)
                     ->orWhereNull('permission')
                     ->orWhere('permission', '');
+            })
+            ->when($enabledModuleCodes !== null, function ($query) use ($enabledModuleCodes) {
+                $query->where(function ($moduleQuery) use ($enabledModuleCodes) {
+                    $moduleQuery->whereNull('module_code')
+                        ->orWhereIn('module_code', $enabledModuleCodes);
+                });
             })
             ->orderBy('order')
             ->get()
@@ -31,9 +37,9 @@ class MenuAuthorizationService
             ->values();
     }
 
-    public function menuTreeForUser(User $user): array
+    public function menuTreeForUser(User $user, ?Collection $enabledModuleCodes = null): array
     {
-        $menus = $this->menusForUser($user);
+        $menus = $this->menusForUser($user, $enabledModuleCodes);
         $allowedIds = $menus->pluck('id');
 
         $byId = $menus->keyBy('id');
@@ -70,6 +76,9 @@ class MenuAuthorizationService
                     'order' => $menu->order,
                     'is_active' => $menu->is_active,
                     'type' => $menu->type,
+                    'module_code' => $menu->module_code,
+                    'source' => $menu->source,
+                    'system_key' => $menu->system_key,
                     'children' => [],
                 ],
             ];

@@ -54,6 +54,8 @@ use App\Modules\Payroll\Http\Controllers\PayrateFrequencyController;
 use App\Modules\Hr\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
 use App\Http\Controllers\BankController;
+use App\Http\Controllers\ModuleController;
+use App\Http\Controllers\NavigationController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserController;
@@ -120,6 +122,12 @@ Route::post('/login', [AuthController::class, 'authenticate']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::get('/user/menu', [UserController::class, 'topLevelMenus'])->middleware('auth:sanctum');
 Route::get('/user/menus', [UserController::class, 'userMenus'])->middleware('auth:sanctum');
+Route::get('/session/navigation', [NavigationController::class, 'session'])->middleware('auth:sanctum');
+
+Route::prefix('modules')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [ModuleController::class, 'index']);
+    Route::put('/{code}', [ModuleController::class, 'update']);
+});
 
 Route::get('banks', [BankController::class, 'index']);
 Route::get('banks/{id}', [BankController::class, 'show']);
