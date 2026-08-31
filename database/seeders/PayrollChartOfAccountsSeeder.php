@@ -51,7 +51,7 @@ class PayrollChartOfAccountsSeeder extends Seeder
             ['6100', '6103', 'Holiday Pay', $payrollExpense->id],
             ['6100', '6104', 'Tips', $payrollExpense->id],
             ['6100', '6105', 'Bonuses', $payrollExpense->id],
-            ['6100', '6106', 'Allowances', $payrollExpense->id],
+            ['6100', '6106', 'Other Payments', $payrollExpense->id],
             ['6100', '6199', 'Other Earnings', $payrollExpense->id],
             ['6200', '6201', 'Employer Social Security', $employerCosts->id],
             ['6200', '6202', 'Employer Other Statutory', $employerCosts->id],

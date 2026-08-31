@@ -3,7 +3,9 @@
 namespace Tests\Unit\Payroll;
 
 use App\Modules\Payroll\Services\TaxWorkbookImportService;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use ZipArchive;
 
 class TaxWorkbookImportServiceTest extends TestCase
 {
@@ -25,7 +27,7 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->assertNotEmpty($parsed['accounts_sheet']);
         $this->assertNotEmpty($parsed['gst_sheet']);
 
-        $tikalNet = $this->firstByCode($parsed['lines'], '4501');
+        $tikalNet = $this->firstByCode($parsed['lines'], '4501', true);
         $this->assertNotNull($tikalNet);
         $this->assertTrue($tikalNet['is_rollup']);
         $this->assertStringContainsString('Tikal Tours Income', $tikalNet['account_name']);
@@ -82,6 +84,22 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->assertGreaterThan(10, count($parsed['lines']));
     }
 
+    public function test_accepts_gst_dates_in_the_selected_period(): void
+    {
+        $parsed = $this->service->parse($this->fixturePath(), 2026, 6);
+
+        $this->assertNotEmpty($parsed['gst_sheet']);
+    }
+
+    public function test_rejects_gst_dates_outside_the_selected_period(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('not in July 2026');
+        $this->expectExceptionMessage('was not imported');
+
+        $this->service->parse($this->fixturePath(), 2026, 7);
+    }
+
     public function test_parse_account_labels(): void
     {
         $this->assertSame('4501A', $this->service->parseAccountLabel('4501a · Tikal Tour Guide Prof Services')['code']);
@@ -90,16 +108,87 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->assertSame('4715', $this->service->parseAccountLabel('4715 . Tubing')['code']);
     }
 
+    public function test_parses_pnl_workbook(): void
+    {
+        $parsed = $this->service->parse($this->pnlFixturePath());
+
+        $this->assertEqualsWithDelta(10402.87, $parsed['total_debits'], 0.01);
+        $this->assertEqualsWithDelta(1737.67, $parsed['partial_exemptions_total'], 0.01);
+        $this->assertEqualsWithDelta(-10402.87, $parsed['net_of_2251'], 0.01);
+        $this->assertNotEmpty($parsed['accounts_sheet']);
+        $this->assertNotEmpty($parsed['gst_sheet']);
+
+        $gstHeader = null;
+        foreach ($parsed['gst_sheet'] as $row) {
+            if ((int) ($row['row'] ?? 0) === 1) {
+                $gstHeader = $row;
+                break;
+            }
+        }
+        $this->assertNotNull($gstHeader);
+        $this->assertSame('Type', $gstHeader['G']);
+        $this->assertSame('Date', $gstHeader['I']);
+        $this->assertSame('Debit', $gstHeader['Q']);
+        $this->assertSame('Credit', $gstHeader['S']);
+        $this->assertSame('Balance', $gstHeader['U']);
+
+        $cottage = $this->firstByCode($parsed['lines'], '4000');
+        $this->assertNotNull($cottage);
+        $this->assertStringContainsString('Cottage Collection Room Income', $cottage['account_name']);
+        $this->assertEqualsWithDelta(101864.58, $cottage['amount'], 0.01);
+        $this->assertTrue($cottage['include_in_tax']);
+
+        $this->assertTrue($this->hasName($parsed['lines'], 'Ordinary Income'));
+        $this->assertGreaterThan(10, count($parsed['lines']));
+    }
+
+    public function test_accepts_pnl_gst_dates_in_august_2026(): void
+    {
+        $parsed = $this->service->parse($this->pnlFixturePath(), 2026, 8);
+
+        $this->assertNotEmpty($parsed['gst_sheet']);
+    }
+
+    public function test_detects_accounts_and_gst_without_sheet_names(): void
+    {
+        $julyRenamed = $this->copyWithSheetNames($this->fixturePath(), [
+            'Taxes Calculator' => 'Sheet1',
+            'GST' => 'Sheet2',
+        ]);
+        $pnlRenamed = $this->copyWithSheetNames($this->pnlFixturePath(), [
+            'Accounts' => 'Income statement',
+            'GST' => 'Register',
+        ]);
+
+        try {
+            $july = $this->service->parse($julyRenamed);
+            $this->assertEqualsWithDelta(37824.98, $july['total_debits'], 0.01);
+            $this->assertNotNull($this->firstByCode($july['lines'], '4501'));
+
+            $pnl = $this->service->parse($pnlRenamed);
+            $this->assertEqualsWithDelta(10402.87, $pnl['total_debits'], 0.01);
+            $this->assertNotNull($this->firstByCode($pnl['lines'], '4000'));
+        } finally {
+            @unlink($julyRenamed);
+            @unlink($pnlRenamed);
+        }
+    }
+
     /**
      * @param  list<array<string, mixed>>  $lines
      * @return array<string, mixed>|null
      */
-    private function firstByCode(array $lines, string $code): ?array
+    private function firstByCode(array $lines, string $code, bool $rollup = false): ?array
     {
         foreach ($lines as $line) {
-            if ($line['account_code'] === $code) {
-                return $line;
+            if ($line['account_code'] !== $code) {
+                continue;
             }
+            if ($rollup && empty($line['is_rollup'])) {
+                continue;
+            }
+
+            return $line;
         }
 
         return null;
@@ -125,5 +214,38 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->assertFileExists($path);
 
         return $path;
+    }
+
+    private function pnlFixturePath(): string
+    {
+        $path = dirname(__DIR__, 2).'/Fixtures/gst-pnl-upload.xlsx';
+        $this->assertFileExists($path);
+
+        return $path;
+    }
+
+    /**
+     * @param  array<string, string>  $renames
+     */
+    private function copyWithSheetNames(string $path, array $renames): string
+    {
+        $copy = tempnam(sys_get_temp_dir(), 'gst-xlsx-');
+        $this->assertNotFalse($copy);
+        copy($path, $copy);
+
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($copy) === true);
+        $xml = $zip->getFromName('xl/workbook.xml');
+        $this->assertNotFalse($xml);
+
+        foreach ($renames as $from => $to) {
+            $xml = str_replace('name="'.$from.'"', 'name="'.$to.'"', $xml);
+        }
+
+        $zip->deleteName('xl/workbook.xml');
+        $zip->addFromString('xl/workbook.xml', $xml);
+        $zip->close();
+
+        return $copy;
     }
 }

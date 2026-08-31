@@ -452,14 +452,14 @@ class PayrollRunPayslipService
 
             return $record?->allowance?->name
                 ?? $record?->note
-                ?? 'Allowance';
+                ?? 'Other Payment';
         }
 
         $record = $importAllowances->get((string) ($line['sourceId'] ?? ''));
 
         return $record?->allowance?->name
             ?? $record?->note
-            ?? 'Imported allowance';
+            ?? 'Imported other payment';
     }
 
     /**

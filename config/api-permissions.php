@@ -72,6 +72,7 @@ return [
         'employee-default-allowances' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'employee-default-deductions' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'employee-documents' => ['view' => 'view-employees', 'write' => 'employees-crud'],
+        'employee-groups' => ['view' => 'view-employee-groups', 'write' => 'employee-groups-crud'],
         'employee-hours-worked' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'employee-incidents' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'employee-leaves' => ['view' => 'view-leave', 'write' => 'leave-crud'],

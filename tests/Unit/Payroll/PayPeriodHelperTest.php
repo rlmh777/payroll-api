@@ -46,4 +46,16 @@ class PayPeriodHelperTest extends TestCase
         $this->assertSame(26, PayPeriodHelper::periodsPerYear('Biweekly'));
         $this->assertSame(26, PayPeriodHelper::periodsPerYear(null));
     }
+
+    public function test_keep_current_and_one_ahead_drops_later_future_periods(): void
+    {
+        $kept = PayPeriodHelper::keepCurrentAndOneAhead([
+            ['id' => 'past', 'start_date' => '2026-07-16'],
+            ['id' => 'current', 'start_date' => '2026-08-16'],
+            ['id' => 'next', 'start_date' => '2026-09-01'],
+            ['id' => 'later', 'start_date' => '2026-09-16'],
+        ], '2026-08-26');
+
+        $this->assertSame(['past', 'current', 'next'], array_column($kept, 'id'));
+    }
 }

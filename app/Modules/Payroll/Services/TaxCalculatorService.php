@@ -128,15 +128,13 @@ class TaxCalculatorService
         $line130 = $line100 + $line110 + $line120;
         $line140 = $line100 * $gstIncomeRate;
 
-        $taxableAndZeroAndExempt = $gstIncome + $gstZero + $gstExempt;
-        $taxableToTotalRatio = $taxableAndZeroAndExempt != 0.0
-            ? $gstIncome / $taxableAndZeroAndExempt
+        $taxableAndExempt = $gstIncome + $gstExempt;
+        $taxableToTotalRatio = $taxableAndExempt != 0.0
+            ? $gstIncome / $taxableAndExempt
             : 0.0;
-        $zeroRatio = $taxableAndZeroAndExempt != 0.0
-            ? $gstZero / $taxableAndZeroAndExempt
-            : 0.0;
-        $exemptRatio = $taxableAndZeroAndExempt != 0.0
-            ? $gstExempt / $taxableAndZeroAndExempt
+        $zeroRatio = 0.0;
+        $exemptRatio = $taxableAndExempt != 0.0
+            ? $gstExempt / $taxableAndExempt
             : 0.0;
 
         $partialIncome = $partialExemptionsTotal * $taxableToTotalRatio;
@@ -210,7 +208,7 @@ class TaxCalculatorService
                 'gst_income' => $this->money($gstIncome),
                 'zero_rated_income' => $this->money($gstZero),
                 'exempt_income' => $this->money($gstExempt),
-                'total_value' => $this->money($taxableAndZeroAndExempt),
+                'total_value' => $this->money($taxableAndExempt),
                 'gst_income_ratio' => $this->ratio($taxableToTotalRatio),
                 'zero_rated_ratio' => $this->ratio($zeroRatio),
                 'exempt_ratio' => $this->ratio($exemptRatio),

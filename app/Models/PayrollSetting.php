@@ -12,6 +12,9 @@ class PayrollSetting extends Model
         'incomeTaxRate',
         'secondReliefAmount',
         'timesheetLockBeforeDate',
+        'timesheetAutoLockEnabled',
+        'timesheetAutoLockTime',
+        'timesheetAutoLockDaysAfterPayDate',
         'timesheetUnlockStartDate',
         'timesheetUnlockEndDate',
     ];
@@ -20,6 +23,8 @@ class PayrollSetting extends Model
         'incomeTaxRate' => 'decimal:4',
         'secondReliefAmount' => 'decimal:2',
         'timesheetLockBeforeDate' => 'date:Y-m-d',
+        'timesheetAutoLockEnabled' => 'boolean',
+        'timesheetAutoLockDaysAfterPayDate' => 'integer',
         'timesheetUnlockStartDate' => 'date:Y-m-d',
         'timesheetUnlockEndDate' => 'date:Y-m-d',
     ];

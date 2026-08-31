@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Modules\Payroll\Services\PayPeriodHelper;
 use App\Services\AiSqlGeneratorService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -71,7 +72,7 @@ class PayPeriodGroup extends Model
     }
 
     /**
-     * Generate the first 4 pay period schedules using AI service
+     * Generate the current pay period and at most one period ahead.
      */
     public function generateInitialSchedules(): void
     {
@@ -99,12 +100,10 @@ class PayPeriodGroup extends Model
             // Ensure pay_period_group_id is set
             $currentFields['pay_period_group_id'] = $this->id;
             
-            // Create first schedule
             $firstSchedule = PayPeriodSchedule::create($currentFields);
             $schedules[] = $firstSchedule->toArray();
 
-            // Generate next 3 schedules using the pattern
-            for ($i = 0; $i < 3; $i++) {
+            while (PayPeriodHelper::canGenerateAnotherFutureSchedule((string) $this->id)) {
                 $nextResult = $aiService->generateNextPayPeriodSchedule(
                     $schedules,
                     $this->rules,
@@ -114,7 +113,6 @@ class PayPeriodGroup extends Model
                 if (!$nextResult['success'] || !isset($nextResult['fields'])) {
                     Log::warning('Failed to generate next pay period schedule', [
                         'pay_period_group_id' => $this->id,
-                        'iteration' => $i + 1,
                         'error' => $nextResult['error'] ?? 'Unknown error',
                     ]);
                     break;
@@ -125,6 +123,7 @@ class PayPeriodGroup extends Model
 
                 $nextSchedule = PayPeriodSchedule::create($nextFields);
                 $schedules[] = $nextSchedule->toArray();
+                break;
             }
 
             Log::info('Generated initial pay period schedules', [

@@ -164,7 +164,11 @@ class TaxCalculatorRunController extends Controller
         }
 
         try {
-            $parsed = $this->workbookImportService->parse($path);
+            $parsed = $this->workbookImportService->parse(
+                $path,
+                (int) $validated['year'],
+                (int) $validated['month'],
+            );
         } catch (InvalidArgumentException|RuntimeException $exception) {
             throw ValidationException::withMessages([
                 'file' => $exception->getMessage(),
@@ -270,7 +274,11 @@ class TaxCalculatorRunController extends Controller
         }
 
         try {
-            $parsed = $this->purchaseLedgerImportService->parse($path);
+            $parsed = $this->purchaseLedgerImportService->parse(
+                $path,
+                (int) $validated['year'],
+                (int) $validated['month'],
+            );
         } catch (InvalidArgumentException|RuntimeException $exception) {
             throw ValidationException::withMessages([
                 'file' => $exception->getMessage(),

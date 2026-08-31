@@ -3,22 +3,25 @@
 namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Models\PoolDistributionType;
+use App\Models\PoolDistributionTypeDepartmentShare;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class PoolDistributionTypeController extends Controller
 {
     private const MODES = [
         PoolDistributionType::MODE_WEIGHTED_POINTS,
         PoolDistributionType::MODE_EQUAL_SHARE,
+        PoolDistributionType::MODE_DEPARTMENT_EQUAL_SHARE,
         PoolDistributionType::MODE_MANUAL,
         PoolDistributionType::MODE_DISABLED,
     ];
 
     public function index(Request $request): JsonResponse
     {
-        $query = PoolDistributionType::query()->with(['payrollEarningCode', 'allowance']);
+        $query = PoolDistributionType::query()->with(['payrollEarningCode', 'allowance', 'departmentShares.department']);
 
         if ($request->filled('search')) {
             $search = $request->string('search');
@@ -37,6 +40,7 @@ class PoolDistributionTypeController extends Controller
                 ->whereIn('calculation_mode', [
                     PoolDistributionType::MODE_WEIGHTED_POINTS,
                     PoolDistributionType::MODE_EQUAL_SHARE,
+                    PoolDistributionType::MODE_DEPARTMENT_EQUAL_SHARE,
                 ]);
         }
 
@@ -59,26 +63,28 @@ class PoolDistributionTypeController extends Controller
     {
         $validated = $request->validate($this->rules());
         $type = PoolDistributionType::create($this->normalize($validated));
+        $this->syncDepartmentShares($type, $validated['department_shares'] ?? null);
 
         return response()->json([
             'message' => 'Pool distribution type created successfully',
-            'data' => $type->load(['payrollEarningCode', 'allowance']),
+            'data' => $type->load(['payrollEarningCode', 'allowance', 'departmentShares.department']),
         ], 201);
     }
 
     public function show(PoolDistributionType $poolDistributionType): JsonResponse
     {
-        return response()->json($poolDistributionType->load(['payrollEarningCode', 'allowance']));
+        return response()->json($poolDistributionType->load(['payrollEarningCode', 'allowance', 'departmentShares.department']));
     }
 
     public function update(Request $request, PoolDistributionType $poolDistributionType): JsonResponse
     {
         $validated = $request->validate($this->rules($poolDistributionType->id));
         $poolDistributionType->update($this->normalize($validated));
+        $this->syncDepartmentShares($poolDistributionType, $validated['department_shares'] ?? null);
 
         return response()->json([
             'message' => 'Pool distribution type updated successfully',
-            'data' => $poolDistributionType->fresh()->load(['payrollEarningCode', 'allowance']),
+            'data' => $poolDistributionType->fresh()->load(['payrollEarningCode', 'allowance', 'departmentShares.department']),
         ]);
     }
 
@@ -111,6 +117,9 @@ class PoolDistributionTypeController extends Controller
             'is_ss_subject' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'notes' => ['nullable', 'string'],
+            'department_shares' => ['nullable', 'array'],
+            'department_shares.*.department_id' => ['required_with:department_shares', 'integer', 'exists:department,id'],
+            'department_shares.*.percent' => ['required_with:department_shares', 'numeric', 'min:0.01', 'max:100'],
         ];
     }
 
@@ -133,5 +142,45 @@ class PoolDistributionTypeController extends Controller
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
             'notes' => $validated['notes'] ?? null,
         ];
+    }
+
+    /**
+     * @param  list<array{department_id:int, percent:float|int|string}>|null  $shares
+     */
+    private function syncDepartmentShares(PoolDistributionType $type, ?array $shares): void
+    {
+        $mode = $type->calculation_mode;
+        if ($mode !== PoolDistributionType::MODE_DEPARTMENT_EQUAL_SHARE) {
+            if ($shares !== null) {
+                $type->departmentShares()->delete();
+            }
+
+            return;
+        }
+
+        $rows = collect($shares ?? [])
+            ->map(fn (array $row) => [
+                'department_id' => (int) ($row['department_id'] ?? 0),
+                'percent' => round((float) ($row['percent'] ?? 0), 2),
+            ])
+            ->filter(fn (array $row) => $row['department_id'] > 0 && $row['percent'] > 0)
+            ->unique('department_id')
+            ->values();
+
+        $sum = round($rows->sum('percent'), 2);
+        if ($rows->isEmpty() || abs($sum - 100) > 0.009) {
+            throw ValidationException::withMessages([
+                'department_shares' => 'Department tip percentages must be configured and add up to 100%.',
+            ]);
+        }
+
+        $type->departmentShares()->delete();
+        foreach ($rows as $row) {
+            PoolDistributionTypeDepartmentShare::query()->create([
+                'pool_distribution_type_id' => $type->id,
+                'department_id' => $row['department_id'],
+                'percent' => $row['percent'],
+            ]);
+        }
     }
 }

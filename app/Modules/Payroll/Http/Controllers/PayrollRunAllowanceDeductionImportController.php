@@ -27,7 +27,7 @@ class PayrollRunAllowanceDeductionImportController extends Controller
     {
         if (strtolower((string) $payrollRun->status) !== 'draft') {
             return response()->json([
-                'message' => 'Processed payroll runs cannot receive imported allowances or deductions.',
+                'message' => 'Processed payroll runs cannot receive imported other payments or deductions.',
             ], 422);
         }
 
@@ -70,7 +70,7 @@ class PayrollRunAllowanceDeductionImportController extends Controller
                         'amount' => $amount,
                         'note' => sprintf(
                             '%s import %s on %s (qty %s, rate %s)',
-                            $detail['kind'] === 'deduction' ? 'Deduction' : 'Allowance',
+                            $detail['kind'] === 'deduction' ? 'Deduction' : 'Other Payment',
                             $detail['code'],
                             $detail['date'],
                             $detail['quantity'],
@@ -96,6 +96,7 @@ class PayrollRunAllowanceDeductionImportController extends Controller
                         HistoricalEmployeeAllowance::query()->create([
                             ...$payload,
                             'allowance_id' => $allowance->id,
+                            'allowance_date' => $detail['date'],
                             'quantity' => round((float) $detail['quantity'], 4),
                             'unitAmount' => round((float) ($detail['rate'] ?? 0), 2),
                             'taxableAmount' => $isTaxable ? $amount : 0,

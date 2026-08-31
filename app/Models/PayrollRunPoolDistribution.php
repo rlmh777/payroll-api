@@ -19,6 +19,10 @@ class PayrollRunPoolDistribution extends Model
         'payroll_run_id',
         'pool_distribution_type_id',
         'employee_id',
+        'department_id',
+        'department_percent',
+        'department_amount',
+        'worked_this_period',
         'points',
         'weight',
         'weighted_points',
@@ -41,7 +45,15 @@ class PayrollRunPoolDistribution extends Model
         'worked_hours' => 'decimal:4',
         'expected_hours' => 'decimal:4',
         'bank_hours_applied' => 'decimal:4',
+        'department_percent' => 'decimal:2',
+        'department_amount' => 'decimal:2',
+        'worked_this_period' => 'boolean',
     ];
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
 
     public function payrollRun(): BelongsTo
     {

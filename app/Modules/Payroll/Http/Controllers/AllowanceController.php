@@ -81,7 +81,7 @@ class AllowanceController extends Controller
 
             $allowance = Allowance::create($validatedData);
             return response()->json([
-                'message' => 'Allowance created successfully',
+                'message' => 'Other Payment created successfully',
                 'data' => $allowance
             ], 201);
         } catch (ValidationException $e) {
@@ -128,7 +128,7 @@ class AllowanceController extends Controller
 
             $allowance->update($validatedData);
             return response()->json([
-                'message' => 'Allowance updated successfully',
+                'message' => 'Other Payment updated successfully',
                 'data' => $allowance
             ], 200);
         } catch (ValidationException $e) {
@@ -142,6 +142,6 @@ class AllowanceController extends Controller
     public function destroy(Allowance $allowance): JsonResponse
     {
         $allowance->delete();
-        return response()->json(['message' => 'Allowance deleted successfully.']);
+        return response()->json(['message' => 'Other Payment deleted successfully.']);
     }
 }

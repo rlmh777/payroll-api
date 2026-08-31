@@ -16,7 +16,7 @@ class PayrollEarningCodeSeeder extends Seeder
             ['HOLIDAY', 'Holiday Pay', '6103', true, true, 3],
             ['TIPS', 'Tips', '6104', true, true, 4],
             ['BONUS', 'Bonuses', '6105', true, true, 5],
-            ['ALLOWANCE', 'Allowances', '6106', true, true, 6],
+            ['ALLOWANCE', 'Other Payments', '6106', true, true, 6],
             ['OTHER', 'Other Earnings', '6199', true, true, 99],
         ];
 

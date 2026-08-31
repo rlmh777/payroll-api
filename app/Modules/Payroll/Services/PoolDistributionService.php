@@ -2,7 +2,10 @@
 
 namespace App\Modules\Payroll\Services;
 
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\EmployeePoolPoint;
+use App\Models\EmploymentDetail;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunPoolDistribution;
 use App\Models\PayrollRunPoolTotal;
@@ -11,11 +14,14 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PoolDistributionService
 {
     public function __construct(
         private readonly EmployeeHoursBankService $hoursBankService,
+        private readonly PayrollTimesheetScopeService $payrollTimesheetScopeService,
+        private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
     ) {
     }
 
@@ -25,7 +31,7 @@ class PoolDistributionService
     public function totalsForRun(PayrollRun $payrollRun): array
     {
         $types = PoolDistributionType::query()
-            ->with('payrollEarningCode')
+            ->with(['payrollEarningCode', 'departmentShares.department'])
             ->where('is_active', true)
             ->where('calculation_mode', '!=', PoolDistributionType::MODE_DISABLED)
             ->orderBy('sort_order')
@@ -52,12 +58,18 @@ class PoolDistributionService
                 'totalAmount' => round((float) ($total?->total_amount ?? 0), 2),
                 'notes' => $total?->notes,
                 'totalId' => $total?->id,
+                'departmentShares' => $type->departmentShares->map(fn ($share) => [
+                    'departmentId' => (int) $share->department_id,
+                    'departmentName' => $share->department?->name,
+                    'percent' => round((float) $share->percent, 2),
+                ])->values()->all(),
             ];
         })->values()->all();
     }
 
     /**
      * @param list<array{poolDistributionTypeId:int|string, totalAmount:float|int|string, notes?:string|null}> $totals
+     * @return list<array<string, mixed>>
      */
     public function saveTotals(PayrollRun $payrollRun, array $totals): array
     {
@@ -106,12 +118,11 @@ class PoolDistributionService
     }
 
     /**
-     * Distribute saved pool totals across employees and sync hours bank eligibility.
-     *
      * @param list<string> $employeeIds
      * @return array{
      *     totals: list<array<string, mixed>>,
      *     distributions: list<array<string, mixed>>,
+     *     departmentBreakdown: list<array<string, mixed>>,
      *     hoursEligibility: array<string, array<string, mixed>>
      * }
      */
@@ -123,8 +134,9 @@ class PoolDistributionService
             ?? $payrollRun->payPeriodSchedule?->pay_date
             ?? now()
         )->startOfDay();
+        $workedIds = $this->timesheetEmployeeIds($payrollRun);
 
-        return DB::transaction(function () use ($payrollRun, $employeeIds, $asOfDate) {
+        return DB::transaction(function () use ($payrollRun, $employeeIds, $asOfDate, $workedIds) {
             $hoursEligibility = $this->hoursBankService->syncForPayrollRun($payrollRun, $employeeIds);
 
             PayrollRunPoolDistribution::query()
@@ -137,6 +149,7 @@ class PoolDistributionService
                 ->get();
 
             $distributions = [];
+            $departmentBreakdown = [];
 
             foreach ($totals as $total) {
                 $type = $total->poolDistributionType;
@@ -149,6 +162,20 @@ class PoolDistributionService
                     continue;
                 }
 
+                if ($type->calculation_mode === PoolDistributionType::MODE_DEPARTMENT_EQUAL_SHARE) {
+                    $result = $this->distributeByDepartment(
+                        $payrollRun,
+                        $type,
+                        $poolAmount,
+                        $workedIds,
+                        $hoursEligibility,
+                        $asOfDate,
+                    );
+                    array_push($distributions, ...$result['distributions']);
+                    array_push($departmentBreakdown, ...$result['departmentBreakdown']);
+                    continue;
+                }
+
                 $pointRows = $this->currentPointsForEmployees($employeeIds, (int) $type->id, $asOfDate);
                 $eligibleParticipants = [];
 
@@ -158,15 +185,7 @@ class PoolDistributionService
                     $points = round((float) ($point?->points ?? 0), 4);
                     $weight = round((float) ($point?->weight ?? 1), 4);
                     $weighted = round($points * $weight, 4);
-
-                    $eligibility = $hoursEligibility[$employeeId] ?? [
-                        'workedHours' => 0.0,
-                        'expectedHours' => 0.0,
-                        'bankHoursApplied' => 0.0,
-                        'isEligible' => true,
-                        'reason' => null,
-                    ];
-
+                    $eligibility = $hoursEligibility[$employeeId] ?? $this->defaultEligibility();
                     $requiresEligibility = (bool) $type->requires_hours_eligibility;
                     $isEligible = !$requiresEligibility || (bool) ($eligibility['isEligible'] ?? true);
                     $reason = $isEligible ? null : ($eligibility['reason'] ?? 'Not eligible based on hours');
@@ -236,9 +255,303 @@ class PoolDistributionService
             return [
                 'totals' => $this->totalsForRun($payrollRun),
                 'distributions' => $distributions,
+                'departmentBreakdown' => $departmentBreakdown,
                 'hoursEligibility' => $hoursEligibility,
             ];
         });
+    }
+
+    /**
+     * @param list<string> $workedEmployeeIds
+     * @param array<string, array<string, mixed>> $hoursEligibility
+     * @return array{distributions: list<array<string, mixed>>, departmentBreakdown: list<array<string, mixed>>}
+     */
+    private function distributeByDepartment(
+        PayrollRun $payrollRun,
+        PoolDistributionType $type,
+        float $poolAmount,
+        array $workedEmployeeIds,
+        array $hoursEligibility,
+        Carbon $asOfDate,
+    ): array {
+        $shares = $type->departmentShares()->with('department')->get();
+        $percentSum = round((float) $shares->sum('percent'), 2);
+        if ($shares->isEmpty() || abs($percentSum - 100) > 0.009) {
+            throw ValidationException::withMessages([
+                'department_shares' => "{$type->name} department percentages must be configured and add up to 100%.",
+            ]);
+        }
+
+        $departments = Department::query()->get(['id', 'name', 'parentId']);
+        $parentById = $departments->pluck('parentId', 'id')->all();
+        $nameById = $departments->pluck('name', 'id')->all();
+        $configuredPercents = $shares->mapWithKeys(
+            fn ($share) => [(int) $share->department_id => round((float) $share->percent, 2)]
+        )->all();
+
+        $schedule = $payrollRun->payPeriodSchedule;
+        $startDate = Carbon::parse($schedule?->start_date ?? $asOfDate)->startOfDay();
+        $endDate = Carbon::parse($schedule?->end_date ?? $asOfDate)->startOfDay();
+        $payPeriodGroupId = (string) ($schedule?->pay_period_group_id ?? '');
+        $frequencyId = $this->payrollRunFrequencyResolver->resolveForRun($payrollRun, $schedule);
+
+        $workedIds = collect($workedEmployeeIds)->map(fn ($id) => (string) $id)->unique();
+        $activeRows = EmploymentDetail::query()
+            ->with(['employee.person'])
+            ->where('isActive', true)
+            ->whereNotNull('departmentId')
+            ->where(function ($query) use ($startDate) {
+                $query->whereNull('endDate')->orWhereDate('endDate', '>=', $startDate->toDateString());
+            })
+            ->where(function ($query) use ($endDate) {
+                $query->whereNull('startDate')->orWhereDate('startDate', '<=', $endDate->toDateString());
+            })
+            ->when($payPeriodGroupId !== '', function ($query) use ($payPeriodGroupId) {
+                $query->where('defaultPayPeriodGroupId', $payPeriodGroupId);
+            })
+            ->when($frequencyId, function ($query) use ($frequencyId) {
+                $query->whereHas('employee', fn ($employeeQuery) => $employeeQuery->where('payrateFrequencyId', $frequencyId));
+            })
+            ->get(['employeeId', 'departmentId', 'startDate']);
+
+        $employeesById = [];
+        foreach ($activeRows as $detail) {
+            $employeeId = (string) $detail->employeeId;
+            if (! isset($employeesById[$employeeId]) || (string) $detail->startDate > (string) ($employeesById[$employeeId]['startDate'] ?? '')) {
+                $employeesById[$employeeId] = [
+                    'employeeId' => $employeeId,
+                    'departmentId' => (int) $detail->departmentId,
+                    'startDate' => (string) $detail->startDate,
+                    'name' => $this->employeeDisplayName($detail->employee),
+                    'code' => $detail->employee?->code,
+                ];
+            }
+        }
+
+        foreach ($workedIds as $employeeId) {
+            if (isset($employeesById[$employeeId])) {
+                continue;
+            }
+            $employee = Employee::query()->with('person')->find($employeeId);
+            $departmentId = (int) (EmploymentDetail::query()
+                ->where('employeeId', $employeeId)
+                ->where('isActive', true)
+                ->orderByDesc('startDate')
+                ->value('departmentId') ?? 0);
+            $employeesById[$employeeId] = [
+                'employeeId' => $employeeId,
+                'departmentId' => $departmentId,
+                'startDate' => '',
+                'name' => $this->employeeDisplayName($employee),
+                'code' => $employee?->code,
+            ];
+        }
+
+        $grouped = [];
+        foreach ($employeesById as $employee) {
+            $shareDepartmentId = $this->resolveShareDepartmentId(
+                (int) $employee['departmentId'],
+                $configuredPercents,
+                $parentById,
+            );
+            $grouped[$shareDepartmentId ?? 0][] = $employee;
+        }
+
+        $distributions = [];
+        $departmentBreakdown = [];
+
+        foreach ($shares as $share) {
+            $departmentId = (int) $share->department_id;
+            $percent = round((float) $share->percent, 2);
+            $departmentAmount = round($poolAmount * ($percent / 100), 2);
+            $members = $grouped[$departmentId] ?? [];
+            $working = [];
+            $listed = [];
+
+            foreach ($members as $member) {
+                $worked = $workedIds->contains($member['employeeId']);
+                $eligibility = $hoursEligibility[$member['employeeId']] ?? $this->defaultEligibility();
+                $hoursEligible = ! $type->requires_hours_eligibility
+                    || (bool) ($eligibility['isEligible'] ?? true);
+                $paid = $worked && $hoursEligible;
+                $listed[] = [
+                    ...$member,
+                    'worked' => $worked,
+                    'hoursEligible' => $hoursEligible,
+                    'eligibility' => $eligibility,
+                    'reason' => ! $worked
+                        ? 'Did not work this period'
+                        : (! $hoursEligible ? ($eligibility['reason'] ?? 'Not eligible based on hours') : null),
+                    'paid' => $paid,
+                ];
+                if ($paid) {
+                    $working[] = $member['employeeId'];
+                }
+            }
+
+            $paidCount = count($working);
+            $shareEach = $paidCount > 0 ? round($departmentAmount / $paidCount, 2) : 0.0;
+            $allocated = 0.0;
+            $lastPaidIndex = $paidCount > 0 ? $paidCount - 1 : -1;
+            $paidIndex = 0;
+
+            foreach ($listed as $member) {
+                $amount = 0.0;
+                $ratio = 0.0;
+                if ($member['paid'] && $paidCount > 0) {
+                    if ($paidIndex === $lastPaidIndex) {
+                        $amount = round($departmentAmount - $allocated, 2);
+                    } else {
+                        $amount = $shareEach;
+                        $allocated = round($allocated + $amount, 2);
+                    }
+                    $ratio = round(1 / $paidCount, 8);
+                    $paidIndex++;
+                }
+
+                $distributions[] = $this->storeDistribution(
+                    $payrollRun->id,
+                    (int) $type->id,
+                    $member['employeeId'],
+                    $member['paid'] ? 1 : 0,
+                    1,
+                    $member['paid'] ? 1 : 0,
+                    $ratio,
+                    $amount,
+                    (bool) $member['paid'],
+                    $member['reason'],
+                    $member['eligibility'],
+                    [
+                        'employeeName' => $member['name'],
+                        'employeeCode' => $member['code'],
+                        'departmentId' => $departmentId,
+                        'departmentName' => $nameById[$departmentId] ?? $share->department?->name,
+                        'poolName' => $type->name,
+                        'departmentPercent' => $percent,
+                        'departmentAmount' => $departmentAmount,
+                        'workedThisPeriod' => (bool) $member['worked'],
+                    ],
+                );
+            }
+
+            $departmentBreakdown[] = [
+                'poolDistributionTypeId' => (int) $type->id,
+                'poolCode' => $type->code,
+                'poolName' => $type->name,
+                'departmentId' => $departmentId,
+                'departmentName' => $nameById[$departmentId] ?? $share->department?->name,
+                'percent' => $percent,
+                'departmentAmount' => $departmentAmount,
+                'workingCount' => $paidCount,
+                'listedCount' => count($listed),
+            ];
+        }
+
+        foreach ($grouped[0] ?? [] as $member) {
+            $worked = $workedIds->contains($member['employeeId']);
+            $eligibility = $hoursEligibility[$member['employeeId']] ?? $this->defaultEligibility();
+            $distributions[] = $this->storeDistribution(
+                $payrollRun->id,
+                (int) $type->id,
+                $member['employeeId'],
+                0,
+                1,
+                0,
+                0,
+                0,
+                false,
+                'Department is not in the tips split',
+                $eligibility,
+                [
+                    'employeeName' => $member['name'],
+                    'employeeCode' => $member['code'],
+                    'departmentId' => $member['departmentId'] ?: null,
+                    'departmentName' => $nameById[$member['departmentId']] ?? null,
+                    'poolName' => $type->name,
+                    'departmentPercent' => null,
+                    'departmentAmount' => 0,
+                    'workedThisPeriod' => $worked,
+                ],
+            );
+        }
+
+        return [
+            'distributions' => $distributions,
+            'departmentBreakdown' => $departmentBreakdown,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function timesheetEmployeeIds(PayrollRun $payrollRun): array
+    {
+        $payrollRun->loadMissing(['payPeriodSchedule']);
+        $schedule = $payrollRun->payPeriodSchedule;
+        if (!$schedule?->start_date || !$schedule?->end_date) {
+            return [];
+        }
+
+        $startDate = Carbon::parse($schedule->start_date)->startOfDay();
+        $endDate = Carbon::parse($schedule->end_date)->startOfDay();
+        $payPeriodGroupId = (string) $schedule->pay_period_group_id;
+        $frequencyId = $this->payrollRunFrequencyResolver->resolveForRun($payrollRun, $schedule);
+
+        return $this->payrollTimesheetScopeService->employeeIds(
+            $startDate,
+            $endDate,
+            $payPeriodGroupId,
+            $frequencyId,
+        );
+    }
+
+    /**
+     * Walk up the department tree until a configured share is found.
+     *
+     * @param array<int, float> $configuredPercents
+     * @param array<int, int|null> $parentById
+     */
+    public function resolveShareDepartmentId(int $departmentId, array $configuredPercents, array $parentById): ?int
+    {
+        $current = $departmentId;
+        $seen = [];
+        while ($current && ! isset($seen[$current])) {
+            $seen[$current] = true;
+            if (isset($configuredPercents[$current])) {
+                return $current;
+            }
+            $current = (int) ($parentById[$current] ?? 0);
+        }
+
+        return null;
+    }
+
+    private function employeeDisplayName(?Employee $employee): string
+    {
+        if (! $employee) {
+            return '';
+        }
+
+        $name = trim(collect([
+            $employee->firstName ?? $employee->person?->firstName,
+            $employee->lastName ?? $employee->person?->lastName,
+        ])->filter()->implode(' '));
+
+        return $name !== '' ? $name : (string) ($employee->code ?? $employee->id);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultEligibility(): array
+    {
+        return [
+            'workedHours' => 0.0,
+            'expectedHours' => 0.0,
+            'bankHoursApplied' => 0.0,
+            'isEligible' => true,
+            'reason' => null,
+        ];
     }
 
     /**
@@ -269,6 +582,8 @@ class PoolDistributionService
 
     /**
      * @param array<string, mixed> $eligibility
+     * @param array<string, mixed> $extra
+     * @return array<string, mixed>
      */
     private function storeDistribution(
         string $payrollRunId,
@@ -282,12 +597,17 @@ class PoolDistributionService
         bool $isEligible,
         ?string $reason,
         array $eligibility,
+        array $extra = [],
     ): array {
         $row = PayrollRunPoolDistribution::create([
             'id' => (string) Str::uuid(),
             'payroll_run_id' => $payrollRunId,
             'pool_distribution_type_id' => $typeId,
             'employee_id' => $employeeId,
+            'department_id' => $extra['departmentId'] ?? null,
+            'department_percent' => $extra['departmentPercent'] ?? null,
+            'department_amount' => $extra['departmentAmount'] ?? null,
+            'worked_this_period' => $extra['workedThisPeriod'] ?? null,
             'points' => $points,
             'weight' => $weight,
             'weighted_points' => $weighted,
@@ -304,7 +624,15 @@ class PoolDistributionService
             'id' => $row->id,
             'payrollRunId' => $payrollRunId,
             'poolDistributionTypeId' => $typeId,
+            'poolName' => $extra['poolName'] ?? null,
             'employeeId' => $employeeId,
+            'employeeName' => $extra['employeeName'] ?? null,
+            'employeeCode' => $extra['employeeCode'] ?? null,
+            'departmentId' => $extra['departmentId'] ?? null,
+            'departmentName' => $extra['departmentName'] ?? null,
+            'departmentPercent' => $extra['departmentPercent'] ?? null,
+            'departmentAmount' => $extra['departmentAmount'] ?? null,
+            'workedThisPeriod' => $extra['workedThisPeriod'] ?? null,
             'points' => round($points, 4),
             'weight' => round($weight, 4),
             'weightedPoints' => round($weighted, 4),

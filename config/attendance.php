@@ -2,6 +2,8 @@
 
 return [
     'standard_daily_hours' => (float) env('ATTENDANCE_STANDARD_DAILY_HOURS', 8),
+    'excessive_daily_hours' => (float) env('ATTENDANCE_EXCESSIVE_DAILY_HOURS', 0),
+    'excessive_scheduled_hours_buffer' => (float) env('ATTENDANCE_EXCESSIVE_SCHEDULED_BUFFER', 4),
     'clock_round_off_minutes' => (int) env('ATTENDANCE_CLOCK_ROUND_OFF_MINUTES', 30),
     'schedule_comparison_source' => env('ATTENDANCE_SCHEDULE_COMPARISON_SOURCE', 'ROUNDED'),
 

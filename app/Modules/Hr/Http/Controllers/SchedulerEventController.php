@@ -60,6 +60,17 @@ class SchedulerEventController extends Controller
                 : $departmentEmployees;
         }
 
+        if ($request->filled('employee_group_id')) {
+            $groupEmployees = \App\Models\EmployeeGroupMember::query()
+                ->where('employeeGroupId', $request->string('employee_group_id'))
+                ->active()
+                ->pluck('employeeId');
+
+            $employeeIds = $employeeIds->isNotEmpty()
+                ? $employeeIds->intersect($groupEmployees)
+                : $groupEmployees;
+        }
+
         if ($request->filled('lead_id')) {
             $leadEmployees = EmployeeReporting::query()
                 ->where('supervisor_id', $request->string('lead_id'))

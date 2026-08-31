@@ -4,6 +4,7 @@ namespace App\Modules\Payroll\Http\Controllers;
 
 use App\Models\PayrollRun;
 use App\Models\PayPeriodSchedule;
+use App\Modules\Payroll\Services\PayPeriodHelper;
 use App\Services\AiSqlGeneratorService;
 use App\Modules\Payroll\Services\PayrollRunCalculationService;
 use App\Modules\Payroll\Services\PayrollRunFrequencyResolver;
@@ -115,6 +116,10 @@ class PayrollRunController extends Controller
                     'payroll_run_id' => $payrollRun->id,
                     'pay_period_group_id' => $payPeriodGroup?->id,
                 ]);
+                return;
+            }
+
+            if (! PayPeriodHelper::canGenerateAnotherFutureSchedule((string) $payPeriodGroup->id)) {
                 return;
             }
 

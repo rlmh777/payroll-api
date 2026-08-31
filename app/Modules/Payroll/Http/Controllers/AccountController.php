@@ -37,6 +37,17 @@ class AccountController extends Controller
             }
         }
         
+        if ($request->filled('search')) {
+            $term = trim((string) $request->input('search'));
+            $query->where(function ($builder) use ($term) {
+                $like = '%'.$term.'%';
+                $builder->where('name', 'ilike', $like)
+                    ->orWhere('code1', 'ilike', $like)
+                    ->orWhere('code2', 'ilike', $like)
+                    ->orWhere('description', 'ilike', $like);
+            });
+        }
+
         // Optionally eager load relationships
         if ($request->boolean('with_relations')) {
             $query->with('parent', 'children', 'accountType');

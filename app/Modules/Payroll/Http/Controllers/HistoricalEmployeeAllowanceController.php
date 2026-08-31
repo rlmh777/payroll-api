@@ -7,9 +7,12 @@ use App\Models\Allowance;
 use App\Models\Employee;
 use App\Models\HistoricalEmployeeAllowance;
 use App\Models\PayrollRun;
+use App\Modules\Payroll\Services\PayPeriodHelper;
 use App\Modules\Payroll\Services\PayrollAllowanceAuthorizationService;
+use App\Modules\Payroll\Services\PayrollAllowanceImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +28,7 @@ class HistoricalEmployeeAllowanceController extends Controller
 
     public function __construct(
         private readonly PayrollAllowanceAuthorizationService $authorization,
+        private readonly PayrollAllowanceImportService $importService,
     ) {}
 
     public function bootstrap(Request $request): JsonResponse
@@ -32,15 +36,15 @@ class HistoricalEmployeeAllowanceController extends Controller
         $user = $request->user();
         $visibleEmployeeIds = $this->authorization->visibleEmployeeIds($user);
 
-        $draftRuns = PayrollRun::query()
-            ->with(['payPeriodSchedule.payPeriodGroup', 'payrateFrequency'])
-            ->whereRaw('LOWER(status) = ?', ['draft'])
-            ->latest('created_at')
-            ->limit(50)
-            ->get();
+        $draftRuns = PayPeriodHelper::upcomingEditablePayrollRuns();
 
         $employees = Employee::query()
-            ->with('person')
+            ->with([
+                'person',
+                'employmentDetails' => function ($query) {
+                    $query->where('isActive', true)->with('department');
+                },
+            ])
             ->when(
                 $visibleEmployeeIds !== null,
                 fn ($query) => $query->whereIn('employee.id', $visibleEmployeeIds->all()),
@@ -52,12 +56,17 @@ class HistoricalEmployeeAllowanceController extends Controller
                 $firstName = (string) ($employee->firstName ?? '');
                 $lastName = (string) ($employee->lastName ?? '');
                 $displayName = trim($lastName.($lastName && $firstName ? ', ' : '').$firstName);
+                $departmentName = (string) ($employee->employmentDetails
+                    ->first()
+                    ?->department
+                    ?->name ?? '');
 
                 return [
                     'id' => $employee->id,
                     'code' => $employee->code,
                     'firstName' => $firstName,
                     'lastName' => $lastName,
+                    'departmentName' => $departmentName,
                     'displayName' => $displayName !== '' ? $displayName : ($employee->code ?? 'Employee'),
                 ];
             })
@@ -118,6 +127,59 @@ class HistoricalEmployeeAllowanceController extends Controller
         return response()->json($rows);
     }
 
+    public function importPreview(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'payroll_run_id' => ['required', 'uuid', 'exists:payroll_runs,id'],
+            'rows' => ['required', 'array', 'min:1'],
+            'rows.*.employeeIdentifier' => ['required', 'string'],
+            'rows.*.employeeName' => ['nullable', 'string'],
+            'rows.*.allowanceName' => ['required', 'string'],
+            'rows.*.accountCode' => ['nullable', 'string'],
+            'rows.*.accountId' => ['nullable', 'uuid', 'exists:accounts,id'],
+            'rows.*.allowanceDate' => ['required', 'date'],
+            'rows.*.quantity' => ['required', 'numeric', 'min:0.0001'],
+            'rows.*.unitAmount' => ['required', 'numeric', 'min:0'],
+            'rows.*.note' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $payrollRun = PayrollRun::query()->with('payPeriodSchedule')->findOrFail($validated['payroll_run_id']);
+
+        return response()->json($this->importService->preview($payrollRun, $validated['rows']));
+    }
+
+    public function importConfirm(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'payroll_run_id' => ['required', 'uuid', 'exists:payroll_runs,id'],
+            'rows' => ['required', 'array', 'min:1'],
+            'rows.*.employeeIdentifier' => ['required', 'string'],
+            'rows.*.employeeName' => ['nullable', 'string'],
+            'rows.*.allowanceName' => ['required', 'string'],
+            'rows.*.accountCode' => ['nullable', 'string'],
+            'rows.*.accountId' => ['nullable', 'uuid', 'exists:accounts,id'],
+            'rows.*.allowanceDate' => ['required', 'date'],
+            'rows.*.quantity' => ['required', 'numeric', 'min:0.0001'],
+            'rows.*.unitAmount' => ['required', 'numeric', 'min:0'],
+            'rows.*.note' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $payrollRun = PayrollRun::query()->with('payPeriodSchedule')->findOrFail($validated['payroll_run_id']);
+        $result = $this->importService->confirm($payrollRun, $validated['rows']);
+
+        if (($result['errorCount'] ?? 0) > 0) {
+            return response()->json([
+                'message' => 'Resolve import errors before posting other payments.',
+                ...$result,
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Payroll other payments imported successfully.',
+            ...$result,
+        ], 201);
+    }
+
     public function store(Request $request): JsonResponse
     {
         try {
@@ -128,13 +190,14 @@ class HistoricalEmployeeAllowanceController extends Controller
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
 
-            $payrollRun = PayrollRun::query()->findOrFail($payload['payroll_run_id']);
-            $this->authorization->assertDraftPayrollRun($payrollRun);
+            $payrollRun = PayrollRun::query()->with('payPeriodSchedule')->findOrFail($payload['payroll_run_id']);
+            $this->authorization->assertUpcomingEditablePayrollRun($payrollRun);
+            $this->assertAllowanceDateWithinPayPeriod($payrollRun, $payload['allowance_date'] ?? null);
 
             $record = HistoricalEmployeeAllowance::query()->create($payload);
 
             return response()->json([
-                'message' => 'Payroll allowance created successfully',
+                'message' => 'Payroll other payment created successfully',
                 'data' => $record->load(self::RELATIONS),
             ], 201);
         } catch (ValidationException $e) {
@@ -171,13 +234,17 @@ class HistoricalEmployeeAllowanceController extends Controller
             }
 
             $payrollRunId = $payload['payroll_run_id'] ?? (string) $historicalEmployeeAllowance->payroll_run_id;
-            $payrollRun = PayrollRun::query()->findOrFail($payrollRunId);
-            $this->authorization->assertDraftPayrollRun($payrollRun);
+            $payrollRun = PayrollRun::query()->with('payPeriodSchedule')->findOrFail($payrollRunId);
+            $this->authorization->assertUpcomingEditablePayrollRun($payrollRun);
+
+            if (array_key_exists('allowance_date', $payload)) {
+                $this->assertAllowanceDateWithinPayPeriod($payrollRun, $payload['allowance_date']);
+            }
 
             $historicalEmployeeAllowance->update($payload);
 
             return response()->json([
-                'message' => 'Payroll allowance updated successfully',
+                'message' => 'Payroll other payment updated successfully',
                 'data' => $historicalEmployeeAllowance->fresh(self::RELATIONS),
             ]);
         } catch (ValidationException $e) {
@@ -192,11 +259,11 @@ class HistoricalEmployeeAllowanceController extends Controller
         }
 
         $payrollRun = PayrollRun::query()->findOrFail($historicalEmployeeAllowance->payroll_run_id);
-        $this->authorization->assertDraftPayrollRun($payrollRun);
+        $this->authorization->assertUpcomingEditablePayrollRun($payrollRun);
 
         $historicalEmployeeAllowance->delete();
 
-        return response()->json(['message' => 'Payroll allowance deleted successfully']);
+        return response()->json(['message' => 'Payroll other payment deleted successfully']);
     }
 
     /**
@@ -216,6 +283,8 @@ class HistoricalEmployeeAllowanceController extends Controller
             'quantity' => [$creating ? 'required' : 'sometimes', 'numeric', 'min:0.0001', 'max:999999999.9999'],
             'unitAmount' => [$creating ? 'required' : 'sometimes', 'numeric', 'min:0', 'max:999999999999.99'],
             'amount' => ['sometimes', 'numeric', 'min:0', 'max:999999999999.99'],
+            'allowanceDate' => [$creating ? 'required' : 'sometimes', 'date', 'date_format:Y-m-d'],
+            'allowance_date' => ['sometimes', 'date', 'date_format:Y-m-d'],
             'note' => ['nullable', 'string', 'max:5000'],
             'departmentId' => ['nullable', 'integer', 'exists:department,id'],
         ];
@@ -231,12 +300,14 @@ class HistoricalEmployeeAllowanceController extends Controller
         $allowanceId = $data['allowance_id'] ?? $data['allowanceId'] ?? null;
         $accountId = $data['account_id'] ?? $data['accountId'] ?? null;
         $payrollRunId = $data['payroll_run_id'] ?? $data['payrollRunId'] ?? null;
+        $allowanceDate = $data['allowance_date'] ?? $data['allowanceDate'] ?? null;
 
         $payload = array_filter([
             'employee_id' => $employeeId,
             'allowance_id' => $allowanceId,
             'account_id' => $accountId,
             'payroll_run_id' => $payrollRunId,
+            'allowance_date' => $allowanceDate,
             'note' => array_key_exists('note', $data) ? ($data['note'] ?? '') : null,
             'departmentId' => $data['departmentId'] ?? null,
         ], fn ($value, $key) => $value !== null || $key === 'note', ARRAY_FILTER_USE_BOTH);
@@ -275,5 +346,25 @@ class HistoricalEmployeeAllowanceController extends Controller
         }
 
         return $payload;
+    }
+
+    private function assertAllowanceDateWithinPayPeriod(PayrollRun $payrollRun, ?string $allowanceDate): void
+    {
+        if (! $allowanceDate) {
+            abort(422, 'Other payment date is required.');
+        }
+
+        $schedule = $payrollRun->payPeriodSchedule;
+        if (! $schedule) {
+            abort(422, 'The payroll run does not have a pay period schedule.');
+        }
+
+        $date = Carbon::parse($allowanceDate)->startOfDay();
+        $start = Carbon::parse($schedule->start_date)->startOfDay();
+        $end = Carbon::parse($schedule->end_date)->startOfDay();
+
+        if ($date->lt($start) || $date->gt($end)) {
+            abort(422, 'Other payment date must fall within the selected pay period.');
+        }
     }
 }

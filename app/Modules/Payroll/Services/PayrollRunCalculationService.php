@@ -9,6 +9,7 @@ use App\Models\HistoricalEmployeeDeduction;
 use App\Models\PaymentMethod;
 use App\Models\Payroll;
 use App\Models\PayrollRun;
+use App\Modules\Hr\Services\Attendance\TimesheetProcessingService;
 use App\Services\SocialSecurity\SocialSecurityContributionService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -25,6 +26,7 @@ class PayrollRunCalculationService
         private readonly IncomeTaxCalculationService $incomeTaxCalculationService,
         private readonly PayrollTimesheetScopeService $payrollTimesheetScopeService,
         private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly TimesheetProcessingService $timesheetProcessingService,
     ) {
     }
 
@@ -56,6 +58,12 @@ class PayrollRunCalculationService
                 : null);
         $mondays = PayPeriodHelper::countMondays($startDate, $endDate);
         $weeksInPeriod = max(1, $mondays);
+
+        $this->timesheetProcessingService->generateScheduledTimesheets([
+            'startDate' => $startDate->toDateString(),
+            'endDate' => $endDate->toDateString(),
+            'payPeriodGroupId' => $payPeriodGroupId,
+        ]);
 
         $employeeIds = $this->resolveEmployeeIds(
             $payrollRun,

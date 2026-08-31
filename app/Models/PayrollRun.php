@@ -24,11 +24,13 @@ class PayrollRun extends Model
         'payrate_frequency_id',
         'status',
         'payroll_number',
+        'timesheet_lock_applied_at',
     ];
 
     protected $casts = [
         'payrate_frequency_id' => 'integer',
         'payroll_number' => 'integer',
+        'timesheet_lock_applied_at' => 'datetime',
     ];
 
     protected $appends = [

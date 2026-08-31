@@ -77,6 +77,24 @@ class EmployeeCompensationResolver
         return $this->method($compensation)->defaultRequiresClocking();
     }
 
+    public function shouldAutoFillScheduledTimesheets(?EmployeeCompensation $compensation): bool
+    {
+        if (!$compensation) {
+            return false;
+        }
+
+        $method = $this->method($compensation);
+        if ($method->isDailyRateBased()) {
+            return false;
+        }
+
+        if ($method->isBaseBased()) {
+            return true;
+        }
+
+        return ! $this->requiresClocking($compensation);
+    }
+
     public function payType(?EmployeeCompensation $compensation): string
     {
         return $this->method($compensation)->storedPayType();

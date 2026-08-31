@@ -30,6 +30,7 @@ class HistoricalEmployeeAllowance extends Model
         'allowanceId',
         'account_id',
         'accountId',
+        'allowance_date',
         'departmentId',
         'taxableAmount',
         'ssSubjectAmount',
@@ -41,6 +42,7 @@ class HistoricalEmployeeAllowance extends Model
         'unitAmount' => 'decimal:2',
         'taxableAmount' => 'decimal:2',
         'ssSubjectAmount' => 'decimal:2',
+        'allowance_date' => 'date',
     ];
 
     public function employee(): BelongsTo

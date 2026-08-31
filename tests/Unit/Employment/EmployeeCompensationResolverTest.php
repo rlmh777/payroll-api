@@ -101,6 +101,21 @@ class EmployeeCompensationResolverTest extends TestCase
         $this->assertSame(CompensationMethod::HourlyOt, CompensationMethod::fromStored('HOURLY'));
     }
 
+    public function test_base_rate_methods_auto_fill_scheduled_timesheets_even_if_clocking_is_required(): void
+    {
+        $baseNoOt = $this->makeCompensation('2024-01-01', null, true, 'BASE_NO_OT', true, 0, 52000, 40);
+        $baseOt = $this->makeCompensation('2024-01-01', null, true, 'BASE_OT', true, 0, 60000, 40);
+        $hourlyOt = $this->makeCompensation('2024-01-01', null, true, 'HOURLY_OT', true, 20, 0, 40);
+        $hourlyNoOtOptional = $this->makeCompensation('2024-01-01', null, true, 'HOURLY_NO_OT', false, 20, 0, 40);
+        $dailyRate = $this->makeCompensation('2024-01-01', null, true, 'DAILY_RATE', false, 0, 0, 40);
+
+        $this->assertTrue($this->resolver->shouldAutoFillScheduledTimesheets($baseNoOt));
+        $this->assertTrue($this->resolver->shouldAutoFillScheduledTimesheets($baseOt));
+        $this->assertFalse($this->resolver->shouldAutoFillScheduledTimesheets($hourlyOt));
+        $this->assertTrue($this->resolver->shouldAutoFillScheduledTimesheets($hourlyNoOtOptional));
+        $this->assertFalse($this->resolver->shouldAutoFillScheduledTimesheets($dailyRate));
+    }
+
     private function makeCompensation(
         string $effectiveDate,
         ?string $endDate,

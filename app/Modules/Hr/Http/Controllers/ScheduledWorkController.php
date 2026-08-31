@@ -45,7 +45,7 @@ class ScheduledWorkController extends Controller
             'worksiteId' => 'nullable|integer|exists:worksite,id',
             'includeLunchHour' => 'nullable|boolean',
             'lunchHourHours' => 'nullable|numeric|min:0|max:8',
-            'description' => "{$required}|string|max:1024",
+            'description' => 'nullable|string|max:1024',
             'rate' => 'nullable|numeric|min:0|max:9.99',
         ];
     }
@@ -148,7 +148,7 @@ class ScheduledWorkController extends Controller
                 'worksiteId' => $validatedData['worksiteId'] ?? null,
                 'includeLunchHour' => (bool) ($validatedData['includeLunchHour'] ?? false),
                 'lunchHourHours' => $validatedData['lunchHourHours'] ?? 1,
-                'description' => $validatedData['description'],
+                'description' => trim((string) ($validatedData['description'] ?? '')),
                 'rate' => $validatedData['rate'] ?? 1,
             ]);
             $payload = $this->applyEmploymentAssignment($payload);

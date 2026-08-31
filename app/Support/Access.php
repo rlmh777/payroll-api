@@ -49,7 +49,7 @@ class Access
     }
 
     /**
-     * Company-wide payroll allowance entry (not limited to subordinates).
+     * Company-wide Payroll other payment entry (not limited to subordinates).
      */
     public static function canManageCompanyPayrollAllowances(?User $user): bool
     {

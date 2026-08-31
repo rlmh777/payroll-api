@@ -33,6 +33,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Timesheet auto-lock after payroll
+    |--------------------------------------------------------------------------
+    | Posted payroll timesheets lock at pay_date + days_after_pay_date @ lock_time
+    | (app timezone). Requires `timesheets:apply-payroll-locks` on the scheduler.
+    */
+    'timesheet_auto_lock' => [
+        'enabled_default' => true,
+        'days_after_pay_date' => (int) env('PAYROLL_TIMESHEET_LOCK_DAYS_AFTER_PAY_DATE', 1),
+        'lock_time' => env('PAYROLL_TIMESHEET_LOCK_TIME', '17:00'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Employee user accounts
     |--------------------------------------------------------------------------
     | Login email is generated as {lastname}.{firstname}@{employee_login_domain}.

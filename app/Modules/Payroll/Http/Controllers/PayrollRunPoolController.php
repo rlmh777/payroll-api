@@ -68,7 +68,7 @@ class PayrollRunPoolController extends Controller
     public function distributions(PayrollRun $payrollRun, Request $request): JsonResponse
     {
         $query = PayrollRunPoolDistribution::query()
-            ->with(['poolDistributionType', 'employee'])
+            ->with(['poolDistributionType', 'employee.person', 'department'])
             ->where('payroll_run_id', $payrollRun->id);
 
         if ($request->filled('pool_distribution_type_id')) {
@@ -81,7 +81,29 @@ class PayrollRunPoolController extends Controller
 
         $rows = $query->orderBy('pool_distribution_type_id')->orderBy('employee_id')->get();
 
-        return response()->json(['data' => $rows]);
+        return response()->json([
+            'data' => $rows->map(fn (PayrollRunPoolDistribution $row) => [
+                'id' => $row->id,
+                'poolDistributionTypeId' => $row->pool_distribution_type_id,
+                'poolName' => $row->poolDistributionType?->name,
+                'employeeId' => $row->employee_id,
+                'employeeName' => trim(collect([
+                    $row->employee?->firstName,
+                    $row->employee?->lastName,
+                ])->filter()->implode(' ')),
+                'employeeCode' => $row->employee?->code,
+                'departmentId' => $row->department_id,
+                'departmentName' => $row->department?->name,
+                'departmentPercent' => $row->department_percent !== null ? (float) $row->department_percent : null,
+                'departmentAmount' => $row->department_amount !== null ? (float) $row->department_amount : null,
+                'workedThisPeriod' => $row->worked_this_period,
+                'points' => (float) $row->points,
+                'weight' => (float) $row->weight,
+                'amount' => (float) $row->amount,
+                'isEligible' => (bool) $row->is_eligible,
+                'eligibilityReason' => $row->eligibility_reason,
+            ]),
+        ]);
     }
 
     private function isProcessed(PayrollRun $payrollRun): bool

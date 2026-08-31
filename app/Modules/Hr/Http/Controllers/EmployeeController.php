@@ -142,6 +142,13 @@ class EmployeeController extends Controller
             });
         }
 
+        if ($request->filled('employee_group_id')) {
+            $groupId = (string) $request->input('employee_group_id');
+            $query->whereHas('groupMemberships', function ($membership) use ($groupId) {
+                $membership->where('employeeGroupId', $groupId)->active();
+            });
+        }
+
         if ($request->filled('employment_status_id')) {
             $query->where('employmentStatusId', $request->input('employment_status_id'));
         }

@@ -91,6 +91,15 @@ class TimesheetScheduleCoverageService
 
     /**
      * @param array<string, array{start:string,end:string}> $scheduleSlots
+     * @return array{start:string,end:string}|null
+     */
+    public function scheduledSlotForTimesheet(Timesheet $timesheet, array $scheduleSlots): ?array
+    {
+        return $this->resolveScheduledSlot($timesheet, $scheduleSlots);
+    }
+
+    /**
+     * @param array<string, array{start:string,end:string}> $scheduleSlots
      */
     public function isOutsideSchedule(
         Timesheet $timesheet,

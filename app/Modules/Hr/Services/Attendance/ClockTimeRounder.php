@@ -8,31 +8,30 @@ class ClockTimeRounder
 {
     public function roundClockIn(Carbon $time, int $roundOffMinutes): Carbon
     {
-        return $this->roundUpToInterval($time, $roundOffMinutes);
+        return $this->roundToNearestInterval($time, $roundOffMinutes);
     }
 
     public function roundClockOut(Carbon $time, int $roundOffMinutes): Carbon
     {
-        return $this->roundUpToInterval($time, $roundOffMinutes);
+        return $this->roundToNearestInterval($time, $roundOffMinutes);
     }
 
-    private function roundUpToInterval(Carbon $time, int $roundOffMinutes): Carbon
+    private function roundToNearestInterval(Carbon $time, int $roundOffMinutes): Carbon
     {
-        $interval = max(1, $roundOffMinutes);
-        $rounded = $time->copy()->second(0);
-        $minute = (int) $rounded->minute;
-        $remainder = $minute % $interval;
+        $intervalMinutes = max(1, $roundOffMinutes);
+        $intervalSeconds = $intervalMinutes * 60;
+        $rounded = $time->copy();
+        $secondsIntoHour = ((int) $rounded->minute * 60) + (int) $rounded->second;
+        $remainder = $secondsIntoHour % $intervalSeconds;
 
         if ($remainder === 0) {
-            return $rounded;
+            return $rounded->second(0);
         }
 
-        $roundedMinute = $minute + ($interval - $remainder);
-
-        if ($roundedMinute >= 60) {
-            return $rounded->addHour()->minute($roundedMinute - 60);
+        if ($remainder * 2 < $intervalSeconds) {
+            return $rounded->subSeconds($remainder)->second(0);
         }
 
-        return $rounded->minute($roundedMinute);
+        return $rounded->addSeconds($intervalSeconds - $remainder)->second(0);
     }
 }

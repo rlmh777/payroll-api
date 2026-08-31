@@ -70,7 +70,7 @@ jobs:
       - name: Deploy Container Apps
         run: |
           set -euo pipefail
-          for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
+          for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE"; do
             echo "Updating $app -> $IMAGE"
             az containerapp update \
               --name "$app" \
@@ -78,6 +78,12 @@ jobs:
               --image "$IMAGE" \
               --output none
           done
+          echo "Updating job $CONTAINER_APP_SCHEDULER -> $IMAGE"
+          az containerapp job update \
+            --name "$CONTAINER_APP_SCHEDULER" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$IMAGE" \
+            --output none
 
       - name: Ensure API runs migrations on start
         run: |

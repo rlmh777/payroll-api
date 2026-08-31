@@ -13,6 +13,7 @@ use App\Modules\Payroll\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
 use App\Modules\Hr\Http\Controllers\DepartmentController;
+use App\Modules\Hr\Http\Controllers\EmployeeGroupController;
 use App\Modules\Hr\Http\Controllers\DepartmentHeadAssignmentController;
 use App\Modules\Hr\Http\Controllers\WorksiteController;
 use App\Http\Controllers\DegreeController;
@@ -244,6 +245,7 @@ Route::prefix('timesheets')->middleware('auth:sanctum')->group(function () {
     Route::patch('/{timesheet}/paid-status', [TimesheetController::class, 'updatePaidStatus']);
     Route::patch('/{timesheet}/lunch-hours', [TimesheetController::class, 'updateLunchHours']);
     Route::patch('/{timesheet}/comment', [TimesheetController::class, 'updateComment']);
+    Route::patch('/{timesheet}/punctuality', [TimesheetController::class, 'updatePunctuality']);
     Route::post('/{timesheet}/resolve-leave-conflict', [TimesheetController::class, 'resolveLeaveConflict']);
     Route::patch('/{timesheet}/approval', [TimesheetController::class, 'updateApproval']);
 });
@@ -375,6 +377,17 @@ Route::prefix('departments')->group(function () {
     Route::get('/{department}', [DepartmentController::class, 'show']);
     Route::put('/{department}', [DepartmentController::class, 'update']);
     Route::delete('/{department}', [DepartmentController::class, 'destroy']);
+});
+
+Route::prefix('employee-groups')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [EmployeeGroupController::class, 'index']);
+    Route::post('/', [EmployeeGroupController::class, 'store']);
+    Route::get('/{employeeGroup}', [EmployeeGroupController::class, 'show']);
+    Route::put('/{employeeGroup}', [EmployeeGroupController::class, 'update']);
+    Route::delete('/{employeeGroup}', [EmployeeGroupController::class, 'destroy']);
+    Route::post('/{employeeGroup}/members', [EmployeeGroupController::class, 'addMember']);
+    Route::put('/{employeeGroup}/members', [EmployeeGroupController::class, 'syncMembers']);
+    Route::delete('/{employeeGroup}/members/{member}', [EmployeeGroupController::class, 'removeMember']);
 });
 
 Route::prefix('department-head-assignments')->group(function () {
@@ -654,6 +667,8 @@ Route::prefix('employment-histories')->group(function () {
 // Historical Employee Allowance Routes
 Route::prefix('historical-employee-allowances')->group(function () {
     Route::get('/bootstrap', [HistoricalEmployeeAllowanceController::class, 'bootstrap']);
+    Route::post('/import/preview', [HistoricalEmployeeAllowanceController::class, 'importPreview']);
+    Route::post('/import/confirm', [HistoricalEmployeeAllowanceController::class, 'importConfirm']);
     Route::get('/', [HistoricalEmployeeAllowanceController::class, 'index']);
     Route::post('/', [HistoricalEmployeeAllowanceController::class, 'store']);
     Route::get('/{historicalEmployeeAllowance}', [HistoricalEmployeeAllowanceController::class, 'show']);

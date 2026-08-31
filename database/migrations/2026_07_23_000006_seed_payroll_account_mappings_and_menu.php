@@ -25,7 +25,7 @@ return new class extends Migration
             ['EMPLOYER_SOCIAL_SECURITY_EXPENSE', 'Employer Social Security Expense', 'Employer SS contribution expense', '6201', 40],
             ['DEDUCTIONS_PAYABLE', 'Deductions Payable', 'Default account for deductions without a specific account', '6199', 50],
             ['DEPARTMENT_WAGES', 'Department Wages', 'Default wage expense when department/earning code has no account', '6101', 60],
-            ['ALLOWANCES', 'Allowances', 'Default allowance expense when allowance has no account', '6106', 70],
+            ['ALLOWANCES', 'Other Payments', 'Default other payment expense when other payment has no account', '6106', 70],
         ];
 
         $now = now();

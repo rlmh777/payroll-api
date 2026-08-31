@@ -51,6 +51,33 @@ class TimesheetEditLockServiceTest extends TestCase
         $this->assertNull($lockInfo['lockBeforeDate']);
     }
 
+    public function test_timesheet_is_editable_inside_temporary_unlock_window(): void
+    {
+        $lockInfo = $this->lockInfoFor(
+            '2026-06-15',
+            '2026-07-01',
+            '2026-06-01',
+            '2026-06-30',
+        );
+
+        $this->assertFalse($lockInfo['isLocked']);
+        $this->assertTrue($lockInfo['isDateUnlocked']);
+        $this->assertNull($lockInfo['lockReason']);
+    }
+
+    public function test_timesheet_outside_unlock_window_remains_locked(): void
+    {
+        $lockInfo = $this->lockInfoFor(
+            '2026-06-15',
+            '2026-07-01',
+            '2026-06-01',
+            '2026-06-10',
+        );
+
+        $this->assertTrue($lockInfo['isLocked']);
+        $this->assertFalse($lockInfo['isDateUnlocked']);
+    }
+
     /**
      * @return array{
      *   isLocked: bool,
@@ -61,8 +88,12 @@ class TimesheetEditLockServiceTest extends TestCase
      *   lockBeforeDate: ?string
      * }
      */
-    private function lockInfoFor(string $workDate, ?string $lockBeforeDate): array
-    {
+    private function lockInfoFor(
+        string $workDate,
+        ?string $lockBeforeDate,
+        ?string $unlockStartDate = null,
+        ?string $unlockEndDate = null,
+    ): array {
         $timesheet = new Timesheet([
             'id' => (string) Str::uuid(),
             'employeeId' => (string) Str::uuid(),
@@ -72,6 +103,8 @@ class TimesheetEditLockServiceTest extends TestCase
         $service = new TimesheetEditLockService();
         $setting = new PayrollSetting([
             'timesheetLockBeforeDate' => $lockBeforeDate,
+            'timesheetUnlockStartDate' => $unlockStartDate,
+            'timesheetUnlockEndDate' => $unlockEndDate,
         ]);
         $payrollSetting = new \ReflectionProperty(TimesheetEditLockService::class, 'payrollSetting');
         $payrollSetting->setAccessible(true);

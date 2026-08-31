@@ -80,6 +80,7 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($general->id, 'Relationship', '/settings/relationship', 'fas fa-users', 'view-relationship', 6);
         $this->createSubMenu($general->id, 'Bank Account Type', '/settings/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7);
         $this->createSubMenu($general->id, 'Payroll Earning Codes', '/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8);
+        $this->ensureSubMenu($general->id, 'Pool Distribution', '/settings/pool-distribution-types', 'fas fa-chart-pie', 'view-pool-distribution-types', 9);
         $this->createSubMenu($general->id, 'Timesheet Templates', '/settings/timesheet-templates', 'fas fa-clock', 'view-timesheet-templates', 9);
         $this->createSubMenu($general->id, 'Degree', '/settings/degree', 'fas fa-graduation-cap', 'view-degree', 10);
         $this->ensureSubMenu($general->id, 'Job Titles', '/settings/job-titles', 'work', 'view-job-title', 16);
@@ -88,12 +89,13 @@ class MenuSeeder extends Seeder
         $this->createSubMenu($general->id, 'Work Site', '/settings/worksite', 'fas fa-map', 'view-worksite', 12);
         $this->createSubMenu($general->id, 'Public Holidays', '/settings/holidays', 'event', 'view-holidays', 13);
         $this->createSubMenu($general->id, 'Attendance', '/settings/attendance', 'schedule', 'view-attendance-settings', 14);
-        $this->createSubMenu($general->id, 'Department Heads', '/settings/department-heads', 'supervisor_account', 'view-department-heads', 15);
+        $this->ensureSubMenu($general->id, 'Employee Groups', '/settings/employee-groups', 'groups', 'view-employee-groups', 15);
+        $this->createSubMenu($general->id, 'Department Heads', '/settings/department-heads', 'supervisor_account', 'view-department-heads', 16);
         $payroll = $this->createMenu('Payroll', '/payroll', 'fas fa-money-check-alt', 'view-payroll', 7);
         $this->createSubMenu($payroll->id, 'Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1);
         $this->createSubMenu($payroll->id, 'Pay Period', '/payroll/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 2);
         $this->createSubMenu($payroll->id, 'Payroll Run', '/payroll/payroll-run', 'fas fa-money-check-alt', 'view-payroll', 3);
-        $this->createSubMenu($payroll->id, 'Allowances', '/payroll/allowances', 'fas fa-hand-holding-usd', 'view-payroll-allowances', 4);
+        $this->createSubMenu($payroll->id, 'Other Payments', '/payroll/allowances', 'fas fa-hand-holding-usd', 'view-payroll-allowances', 4);
         $this->createSubMenu($payroll->id, 'Day / trip work', '/payroll/day-work', 'fas fa-route', 'view-employee-day-work', 5);
         $this->createSubMenu($payroll->id, 'Generate Payslip', '/payroll/generate-payslip', 'fas fa-file-invoice-dollar', 'view-payroll', 6);
         $this->createSubMenu($payroll->id, 'Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 7);
@@ -202,6 +204,8 @@ class MenuSeeder extends Seeder
             'view-relationship',
             'view-bank-account-type',
             'view-payroll-earning-codes',
+            'view-pool-distribution-types',
+            'pool-distribution-type-crud',
             'view-timesheet-templates',
             'view-degree',
             'view-job-title',
@@ -218,6 +222,7 @@ class MenuSeeder extends Seeder
             'relationship-crud',
             'bank-account-type-crud',
             'payroll-earning-code-crud',
+            'pool-distribution-type-crud',
             'calendar-crud',
             'degree-crud',
             'job-title-crud',
@@ -229,6 +234,8 @@ class MenuSeeder extends Seeder
             'attendance-settings-crud',
             'view-department-heads',
             'department-head-crud',
+            'view-employee-groups',
+            'employee-groups-crud',
 
             // Payroll permissions
             'view-overview',

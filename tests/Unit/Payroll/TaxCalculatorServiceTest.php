@@ -52,24 +52,26 @@ class TaxCalculatorServiceTest extends TestCase
         $this->assertEqualsWithDelta(438961.46, $result['gst']['line_120'], 0.01);
         $this->assertEqualsWithDelta(1178700.33, $result['gst']['line_130'], 0.01);
         $this->assertEqualsWithDelta(91980.14625, $result['gst']['line_140'], 0.001);
-        $this->assertEqualsWithDelta(33990.641151, $result['gst']['line_250'], 0.001);
-        $this->assertEqualsWithDelta(271925.129211, $result['gst']['line_210'], 0.01);
-        $this->assertEqualsWithDelta(47929.235607, $result['gst']['line_230'], 0.01);
-        $this->assertEqualsWithDelta(57989.505099, $result['gst']['line_300'], 0.001);
+        $this->assertEqualsWithDelta(33977.919778, $result['gst']['line_250'], 0.001);
+        $this->assertEqualsWithDelta(271823.358227, $result['gst']['line_210'], 0.01);
+        $this->assertEqualsWithDelta(48088.25277, $result['gst']['line_230'], 0.01);
+        $this->assertEqualsWithDelta(58002.226472, $result['gst']['line_300'], 0.001);
         $this->assertEqualsWithDelta(30322.59, $result['gst']['line_220'], 0.01);
 
         $this->assertEqualsWithDelta(438961.46, $result['btb']['base'], 0.01);
         $this->assertEqualsWithDelta(39506.5314, $result['btb']['tax'], 0.001);
-        $this->assertEqualsWithDelta(123803.009424, $result['combined_total'], 0.01);
-        $this->assertEqualsWithDelta(0.6242818054, $result['partial_exemption']['gst_income_ratio'], 0.0000001);
+        $this->assertEqualsWithDelta(123815.730797, $result['combined_total'], 0.01);
+        $this->assertEqualsWithDelta(0.6263530156, $result['partial_exemption']['gst_income_ratio'], 0.0000001);
+        $this->assertEqualsWithDelta(0.0, $result['partial_exemption']['zero_rated_ratio'], 0.0000001);
+        $this->assertEqualsWithDelta(1174802.63, $result['partial_exemption']['total_value'], 0.01);
         $this->assertEqualsWithDelta(37824.98, $result['partial_exemption']['total_debits'], 0.01);
-        $this->assertEqualsWithDelta(3834.338849, $result['partial_exemption']['ratio_times_partial_exemptions'], 0.001);
-        $this->assertEqualsWithDelta(-3834.338849, $result['partial_exemption']['less_partial_exemptions'], 0.001);
-        $this->assertEqualsWithDelta(33990.641151, $result['partial_exemption']['line_250'], 0.001);
+        $this->assertEqualsWithDelta(3847.060222, $result['partial_exemption']['ratio_times_partial_exemptions'], 0.001);
+        $this->assertEqualsWithDelta(-3847.060222, $result['partial_exemption']['less_partial_exemptions'], 0.001);
+        $this->assertEqualsWithDelta(33977.919778, $result['partial_exemption']['line_250'], 0.001);
         $this->assertEqualsWithDelta(0.125, $result['partial_exemption']['gst_rate'], 0.0001);
-        $this->assertEqualsWithDelta(-33990.641151, $result['partial_exemption']['invoices_less_exemptions'], 0.001);
-        $this->assertEqualsWithDelta(57989.505099, $result['partial_exemption']['net_gst_due'], 0.001);
+        $this->assertEqualsWithDelta(-33977.919778, $result['partial_exemption']['invoices_less_exemptions'], 0.001);
+        $this->assertEqualsWithDelta(58002.226472, $result['partial_exemption']['net_gst_due'], 0.001);
         $this->assertEqualsWithDelta(64946.23, $result['partial_exemption']['net_of_2251'], 0.01);
-        $this->assertEqualsWithDelta(-6956.724901, $result['partial_exemption']['additional_liability'], 0.001);
+        $this->assertEqualsWithDelta(-6944.003528, $result['partial_exemption']['additional_liability'], 0.001);
     }
 }

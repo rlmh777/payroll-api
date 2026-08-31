@@ -10,6 +10,7 @@ class PoolDistributionType extends Model
 {
     public const MODE_WEIGHTED_POINTS = 'weighted_points';
     public const MODE_EQUAL_SHARE = 'equal_share';
+    public const MODE_DEPARTMENT_EQUAL_SHARE = 'department_equal_share';
     public const MODE_MANUAL = 'manual';
     public const MODE_DISABLED = 'disabled';
 
@@ -52,12 +53,18 @@ class PoolDistributionType extends Model
         return $this->hasMany(EmployeePoolPoint::class, 'pool_distribution_type_id');
     }
 
+    public function departmentShares(): HasMany
+    {
+        return $this->hasMany(PoolDistributionTypeDepartmentShare::class, 'pool_distribution_type_id');
+    }
+
     public function isDistributable(): bool
     {
         return $this->is_active
             && in_array($this->calculation_mode, [
                 self::MODE_WEIGHTED_POINTS,
                 self::MODE_EQUAL_SHARE,
+                self::MODE_DEPARTMENT_EQUAL_SHARE,
             ], true);
     }
 }

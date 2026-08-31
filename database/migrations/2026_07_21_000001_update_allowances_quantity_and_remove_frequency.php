@@ -92,7 +92,7 @@ return new class extends Migration
         $existing = DB::table('menus')->where('route', '/payroll/allowances')->first();
         $payload = [
             'parent_id' => $payrollMenuId,
-            'title' => 'Allowances',
+            'title' => 'Other Payments',
             'icon' => 'fas fa-hand-holding-usd',
             'permission' => 'view-payroll-allowances',
             'order' => 4,

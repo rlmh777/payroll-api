@@ -69,7 +69,7 @@ class EmployeeDefaultAllowanceController extends Controller
         $allowance = EmployeeDefaultAllowance::create($data);
 
         return response()->json([
-            'message' => 'Employee default allowance created successfully',
+            'message' => 'Employee default other payment created successfully',
             'data' => $allowance->load(self::RELATIONS),
         ], 201);
     }
@@ -117,7 +117,7 @@ class EmployeeDefaultAllowanceController extends Controller
         $employeeDefaultAllowance->update($data);
 
         return response()->json([
-            'message' => 'Employee default allowance updated successfully',
+            'message' => 'Employee default other payment updated successfully',
             'data' => $employeeDefaultAllowance->load(self::RELATIONS),
         ]);
     }
@@ -127,7 +127,7 @@ class EmployeeDefaultAllowanceController extends Controller
         $employeeDefaultAllowance->delete();
 
         return response()->json([
-            'message' => 'Employee default allowance deleted successfully',
+            'message' => 'Employee default other payment deleted successfully',
         ]);
     }
 }

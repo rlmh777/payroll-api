@@ -21,10 +21,10 @@ class SalaryReviewReportService
      * @var list<string>
      */
     private const PREFERRED_ACCOUNT_ORDER = [
-        'Monthly Allowance',
+        'Monthly Other Payment',
         'Total Base Wage',
         'Gratuity',
-        'Total Allowance',
+        'Total Other Payment',
         'Regular Holiday Pay',
         'Tips',
     ];

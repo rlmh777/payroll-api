@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\EmployeeReporting;
 use App\Models\PayrollRun;
 use App\Models\User;
+use App\Modules\Payroll\Services\PayPeriodHelper;
 use App\Support\Access;
 use Illuminate\Support\Collection;
 
@@ -116,7 +117,20 @@ class PayrollAllowanceAuthorizationService
     public function assertDraftPayrollRun(PayrollRun $payrollRun): void
     {
         if (strtolower((string) $payrollRun->status) !== 'draft') {
-            abort(422, 'Allowances can only be managed for draft payroll runs.');
+            abort(422, 'Other payments can only be managed for draft payroll runs.');
+        }
+    }
+
+    public function assertUpcomingEditablePayrollRun(PayrollRun $payrollRun): void
+    {
+        $this->assertDraftPayrollRun($payrollRun);
+
+        $upcomingIds = PayPeriodHelper::upcomingEditablePayrollRuns()
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id);
+
+        if (! $upcomingIds->contains((string) $payrollRun->id)) {
+            abort(422, 'Other payments can only be managed for the upcoming payroll run.');
         }
     }
 }

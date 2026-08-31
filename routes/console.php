@@ -13,6 +13,11 @@ Schedule::command('timesheets:process')
     ->withoutOverlapping()
     ->onOneServer();
 
+Schedule::command('timesheets:apply-payroll-locks')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();
+
 foreach (config('database-backup.schedule_times', []) as $time) {
     if (! is_string($time) || $time === '') {
         continue;

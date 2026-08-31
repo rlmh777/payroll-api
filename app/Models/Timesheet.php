@@ -25,6 +25,8 @@ class Timesheet extends Model
         'clockInDeviceId',
         'clockOutTime',
         'clockOutDeviceId',
+        'clockInPunctuality',
+        'clockOutPunctuality',
         'roundOffClockInTime',
         'roundOffClockOutTime',
         'clockedHoursWorked',

@@ -72,21 +72,13 @@ class TimesheetProcessingService
             $query->where('biometricUserId', $filters['biometricUserId']);
         }
 
-        $logs = $query->get(['biometricUserId', 'deviceId', 'punchDateTime', 'punchType']);
+        $logs = !empty($filters['scheduledOnly'])
+            ? collect()
+            : $query->get(['biometricUserId', 'deviceId', 'punchDateTime', 'punchType']);
         [$rangeStart, $rangeEnd] = $this->resolveProcessingRange($filters, $logs);
 
         if (!$rangeStart || !$rangeEnd) {
-            return [
-                'totalLogs' => 0,
-                'groupedDays' => 0,
-                'processedTimesheets' => 0,
-                'clockingTimesheets' => 0,
-                'scheduledTimesheets' => 0,
-                'regularHours' => 0.0,
-                'overtimeHours' => 0.0,
-                'unresolvedBiometricUsers' => [],
-                'warnings' => [],
-            ];
+            return $this->emptyProcessResult();
         }
 
         $logGroupsByBiometricUser = $this->groupLogsByBiometricUser($logs);
@@ -198,13 +190,13 @@ class TimesheetProcessingService
                 $employeeId,
                 $date,
                 $employmentDetail?->departmentId,
-                $employmentDetail?->id ? (string) $employmentDetail->id : null,
+                    $employmentDetail?->id ? (string) $employmentDetail->id : null,
             );
             $punches = collect($logGroupsByEmployee[$employeeId][$workDate] ?? []);
             $prebuiltSlotPayloads = $overnightPayloadsByEmployeeDate[$employeeId][$workDate] ?? null;
 
             if (
-                $requiresClocking
+                ! $this->compensationResolver->shouldAutoFillScheduledTimesheets($compensation)
                 && $punches->isEmpty()
                 && ($prebuiltSlotPayloads === null || $prebuiltSlotPayloads === [])
             ) {
@@ -282,6 +274,47 @@ class TimesheetProcessingService
             'overtimeHours' => round($overtimeHours, 2),
             'unresolvedBiometricUsers' => $unresolved,
             'warnings' => $warnings,
+        ];
+    }
+
+    /**
+     * Create approved scheduled timesheets for base-rate (and other no-clock) employees.
+     *
+     * @param array{startDate?:string, endDate?:string, payPeriodGroupId?:string} $filters
+     * @return array<string, mixed>
+     */
+    public function generateScheduledTimesheets(array $filters): array
+    {
+        $filters['scheduledOnly'] = true;
+
+        return $this->process($filters);
+    }
+
+    /**
+     * @return array{
+     *   totalLogs:int,
+     *   groupedDays:int,
+     *   processedTimesheets:int,
+     *   clockingTimesheets:int,
+     *   scheduledTimesheets:int,
+     *   regularHours:float,
+     *   overtimeHours:float,
+     *   unresolvedBiometricUsers:array<int, string>,
+     *   warnings:array<int, array{employeeId:string, employeeName:?string, date:string, message:string}>
+     * }
+     */
+    private function emptyProcessResult(): array
+    {
+        return [
+            'totalLogs' => 0,
+            'groupedDays' => 0,
+            'processedTimesheets' => 0,
+            'clockingTimesheets' => 0,
+            'scheduledTimesheets' => 0,
+            'regularHours' => 0.0,
+            'overtimeHours' => 0.0,
+            'unresolvedBiometricUsers' => [],
+            'warnings' => [],
         ];
     }
 
@@ -603,8 +636,7 @@ class TimesheetProcessingService
 
                     if (
                         $compensation
-                        && ! $this->compensationResolver->requiresClocking($compensation)
-                        && ! $this->compensationResolver->method($compensation)->isDailyRateBased()
+                        && $this->compensationResolver->shouldAutoFillScheduledTimesheets($compensation)
                         && $this->scheduledHoursResolver->forEmployeeDate(
                             (string) $employeeId,
                             $date,
@@ -747,21 +779,8 @@ class TimesheetProcessingService
     ): Collection {
         $compensationMethod = CompensationMethod::fromStored($payrollSnapshot['payType'] ?? null);
         $requiresClocking = (bool) ($payrollSnapshot['requiresClocking'] ?? $compensationMethod->defaultRequiresClocking());
-        $autoApprove = !$requiresClocking;
-
-        if (
-            $punches->isEmpty()
-            && ($prebuiltSlotPayloads === null || $prebuiltSlotPayloads === [])
-            && $this->leaveConflictService->hasApprovedLeaveOnDate($approvedLeavesOnDate)
-        ) {
-            Timesheet::query()
-                ->where('employeeId', $employeeId)
-                ->whereDate('date', $workDate)
-                ->whereRaw('UPPER("approvalStatus") != ?', ['APPROVED'])
-                ->delete();
-
-            return collect();
-        }
+        $autoApprove = !$requiresClocking || $compensationMethod->isBaseBased();
+        $hasApprovedLeave = $this->leaveConflictService->hasApprovedLeaveOnDate($approvedLeavesOnDate);
 
         $slotPayloads = [];
         $hasClockedSlots = false;
@@ -811,9 +830,7 @@ class TimesheetProcessingService
             }
 
             $hasClockedSlots = true;
-        } elseif (
-            !$this->leaveConflictService->hasApprovedLeaveOnDate($approvedLeavesOnDate)
-        ) {
+        } else {
             $hasExistingClockedTimesheet = Timesheet::query()
                 ->where('employeeId', $employeeId)
                 ->whereDate('date', $workDate)
@@ -846,6 +863,9 @@ class TimesheetProcessingService
                 $clockRoundOffMinutes,
                 $payrollSnapshot,
             );
+            if ($hasApprovedLeave && !$isUnpaidLeave) {
+                $timesheetData['workingStatus'] = 'LEAVE';
+            }
             $slotPayloads[] = array_merge($timesheetData, [
                 'slotIndex' => 0,
                 'includeLunchHour' => $lunchSettings['include_lunch_hour'],

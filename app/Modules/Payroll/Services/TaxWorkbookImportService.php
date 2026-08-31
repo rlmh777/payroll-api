@@ -2,16 +2,21 @@
 
 namespace App\Modules\Payroll\Services;
 
+use App\Modules\Payroll\Support\WorkbookPeriodValidator;
 use App\Modules\Payroll\Support\XlsxWorkbookReader;
 use InvalidArgumentException;
 
 class TaxWorkbookImportService
 {
     private readonly XlsxWorkbookReader $reader;
+    private readonly WorkbookPeriodValidator $periodValidator;
 
-    public function __construct(?XlsxWorkbookReader $reader = null)
-    {
+    public function __construct(
+        ?XlsxWorkbookReader $reader = null,
+        ?WorkbookPeriodValidator $periodValidator = null,
+    ) {
         $this->reader = $reader ?? new XlsxWorkbookReader();
+        $this->periodValidator = $periodValidator ?? new WorkbookPeriodValidator();
     }
 
     /**
@@ -24,24 +29,27 @@ class TaxWorkbookImportService
      *     net_of_2251: float
      * }
      */
-    public function parse(string $path): array
+    public function parse(string $path, ?int $year = null, ?int $month = null): array
     {
         $sheets = $this->reader->read($path);
-        $accountsSheet = $this->sheetByName($sheets, ['Taxes Calculator', 'Accounts']);
-        $gstSheet = $this->sheetByName($sheets, ['GST']);
+        [$accountsSheet, $gstSheet] = $this->detectSheets($sheets);
 
-        if ($accountsSheet === null) {
-            throw new InvalidArgumentException('The workbook must include a Taxes Calculator (accounts) sheet.');
-        }
-        if ($gstSheet === null) {
-            throw new InvalidArgumentException('The workbook must include a GST sheet.');
+        $gstCompact = $this->compactSheet($gstSheet);
+        if ($year !== null && $month !== null) {
+            $this->periodValidator->assertRowsMatchPeriod(
+                $gstCompact,
+                $this->periodValidator->dateColumnFromRows($gstCompact),
+                $year,
+                $month,
+                'GST workbook',
+            );
         }
 
         $gst = $this->extractGstTotals($gstSheet);
 
         return [
             'accounts_sheet' => $this->compactSheet($accountsSheet),
-            'gst_sheet' => $this->compactSheet($gstSheet),
+            'gst_sheet' => $gstCompact,
             'lines' => $this->extractAccountLines($accountsSheet),
             'total_debits' => $gst['total_debits'],
             'partial_exemptions_total' => $gst['partial_exemptions_total'],
@@ -50,21 +58,142 @@ class TaxWorkbookImportService
     }
 
     /**
+     * Identify accounts vs GST from sheet contents. Names are only a weak hint.
+     *
      * @param  array<string, array<int, array<string, array{v: mixed, f: ?string}>>>  $sheets
-     * @param  list<string>  $names
-     * @return array<int, array<string, array{v: mixed, f: ?string}>>|null
+     * @return array{0: array<int, array<string, array{v: mixed, f: ?string}>>, 1: array<int, array<string, array{v: mixed, f: ?string}>>}
      */
-    private function sheetByName(array $sheets, array $names): ?array
+    private function detectSheets(array $sheets): array
     {
-        foreach ($names as $name) {
-            foreach ($sheets as $actual => $rows) {
-                if (strcasecmp(trim($actual), $name) === 0) {
-                    return $rows;
+        if (count($sheets) < 2) {
+            throw new InvalidArgumentException('The workbook must include both an accounts (P&L / Taxes Calculator) sheet and a GST sheet.');
+        }
+
+        $scored = [];
+        foreach ($sheets as $name => $rows) {
+            $scored[] = [
+                'name' => (string) $name,
+                'rows' => $rows,
+                'gst' => $this->gstSheetScore($rows, (string) $name),
+                'accounts' => $this->accountsSheetScore($rows, (string) $name),
+            ];
+        }
+
+        $gstWinner = null;
+        $gstScore = -1;
+        foreach ($scored as $item) {
+            if ($item['gst'] > $gstScore) {
+                $gstWinner = $item;
+                $gstScore = $item['gst'];
+            }
+        }
+
+        $accountsWinner = null;
+        $accountsScore = -1;
+        foreach ($scored as $item) {
+            if ($gstWinner !== null && $item['name'] === $gstWinner['name']) {
+                continue;
+            }
+            if ($item['accounts'] > $accountsScore) {
+                $accountsWinner = $item;
+                $accountsScore = $item['accounts'];
+            }
+        }
+
+        if ($gstWinner === null || $gstScore <= 0) {
+            throw new InvalidArgumentException('Could not detect a GST sheet. Include a GST payable register (Debit / Credit / Balance) in the workbook.');
+        }
+        if ($accountsWinner === null || $accountsScore <= 0) {
+            throw new InvalidArgumentException('Could not detect an accounts / P&L sheet in the workbook.');
+        }
+
+        return [$accountsWinner['rows'], $gstWinner['rows']];
+    }
+
+    /**
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     */
+    private function gstSheetScore(array $rows, string $name): int
+    {
+        $text = $this->sheetText($rows);
+        $score = 0;
+
+        if ($this->findHeaderColumn($rows, 'Debit') && $this->findHeaderColumn($rows, 'Balance')) {
+            $score += 6;
+        }
+        if ($this->findHeaderColumn($rows, 'Credit')) {
+            $score += 2;
+        }
+        if (preg_match('/\bgst payable\b/', $text)) {
+            $score += 4;
+        }
+        if (preg_match('/\b2251\b/', $text)) {
+            $score += 3;
+        }
+        if (preg_match('/partial exemption/', $text)) {
+            $score += 2;
+        }
+        if (preg_match('/\b(bill|general journal|check|cheque)\b/', $text)) {
+            $score += 2;
+        }
+        if (preg_match('/gst/i', $name)) {
+            $score += 1;
+        }
+
+        return $score;
+    }
+
+    /**
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     */
+    private function accountsSheetScore(array $rows, string $name): int
+    {
+        $text = $this->sheetText($rows);
+        $score = 0;
+
+        if (preg_match('/ordinary income|net income|gross profit/', $text)) {
+            $score += 5;
+        }
+        if (preg_match('/\btotal income\b/', $text)) {
+            $score += 3;
+        }
+        if (preg_match('/taxes calculator|profit and loss|p&l/', $text.' '.strtolower($name))) {
+            $score += 3;
+        }
+        if (preg_match_all('/\b\d{4}[a-z]?\s*[·.]\s+/i', $text, $matches)) {
+            $score += min(6, count($matches[0]));
+        }
+        if (preg_match('/\b(accounts|p&l|profit)\b/i', $name)) {
+            $score += 1;
+        }
+        if ($this->findHeaderColumn($rows, 'Debit') && $this->findHeaderColumn($rows, 'Balance')) {
+            $score -= 6;
+        }
+
+        return $score;
+    }
+
+    /**
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     */
+    private function sheetText(array $rows): string
+    {
+        $parts = [];
+        $count = 0;
+        foreach ($rows as $cells) {
+            foreach ($cells as $cell) {
+                $value = trim((string) ($cell['v'] ?? ''));
+                if ($value !== '' && ! is_numeric($value)) {
+                    $parts[] = $value;
+                    $count++;
+                    if ($count >= 200) {
+                        break 2;
+                    }
                 }
             }
         }
 
-        return null;
+        return $this->normalizeLabel(implode(' ', $parts));
     }
 
     /**
@@ -73,16 +202,17 @@ class TaxWorkbookImportService
      */
     public function extractAccountLines(array $rows): array
     {
+        $amountCol = $this->findAmountColumn($rows);
         $parsed = [];
         foreach ($rows as $rowNumber => $cells) {
-            $labelInfo = $this->firstLabel($cells);
+            $labelInfo = $this->firstLabel($cells, $amountCol);
             if ($labelInfo === null) {
                 continue;
             }
             $label = $labelInfo['label'];
             $parsedCode = $this->parseAccountLabel($label);
-            $amount = $this->numericValue($cells['E']['v'] ?? null);
-            $formula = $cells['E']['f'] ?? null;
+            $amount = $this->numericValue($cells[$amountCol]['v'] ?? null);
+            $formula = $cells[$amountCol]['f'] ?? null;
             $parsed[$rowNumber] = [
                 'row' => $rowNumber,
                 'label' => $label,
@@ -204,9 +334,12 @@ class TaxWorkbookImportService
      * @param  array<string, array{v: mixed, f: ?string}>  $cells
      * @return array{label: string, column: string}|null
      */
-    private function firstLabel(array $cells): ?array
+    private function firstLabel(array $cells, ?string $skipColumn = null): ?array
     {
-        foreach (['A', 'B', 'C', 'D'] as $col) {
+        foreach ($this->labelColumns() as $col) {
+            if ($skipColumn !== null && strcasecmp($col, $skipColumn) === 0) {
+                continue;
+            }
             $value = trim((string) ($cells[$col]['v'] ?? ''));
             if ($value !== '') {
                 return ['label' => $value, 'column' => $col];
@@ -214,6 +347,73 @@ class TaxWorkbookImportService
         }
 
         return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function labelColumns(): array
+    {
+        return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+    }
+
+    /**
+     * Amounts live in E for Taxes Calculator exports and further right (often I) on P&L sheets.
+     *
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     */
+    private function findAmountColumn(array $rows): string
+    {
+        $counts = [];
+        foreach ($rows as $cells) {
+            foreach ($cells as $col => $cell) {
+                if ($this->numericValue($cell['v'] ?? null) === null) {
+                    continue;
+                }
+                if (isset($cell['f']) && is_string($cell['f']) && $cell['f'] !== '') {
+                    $counts[$col] = ($counts[$col] ?? 0) + 3;
+                    continue;
+                }
+                $counts[$col] = ($counts[$col] ?? 0) + 1;
+            }
+        }
+
+        foreach ($this->labelColumns() as $col) {
+            if (($counts[$col] ?? 0) > 0 && $this->columnLooksLikeLabels($rows, $col)) {
+                unset($counts[$col]);
+            }
+        }
+
+        if ($counts === []) {
+            return 'E';
+        }
+
+        arsort($counts);
+        $best = array_key_first($counts);
+
+        return is_string($best) && $best !== '' ? $best : 'E';
+    }
+
+    /**
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     */
+    private function columnLooksLikeLabels(array $rows, string $col): bool
+    {
+        $text = 0;
+        $numeric = 0;
+        foreach ($rows as $cells) {
+            $value = $cells[$col]['v'] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            if ($this->numericValue($value) !== null && ! preg_match('/[A-Za-z]/', (string) $value)) {
+                $numeric++;
+            } else {
+                $text++;
+            }
+        }
+
+        return $text > $numeric;
     }
 
     /**

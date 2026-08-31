@@ -2,6 +2,7 @@
 
 namespace App\Modules\Hr\Models;
 
+use App\Models\EmployeeGroupMember;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeDefaultAllowance;
 use App\Models\EmployeeDefaultDeduction;
@@ -143,6 +144,11 @@ class Employee extends Model
     public function employmentDetails(): HasMany
     {
         return $this->hasMany(EmploymentDetail::class, 'employeeId');
+    }
+
+    public function groupMemberships(): HasMany
+    {
+        return $this->hasMany(EmployeeGroupMember::class, 'employeeId');
     }
 
     public function employeeCompensations(): HasMany
