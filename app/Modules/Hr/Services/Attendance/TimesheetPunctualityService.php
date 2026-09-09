@@ -17,7 +17,11 @@ class TimesheetPunctualityService
     /**
      * Stored null = auto from schedule; non-null = manual override.
      *
-     * @param array<string, array{start:string,end:string}> $scheduleSlots
+     * When $scheduleSlots is provided (including an empty array), only those
+     * scheduler slots are used — missing slot with a punch => OUT_OF_SHIFT.
+     * When omitted (null), falls back to the scheduled-hours resolver (templates).
+     *
+     * @param array<string, array{start:string,end:string}>|null $scheduleSlots
      * @return array{
      *   clockInPunctuality:?string,
      *   clockOutPunctuality:?string,
@@ -27,7 +31,7 @@ class TimesheetPunctualityService
      *   scheduledEndTime:?string
      * }
      */
-    public function resolveForTimesheet(Timesheet $timesheet, array $scheduleSlots = []): array
+    public function resolveForTimesheet(Timesheet $timesheet, ?array $scheduleSlots = null): array
     {
         $slot = $this->resolveScheduleSlot($timesheet, $scheduleSlots);
         $computed = $this->computePunctuality($timesheet, $slot);
@@ -50,12 +54,12 @@ class TimesheetPunctualityService
     }
 
     /**
-     * @param array<string, array{start:string,end:string}> $scheduleSlots
+     * @param array<string, array{start:string,end:string}>|null $scheduleSlots
      * @return array{start:string,end:string}|null
      */
-    public function resolveScheduleSlot(Timesheet $timesheet, array $scheduleSlots = []): ?array
+    public function resolveScheduleSlot(Timesheet $timesheet, ?array $scheduleSlots = null): ?array
     {
-        if ($scheduleSlots !== []) {
+        if ($scheduleSlots !== null) {
             return $this->scheduleCoverage->scheduledSlotForTimesheet($timesheet, $scheduleSlots);
         }
 
@@ -69,9 +73,14 @@ class TimesheetPunctualityService
     public function computePunctuality(Timesheet $timesheet, ?array $slot): array
     {
         if ($slot === null) {
+            // Punch without a matching scheduler slot = out of shift.
             return [
-                'clockIn' => null,
-                'clockOut' => null,
+                'clockIn' => $timesheet->clockInTime !== null
+                    ? TimesheetPunctualityStatus::OutOfShift->value
+                    : null,
+                'clockOut' => $timesheet->clockOutTime !== null
+                    ? TimesheetPunctualityStatus::OutOfShift->value
+                    : null,
             ];
         }
 

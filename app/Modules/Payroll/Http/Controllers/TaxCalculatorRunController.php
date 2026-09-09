@@ -11,6 +11,7 @@ use App\Modules\Payroll\Services\TaxCalculatorService;
 use App\Modules\Payroll\Services\TaxCalculatorAccountSyncService;
 use App\Modules\Payroll\Services\TaxWorkbookImportService;
 use App\Modules\Payroll\Services\PurchaseLedgerImportService;
+use App\Modules\Payroll\Services\SalesLedgerImportService;
 use App\Models\TaxCalculatorPurchaseLedgerExcludedName;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class TaxCalculatorRunController extends Controller
         private readonly TaxCalculatorService $taxCalculatorService,
         private readonly TaxWorkbookImportService $workbookImportService,
         private readonly PurchaseLedgerImportService $purchaseLedgerImportService,
+        private readonly SalesLedgerImportService $salesLedgerImportService,
         private readonly TaxCalculatorAccountSyncService $accountSyncService,
     ) {
     }
@@ -304,6 +306,61 @@ class TaxCalculatorRunController extends Controller
         ]);
     }
 
+    public function importSalesLedger(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+            'file' => ['required', 'file', 'max:10240'],
+        ]);
+
+        $this->assertNotFuturePeriod((int) $validated['year'], (int) $validated['month']);
+
+        $file = $request->file('file');
+        if ($file === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Upload the sales ledger as an .xlsx file.',
+            ]);
+        }
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        $path = $file->getRealPath();
+        if ($extension !== 'xlsx' || $path === false) {
+            throw ValidationException::withMessages([
+                'file' => 'Upload the sales ledger as an .xlsx file.',
+            ]);
+        }
+
+        try {
+            $parsed = $this->salesLedgerImportService->parse(
+                $path,
+                (int) $validated['year'],
+                (int) $validated['month'],
+            );
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'file' => $exception->getMessage(),
+            ]);
+        }
+
+        $run = TaxCalculatorRun::query()->updateOrCreate(
+            [
+                'year' => $validated['year'],
+                'month' => $validated['month'],
+            ],
+            [
+                'import_sales_ledger_sheet' => $parsed,
+                'import_sales_ledger_filename' => $file->getClientOriginalName(),
+                'import_sales_ledger_at' => now(),
+                'created_by' => Auth::id(),
+            ],
+        );
+
+        return response()->json([
+            'message' => 'Sales ledger imported',
+            'data' => $this->workspacePayload($run->year, $run->month, $run->fresh('lines')),
+        ]);
+    }
+
     public function destroy(TaxCalculatorRun $taxCalculatorRun): JsonResponse
     {
         $taxCalculatorRun->delete();
@@ -362,6 +419,9 @@ class TaxCalculatorRunController extends Controller
             'import_purchase_ledger' => $this->purchaseLedgerImportService->normalizeSheet($run?->import_purchase_ledger_sheet),
             'import_purchase_ledger_filename' => $run?->import_purchase_ledger_filename,
             'import_purchase_ledger_at' => $run?->import_purchase_ledger_at?->toIso8601String(),
+            'import_sales_ledger' => $this->salesLedgerImportService->normalizeSheet($run?->import_sales_ledger_sheet),
+            'import_sales_ledger_filename' => $run?->import_sales_ledger_filename,
+            'import_sales_ledger_at' => $run?->import_sales_ledger_at?->toIso8601String(),
             'purchase_ledger_excluded_names' => TaxCalculatorPurchaseLedgerExcludedName::query()
                 ->orderBy('name')
                 ->get()

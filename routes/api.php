@@ -938,6 +938,7 @@ Route::prefix('tax-calculator-runs')->group(function () {
     Route::post('/preview', [TaxCalculatorRunController::class, 'preview']);
     Route::post('/import', [TaxCalculatorRunController::class, 'import']);
     Route::post('/purchase-ledger/import', [TaxCalculatorRunController::class, 'importPurchaseLedger']);
+    Route::post('/sales-ledger/import', [TaxCalculatorRunController::class, 'importSalesLedger']);
     Route::post('/', [TaxCalculatorRunController::class, 'store']);
     Route::delete('/{taxCalculatorRun}', [TaxCalculatorRunController::class, 'destroy']);
 });

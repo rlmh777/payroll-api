@@ -7,6 +7,7 @@ enum TimesheetPunctualityStatus: string
     case Early = 'EARLY';
     case Late = 'LATE';
     case OnTime = 'ON_TIME';
+    case OutOfShift = 'OUT_OF_SHIFT';
 
     /**
      * @return list<string>
@@ -24,6 +25,7 @@ enum TimesheetPunctualityStatus: string
             'EARLY' => self::Early,
             'LATE' => self::Late,
             'ON_TIME' => self::OnTime,
+            'OUT_OF_SHIFT' => self::OutOfShift,
             default => null,
         };
     }

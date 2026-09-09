@@ -22,6 +22,7 @@ class TaxCalculatorRun extends Model
         'import_accounts_sheet',
         'import_gst_sheet',
         'import_purchase_ledger_sheet',
+        'import_sales_ledger_sheet',
     ];
 
     protected $fillable = [
@@ -38,6 +39,9 @@ class TaxCalculatorRun extends Model
         'import_purchase_ledger_sheet',
         'import_purchase_ledger_filename',
         'import_purchase_ledger_at',
+        'import_sales_ledger_sheet',
+        'import_sales_ledger_filename',
+        'import_sales_ledger_at',
         'rates_snapshot',
         'results',
         'created_by',
@@ -52,9 +56,11 @@ class TaxCalculatorRun extends Model
         'net_of_2251' => 'float',
         'imported_at' => 'datetime',
         'import_purchase_ledger_at' => 'datetime',
+        'import_sales_ledger_at' => 'datetime',
         'import_accounts_sheet' => 'array',
         'import_gst_sheet' => 'array',
         'import_purchase_ledger_sheet' => 'array',
+        'import_sales_ledger_sheet' => 'array',
         'rates_snapshot' => 'array',
         'results' => 'array',
     ];

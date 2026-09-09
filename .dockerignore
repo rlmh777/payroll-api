@@ -1,4 +1,3 @@
-# Azure production image context (copied into payroll-api during deploy)
 .git
 .github
 .idea
@@ -14,5 +13,3 @@ bootstrap/cache/*
 .env
 .env.*
 !.env.example
-Dockerfile.azure
-docker-entrypoint.azure.sh

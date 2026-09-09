@@ -91,6 +91,49 @@ class TimesheetPunctualityServiceTest extends TestCase
         $this->assertSame(TimesheetPunctualityStatus::OnTime->value, $resolved['clockOutPunctuality']);
     }
 
+    public function test_punch_without_schedule_slot_is_out_of_shift(): void
+    {
+        $service = $this->makeService();
+
+        $timesheet = $this->makeTimesheet([
+            'employeeId' => 'emp-1',
+            'date' => '2026-06-24',
+            'slotIndex' => 0,
+            'clockInTime' => '2026-06-24 08:12:00',
+            'clockOutTime' => '2026-06-24 17:00:00',
+            'clockInPunctuality' => null,
+            'clockOutPunctuality' => null,
+        ]);
+
+        $resolved = $service->resolveForTimesheet($timesheet, []);
+
+        $this->assertTrue($resolved['clockInPunctualityAuto']);
+        $this->assertTrue($resolved['clockOutPunctualityAuto']);
+        $this->assertSame(TimesheetPunctualityStatus::OutOfShift->value, $resolved['clockInPunctuality']);
+        $this->assertSame(TimesheetPunctualityStatus::OutOfShift->value, $resolved['clockOutPunctuality']);
+        $this->assertNull($resolved['scheduledStartTime']);
+        $this->assertNull($resolved['scheduledEndTime']);
+    }
+
+    public function test_missing_punch_without_schedule_stays_null(): void
+    {
+        $service = $this->makeService();
+
+        $timesheet = $this->makeTimesheet([
+            'employeeId' => 'emp-1',
+            'date' => '2026-06-24',
+            'slotIndex' => 0,
+            'clockInTime' => '2026-06-24 08:00:00',
+            'clockInPunctuality' => null,
+            'clockOutPunctuality' => null,
+        ]);
+
+        $computed = $service->computePunctuality($timesheet, null);
+
+        $this->assertSame(TimesheetPunctualityStatus::OutOfShift->value, $computed['clockIn']);
+        $this->assertNull($computed['clockOut']);
+    }
+
     private function makeService(): TimesheetPunctualityService
     {
         return new TimesheetPunctualityService(
