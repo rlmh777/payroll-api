@@ -17,13 +17,25 @@ class UserRoleSeeder extends Seeder
      */
     public function run(): void
     {
+        // Migrate legacy seed admin if present.
+        User::query()
+            ->where('email', 'johndoe@gmail.com')
+            ->update([
+                'email' => 'support@dotdev.bz',
+                'name' => 'EZ Tech Support',
+            ]);
+
         $adminUser = User::firstOrCreate(
-            ['email' => 'johndoe@gmail.com'],
+            ['email' => 'support@dotdev.bz'],
             [
-                'name' => 'John Doe',
+                'name' => 'EZ Tech Support',
                 'password' => Hash::make('Password123!'),
             ]
         );
+
+        if ($adminUser->name !== 'EZ Tech Support') {
+            $adminUser->update(['name' => 'EZ Tech Support']);
+        }
 
         $supervisorUser = User::firstOrCreate(
             ['email' => 'supervisor@example.com'],
@@ -76,7 +88,7 @@ class UserRoleSeeder extends Seeder
         $supervisorRole->syncPermissions($supervisorPermissions);
 
         // Admin gets every permission via the admin role.
-        // Leave and employee menu/API permissions must always be present for johndoe.
+        // Leave and employee menu/API permissions must always be present for the seed admin.
         $adminRole->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
         $adminUser->syncRoles([$adminRole]);
         $adminUser->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
@@ -88,7 +100,7 @@ class UserRoleSeeder extends Seeder
             $employeeUser->assignRole($employeeRole->name);
         }
 
-        // Ensure explicit pivot row exists in user_roles (admin only for johndoe)
+        // Ensure explicit pivot row exists in user_roles (admin only for seed admin)
         UserRole::query()
             ->where('user_id', $adminUser->id)
             ->where('role_id', '!=', $adminRole->id)

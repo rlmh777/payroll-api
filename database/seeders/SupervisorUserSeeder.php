@@ -80,7 +80,9 @@ class SupervisorUserSeeder extends Seeder
             ]);
         }
 
-        $adminUser = User::query()->where('email', 'johndoe@gmail.com')->first();
+        $adminUser = User::query()
+            ->whereIn('email', ['support@dotdev.bz', 'johndoe@gmail.com'])
+            ->first();
         if ($adminUser) {
             $adminEmployee = Employee::query()
                 ->whereNull('user_id')

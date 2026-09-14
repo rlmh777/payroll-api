@@ -13,14 +13,22 @@ use Illuminate\Support\Str;
 class SuperAdminSeeder extends Seeder
 {
     /**
-     * Ensure johndoe@gmail.com has the admin role with every permission (menus + API).
+     * Ensure support@dotdev.bz has the admin role with every permission (menus + API).
      */
     public function run(): void
     {
+        // Migrate legacy seed admin if present.
+        User::query()
+            ->where('email', 'johndoe@gmail.com')
+            ->update([
+                'email' => 'support@dotdev.bz',
+                'name' => 'EZ Tech Support',
+            ]);
+
         $adminUser = User::query()->updateOrCreate(
-            ['email' => 'johndoe@gmail.com'],
+            ['email' => 'support@dotdev.bz'],
             [
-                'name' => 'John Doe',
+                'name' => 'EZ Tech Support',
                 'password' => Hash::make('Password123!'),
             ]
         );
