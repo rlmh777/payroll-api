@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Support\AuthUserPresenter;
+use App\Services\TwoFactorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly TwoFactorService $twoFactor,
+    ) {
+    }
+
     public function authenticate(Request $request): JsonResponse
     {
         $request->validate([
@@ -19,16 +23,6 @@ class AuthController extends Controller
         ]);
 
         $user = $this->findUserByLoginIdentifier($request->email);
-
-        // if (
-        //     !$user || is_null($user->email_verified_at)
-        // ) {
-
-
-        //     return response()->json([
-        //         'message' => 'Email not verified',
-        //     ], 500);
-        // }
 
         if (
             !$user ||
@@ -42,13 +36,7 @@ class AuthController extends Controller
             ], 400);
         }
 
-        $token = $user->createToken($user->email)->plainTextToken;
-        return response()->json([
-            'message' => 'Login successful',
-            'user' => AuthUserPresenter::present($user),
-            'token' => $token
-        ], 200);
-
+        return response()->json($this->twoFactor->completePasswordLogin($user));
     }
 
     private function findUserByLoginIdentifier(string $identifier): ?User

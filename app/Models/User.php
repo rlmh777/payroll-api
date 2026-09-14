@@ -34,6 +34,10 @@ class User extends Authenticatable
         'email',
         'password',
         'preferences',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+        'two_factor_required',
     ];
 
     /**
@@ -44,6 +48,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     /**
@@ -57,6 +63,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'preferences' => 'array',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_required' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
         ];
     }
 
@@ -98,5 +108,31 @@ class User extends Authenticatable
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class, 'user_id');
+    }
+
+    public function webAuthnCredentials(): HasMany
+    {
+        return $this->hasMany(WebAuthnCredential::class, 'user_id');
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && filled($this->two_factor_secret);
+    }
+
+    /**
+     * Effective 2FA requirement after applying company policy + per-user override.
+     */
+    public function requiresTwoFactor(AuthSetting $settings): bool
+    {
+        if ($this->two_factor_required === false) {
+            return false;
+        }
+
+        if ($this->two_factor_required === true) {
+            return true;
+        }
+
+        return $settings->two_factor_policy === AuthSetting::POLICY_REQUIRED;
     }
 }

@@ -15,6 +15,7 @@ use App\Modules\Payroll\Services\SalesLedgerImportService;
 use App\Models\TaxCalculatorPurchaseLedgerExcludedName;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -146,28 +147,19 @@ class TaxCalculatorRunController extends Controller
         $validated = $request->validate([
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'month' => ['required', 'integer', 'min:1', 'max:12'],
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:30720'],
         ]);
 
         $this->assertNotFuturePeriod((int) $validated['year'], (int) $validated['month']);
 
-        $file = $request->file('file');
-        if ($file === null) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload the monthly QuickBooks workbook as an .xlsx file.',
-            ]);
-        }
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        $path = $file->getRealPath();
-        if ($extension !== 'xlsx' || $path === false) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload the monthly QuickBooks workbook as an .xlsx file.',
-            ]);
-        }
+        $file = $this->requireXlsxUpload(
+            $request->file('file'),
+            'Upload the monthly QuickBooks workbook as an .xlsx file.',
+        );
 
         try {
             $parsed = $this->workbookImportService->parse(
-                $path,
+                $file->getRealPath(),
                 (int) $validated['year'],
                 (int) $validated['month'],
             );
@@ -256,28 +248,19 @@ class TaxCalculatorRunController extends Controller
         $validated = $request->validate([
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'month' => ['required', 'integer', 'min:1', 'max:12'],
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:30720'],
         ]);
 
         $this->assertNotFuturePeriod((int) $validated['year'], (int) $validated['month']);
 
-        $file = $request->file('file');
-        if ($file === null) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload the purchase ledger as an .xlsx file.',
-            ]);
-        }
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        $path = $file->getRealPath();
-        if ($extension !== 'xlsx' || $path === false) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload the purchase ledger as an .xlsx file.',
-            ]);
-        }
+        $file = $this->requireXlsxUpload(
+            $request->file('file'),
+            'Upload the purchase ledger as an .xlsx file.',
+        );
 
         try {
             $parsed = $this->purchaseLedgerImportService->parse(
-                $path,
+                $file->getRealPath(),
                 (int) $validated['year'],
                 (int) $validated['month'],
             );
@@ -311,28 +294,19 @@ class TaxCalculatorRunController extends Controller
         $validated = $request->validate([
             'year' => ['required', 'integer', 'min:2000', 'max:2100'],
             'month' => ['required', 'integer', 'min:1', 'max:12'],
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:30720'],
         ]);
 
         $this->assertNotFuturePeriod((int) $validated['year'], (int) $validated['month']);
 
-        $file = $request->file('file');
-        if ($file === null) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload the sales ledger as an .xlsx file.',
-            ]);
-        }
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-        $path = $file->getRealPath();
-        if ($extension !== 'xlsx' || $path === false) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload the sales ledger as an .xlsx file.',
-            ]);
-        }
+        $file = $this->requireXlsxUpload(
+            $request->file('file'),
+            'Upload the sales ledger as an .xlsx file.',
+        );
 
         try {
             $parsed = $this->salesLedgerImportService->parse(
-                $path,
+                $file->getRealPath(),
                 (int) $validated['year'],
                 (int) $validated['month'],
             );
@@ -719,6 +693,39 @@ class TaxCalculatorRunController extends Controller
         }
 
         return $rowType === 'account';
+    }
+
+    private function requireXlsxUpload(mixed $file, string $fallbackMessage): UploadedFile
+    {
+        if (! $file instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'file' => $fallbackMessage,
+            ]);
+        }
+
+        if (! $file->isValid()) {
+            $limit = ini_get('upload_max_filesize') ?: '2M';
+            $message = match ($file->getError()) {
+                UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => "The workbook is too large for the server upload limit ({$limit}).",
+                UPLOAD_ERR_PARTIAL => 'The workbook upload was incomplete. Try again.',
+                UPLOAD_ERR_NO_FILE => $fallbackMessage,
+                default => $file->getErrorMessage() ?: $fallbackMessage,
+            };
+
+            throw ValidationException::withMessages([
+                'file' => $message,
+            ]);
+        }
+
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        $path = $file->getRealPath();
+        if ($extension !== 'xlsx' || $path === false) {
+            throw ValidationException::withMessages([
+                'file' => $fallbackMessage,
+            ]);
+        }
+
+        return $file;
     }
 
     private function assertNotFuturePeriod(int $year, int $month): void

@@ -127,7 +127,28 @@ Route::post('/tokens/revoke-all', [AuthController::class, 'revokeAllTokens'])->m
 Route::delete('/tokens/{tokenId}', [AuthController::class, 'revokeSpecificToken'])->middleware('auth:sanctum');
 Route::get('/tokens', [AuthController::class, 'listTokens'])->middleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'authenticate']);
+Route::post('/login/passkey/options', [\App\Http\Controllers\PasskeyController::class, 'loginOptions']);
+Route::post('/login/passkey', [\App\Http\Controllers\PasskeyController::class, 'login']);
+Route::post('/login/two-factor/verify', [\App\Http\Controllers\TwoFactorController::class, 'verifyLogin']);
+Route::post('/login/two-factor/setup', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginOptions']);
+Route::post('/login/two-factor/setup/confirm', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginConfirm']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/passkeys', [\App\Http\Controllers\PasskeyController::class, 'index']);
+    Route::post('/passkeys/options', [\App\Http\Controllers\PasskeyController::class, 'registerOptions']);
+    Route::post('/passkeys', [\App\Http\Controllers\PasskeyController::class, 'register']);
+    Route::delete('/passkeys/{credential}', [\App\Http\Controllers\PasskeyController::class, 'destroy']);
+
+    Route::get('/two-factor', [\App\Http\Controllers\TwoFactorController::class, 'status']);
+    Route::post('/two-factor/setup', [\App\Http\Controllers\TwoFactorController::class, 'setupOptions']);
+    Route::post('/two-factor/confirm', [\App\Http\Controllers\TwoFactorController::class, 'confirm']);
+    Route::delete('/two-factor', [\App\Http\Controllers\TwoFactorController::class, 'destroy']);
+
+    Route::get('/auth-settings', [\App\Http\Controllers\AuthSettingController::class, 'show']);
+    Route::put('/auth-settings', [\App\Http\Controllers\AuthSettingController::class, 'update']);
+    Route::put('/users/{user}/security', [\App\Http\Controllers\AuthSettingController::class, 'updateUserTwoFactor']);
+});
 Route::get('/user/menu', [UserController::class, 'topLevelMenus'])->middleware('auth:sanctum');
 Route::get('/user/menus', [UserController::class, 'userMenus'])->middleware('auth:sanctum');
 Route::get('/session/navigation', [NavigationController::class, 'session'])->middleware('auth:sanctum');

@@ -35,6 +35,14 @@ RUN printf '%s\n' \
       'realpath_cache_ttl=600' \
       > /usr/local/etc/php/conf.d/zz-opcache.ini
 
+# GST / QuickBooks workbooks routinely exceed PHP's default 2M upload limit.
+RUN printf '%s\n' \
+      'upload_max_filesize=32M' \
+      'post_max_size=40M' \
+      'memory_limit=512M' \
+      'max_execution_time=120' \
+      > /usr/local/etc/php/conf.d/zz-uploads.ini
+
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

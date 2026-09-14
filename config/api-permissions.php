@@ -11,6 +11,11 @@ return [
     */
     'public' => [
         'POST login',
+        'POST login/passkey/options',
+        'POST login/passkey',
+        'POST login/two-factor/verify',
+        'POST login/two-factor/setup',
+        'POST login/two-factor/setup/confirm',
         'POST users/reset-password',
     ],
 
@@ -32,6 +37,14 @@ return [
         'POST tokens/revoke-all',
         'DELETE tokens/{tokenId}',
         'GET menus',
+        'GET passkeys',
+        'POST passkeys/options',
+        'POST passkeys',
+        'DELETE passkeys/{credential}',
+        'GET two-factor',
+        'POST two-factor/setup',
+        'POST two-factor/confirm',
+        'DELETE two-factor',
     ],
 
     /*
@@ -176,5 +189,8 @@ return [
         'POST shift-templates/{shiftTemplate}/assign' => 'calendar-crud',
         'GET scheduler-daily-metrics' => ['view-calendars', 'view-scheduler-metrics'],
         'GET public-holidays' => ['view-holidays', 'view-calendars'],
+        'GET auth-settings' => 'manager-users',
+        'PUT auth-settings' => 'manager-users',
+        'PUT users/{user}/security' => 'manager-users',
     ],
 ];

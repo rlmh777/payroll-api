@@ -107,7 +107,17 @@ class UserController extends Controller
     {
         $this->assertCanViewUser($request->user(), $user);
 
-        return $user->load(['rolesManyToMany', 'employee']);
+        $user->load(['rolesManyToMany', 'employee'])->loadCount('webAuthnCredentials');
+
+        return response()->json([
+            ...$user->toArray(),
+            'security' => [
+                'two_factor_enabled' => $user->hasTwoFactorEnabled(),
+                'two_factor_required' => $user->two_factor_required,
+                'passkey_count' => (int) ($user->web_authn_credentials_count ?? 0),
+                'requires_two_factor' => $user->requiresTwoFactor(\App\Models\AuthSetting::current()),
+            ],
+        ]);
     }
 
     /**

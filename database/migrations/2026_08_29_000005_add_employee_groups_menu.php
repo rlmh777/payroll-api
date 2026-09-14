@@ -24,7 +24,7 @@ return new class extends Migration
                 return;
             }
 
-            if ($role->hasPermissionTo('view-calendars')) {
+            if ($role->permissions()->where('name', 'view-calendars')->exists()) {
                 $role->givePermissionTo('view-employee-groups');
             }
         });
