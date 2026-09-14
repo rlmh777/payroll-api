@@ -39,6 +39,8 @@ class UserRoleAssignmentService
                 $user->assignRole($role);
             }
         }
+
+        $this->forgetPermissionCache();
     }
 
     /**
@@ -70,6 +72,7 @@ class UserRoleAssignmentService
         }
 
         $user->syncRoles($roles);
+        $this->forgetPermissionCache();
     }
 
     /**
@@ -94,6 +97,8 @@ class UserRoleAssignmentService
                 $user->removeRole($role);
             }
         }
+
+        $this->forgetPermissionCache();
     }
 
     /**
@@ -106,5 +111,10 @@ class UserRoleAssignmentService
             static fn ($id) => is_string($id) || is_numeric($id) ? (string) $id : null,
             $roleIds
         ))));
+    }
+
+    private function forgetPermissionCache(): void
+    {
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }
