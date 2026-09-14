@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\UserRole;
 use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Services\CompanyModuleService;
 use App\Services\MenuAuthorizationService;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -92,8 +94,7 @@ class UserController extends Controller
         ]);
 
         if ($request->has('roles')) {
-            $user->rolesManyToMany()->syncWithoutDetaching($request->input('roles'));
-            $user->assignRole($request->input('roles'));
+            $this->attachUserRoles($user, $request->input('roles', []));
         }
 
         return response()->json($user->load('rolesManyToMany'), 201);
@@ -143,10 +144,7 @@ class UserController extends Controller
         $user->update($updateData);
 
         if ($request->has('roles')) {
-            $user->rolesManyToMany()->sync($request->input('roles'));
-            $existingRoles = $user->getRoleNames();
-            $newRoles = array_diff($request->input('roles'), $existingRoles->toArray());
-            $user->assignRole($newRoles);
+            $this->syncUserRoles($user, $request->input('roles', []));
         }
 
         return response()->json($user->load('rolesManyToMany'));
@@ -179,10 +177,7 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->rolesManyToMany()->syncWithoutDetaching($request->input('roles'));
-        $existingRoles = $user->getRoleNames();
-        $newRoles = array_diff($request->input('roles'), $existingRoles->toArray());
-        $user->assignRole($newRoles, 'syncWithoutDetaching');
+        $this->attachUserRoles($user, $request->input('roles', []));
 
         return response()->json($user->load('rolesManyToMany'), 200);
     }
@@ -211,8 +206,7 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user->rolesManyToMany()->detach($request->input('roles'));
-        $user->removeRole($request->input('roles'));
+        $this->detachUserRoles($user, $request->input('roles', []));
 
         return response()->json([
             'message' => 'Roles removed successfully',
@@ -227,8 +221,7 @@ class UserController extends Controller
     {
         $this->assertCanManageUsers($request->user());
 
-        $user->rolesManyToMany()->sync([]);
-        $user->removeAllRoles();
+        $this->syncUserRoles($user, []);
 
         return response()->json([
             'message' => 'All roles removed successfully',
@@ -437,6 +430,105 @@ class UserController extends Controller
         $enabledCodes = $companyModuleService->enabledModuleCodes();
 
         return response()->json($menuAuthorizationService->menuTreeForUser($user, $enabledCodes));
+    }
+
+    /**
+     * Attach roles without removing existing ones.
+     * Keeps both the UUID user_roles pivot and Spatie model_has_roles in sync.
+     *
+     * @param  list<string>  $roleIds
+     */
+    private function attachUserRoles(User $user, array $roleIds): void
+    {
+        $roleIds = $this->normalizeRoleIds($roleIds);
+        if ($roleIds === []) {
+            return;
+        }
+
+        $roles = Role::query()->whereIn('id', $roleIds)->get();
+
+        foreach ($roles as $role) {
+            UserRole::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'role_id' => $role->id,
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                ]
+            );
+
+            if (! $user->hasRole($role)) {
+                $user->assignRole($role);
+            }
+        }
+    }
+
+    /**
+     * Replace a user's roles (both pivots).
+     *
+     * @param  list<string>  $roleIds
+     */
+    private function syncUserRoles(User $user, array $roleIds): void
+    {
+        $roleIds = $this->normalizeRoleIds($roleIds);
+        $roles = Role::query()->whereIn('id', $roleIds)->get();
+
+        $stale = UserRole::query()->where('user_id', $user->id);
+        if ($roleIds !== []) {
+            $stale->whereNotIn('role_id', $roleIds);
+        }
+        $stale->delete();
+
+        foreach ($roles as $role) {
+            UserRole::firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'role_id' => $role->id,
+                ],
+                [
+                    'id' => (string) Str::uuid(),
+                ]
+            );
+        }
+
+        $user->syncRoles($roles);
+    }
+
+    /**
+     * @param  list<string>  $roleIds
+     */
+    private function detachUserRoles(User $user, array $roleIds): void
+    {
+        $roleIds = $this->normalizeRoleIds($roleIds);
+        if ($roleIds === []) {
+            return;
+        }
+
+        $roles = Role::query()->whereIn('id', $roleIds)->get();
+
+        UserRole::query()
+            ->where('user_id', $user->id)
+            ->whereIn('role_id', $roleIds)
+            ->delete();
+
+        foreach ($roles as $role) {
+            if ($user->hasRole($role)) {
+                $user->removeRole($role);
+            }
+        }
+    }
+
+    /**
+     * @param  list<mixed>  $roleIds
+     * @return list<string>
+     */
+    private function normalizeRoleIds(array $roleIds): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($id) => is_string($id) || is_numeric($id) ? (string) $id : null,
+            $roleIds
+        ))));
     }
 
     private function assertCanListUsers(?User $actor): void
