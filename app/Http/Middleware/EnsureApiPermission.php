@@ -35,10 +35,19 @@ class EnsureApiPermission
             return $next($request);
         }
 
-        if (! $user->can($permission)) {
+        $permissions = is_array($permission) ? $permission : [$permission];
+        $allowed = false;
+        foreach ($permissions as $name) {
+            if (is_string($name) && $name !== '' && $user->can($name)) {
+                $allowed = true;
+                break;
+            }
+        }
+
+        if (! $allowed) {
             return response()->json([
                 'message' => 'Forbidden. Missing required permission.',
-                'permission' => $permission,
+                'permission' => count($permissions) === 1 ? $permissions[0] : $permissions,
             ], 403);
         }
 
@@ -132,7 +141,10 @@ class EnsureApiPermission
         return false;
     }
 
-    private function resolveRequiredPermission(string $method, string $path, string $routeKey): ?string
+    /**
+     * @return string|list<string>|null
+     */
+    private function resolveRequiredPermission(string $method, string $path, string $routeKey): string|array|null
     {
         $overrides = config('api-permissions.overrides', []);
 

@@ -2,10 +2,12 @@
 
 namespace App\Modules\Hr\Http\Controllers;
 
+use App\Enums\LeavePaymentTreatment;
 use App\Enums\LeaveStatusCode;
 use App\Models\Employee;
 use App\Models\EmployeeLeave;
 use App\Models\EmployeeLeaveAttachment;
+use App\Models\LeaveStatus;
 use App\Models\LeaveType;
 use App\Helpers\EmployeeLeaveHelper;
 use App\Modules\Hr\Services\Leave\LeaveEntitlementService;
@@ -72,6 +74,8 @@ class EmployeeLeaveController extends Controller
 
         $note = $request->input('note');
         $note = is_string($note) ? $note : null;
+        $paymentTreatment = $request->input('paymentTreatment');
+        $paymentTreatment = is_string($paymentTreatment) ? $paymentTreatment : null;
 
         if ($status === 'approved') {
             $balanceError = $this->entitlementService->assertSufficientBalance(
@@ -85,7 +89,26 @@ class EmployeeLeaveController extends Controller
                 return response()->json(['errors' => ['balance' => [$balanceError]]], 422);
             }
 
-            $leave = $this->workflowService->approve($employeeLeave, $request->user(), $note);
+            if (
+                $this->workflowService->isAccountsConfirmationStep($employeeLeave)
+                && $this->workflowService->requiresPaymentTreatmentChoice($employeeLeave)
+                && $paymentTreatment === null
+            ) {
+                return response()->json([
+                    'errors' => [
+                        'paymentTreatment' => [
+                            'Select whether vacation is unpaid, paid with this payroll, or already paid in advance.',
+                        ],
+                    ],
+                ], 422);
+            }
+
+            $leave = $this->workflowService->approve(
+                $employeeLeave,
+                $request->user(),
+                $note,
+                $paymentTreatment,
+            );
         } elseif ($status === 'rejected') {
             $leave = $this->workflowService->reject($employeeLeave, $request->user(), $note);
         } else {
@@ -100,9 +123,11 @@ class EmployeeLeaveController extends Controller
         $validated = $request->validate([
             'action' => ['required', 'in:approve,reject,cancel,submit_for_approval'],
             'note' => ['nullable', 'string', 'max:2000'],
+            'paymentTreatment' => ['nullable', 'in:unpaid,paid_with_payroll,already_paid'],
         ]);
 
         $note = $validated['note'] ?? null;
+        $paymentTreatment = $validated['paymentTreatment'] ?? null;
 
         if ($validated['action'] === 'approve') {
             $balanceError = $this->entitlementService->assertSufficientBalance(
@@ -115,10 +140,29 @@ class EmployeeLeaveController extends Controller
             if ($balanceError) {
                 return response()->json(['errors' => ['balance' => [$balanceError]]], 422);
             }
+
+            if (
+                $this->workflowService->isAccountsConfirmationStep($employeeLeave)
+                && $this->workflowService->requiresPaymentTreatmentChoice($employeeLeave)
+                && $paymentTreatment === null
+            ) {
+                return response()->json([
+                    'errors' => [
+                        'paymentTreatment' => [
+                            'Select whether vacation is unpaid, paid with this payroll, or already paid in advance.',
+                        ],
+                    ],
+                ], 422);
+            }
         }
 
         $leave = match ($validated['action']) {
-            'approve' => $this->workflowService->approve($employeeLeave, $request->user(), $note),
+            'approve' => $this->workflowService->approve(
+                $employeeLeave,
+                $request->user(),
+                $note,
+                $paymentTreatment,
+            ),
             'reject' => $this->workflowService->reject($employeeLeave, $request->user(), $note),
             'cancel' => $this->workflowService->cancel($employeeLeave, $request->user(), $note),
             'submit_for_approval' => $this->workflowService->submitForFinalApproval($employeeLeave, $request->user()),
@@ -180,6 +224,7 @@ class EmployeeLeaveController extends Controller
             'departmentId' => ['nullable', 'integer', 'exists:department,id'],
             'applyHoursBank' => ['sometimes', 'boolean'],
             'leaveHours' => ['nullable', 'numeric', 'min:0'],
+            'assigned' => ['sometimes', 'boolean'],
             ...self::ATTACHMENT_RULES,
         ]);
 
@@ -431,15 +476,41 @@ class EmployeeLeaveController extends Controller
      */
     private function prepareLeaveData(array $data): array
     {
-        unset($data['attachments']);
+        unset($data['attachments'], $data['assigned'], $data['applyHoursBank'], $data['leaveHours']);
 
         $employee = isset($data['employeeId'])
             ? Employee::query()->find($data['employeeId'])
             : null;
 
-        $data['leaveStatusId'] = $this->workflowService->initialStatusIdForEmployee($employee);
+        $leaveType = isset($data['leaveTypeId'])
+            ? LeaveType::query()->find((int) $data['leaveTypeId'])
+            : null;
 
-        if (isset($data['leaveTypeId']) && !array_key_exists('multiplier', $data)) {
+        $assigned = (bool) request()->boolean('assigned');
+
+        if ($assigned) {
+            $data['leaveStatusId'] = $this->workflowService->initialStatusIdForAssignedLeave($leaveType);
+
+            if ($leaveType && ! $leaveType->isVacation()) {
+                $treatment = $leaveType->isPaid
+                    ? LeavePaymentTreatment::PaidWithPayroll
+                    : LeavePaymentTreatment::Unpaid;
+                $data['paymentTreatment'] = $treatment->value;
+                $data['paymentConfirmedAt'] = now();
+                $data['multiplier'] = $treatment->defaultMultiplier();
+
+                if (
+                    isset($data['endDate'])
+                    && Carbon::parse($data['endDate'])->endOfDay()->lt(Carbon::today())
+                ) {
+                    $data['leaveStatusId'] = LeaveStatus::idForCode(LeaveStatusCode::Taken);
+                }
+            }
+        } else {
+            $data['leaveStatusId'] = $this->workflowService->initialStatusIdForEmployee($employee);
+        }
+
+        if (isset($data['leaveTypeId']) && ! array_key_exists('multiplier', $data)) {
             $data['multiplier'] = $this->multiplierForLeaveType((int) $data['leaveTypeId']);
         }
 

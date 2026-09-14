@@ -4,11 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Role;
 use App\Models\Permission;
+use App\Services\EmployeeFormAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class RoleController extends Controller
 {
+    public function __construct(
+        private readonly EmployeeFormAccessService $employeeFormAccess,
+    ) {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -30,7 +36,17 @@ class RoleController extends Controller
             $query->orderBy('name', 'asc');
         }
 
-        return $query->paginate($request->input('per_page', 15));
+        $paginator = $query->paginate($request->input('per_page', 15));
+        $paginator->getCollection()->transform(function (Role $role) {
+            $role->setAttribute(
+                'employee_form_access',
+                $this->employeeFormAccess->profileForRole($role),
+            );
+
+            return $role;
+        });
+
+        return $paginator;
     }
 
     /**
@@ -57,12 +73,21 @@ class RoleController extends Controller
         }
 
         $role = Role::create($request->only('name'));
+        $role->update([
+            'employee_form_access' => $this->employeeFormAccess->defaultForRoleName($role->name),
+        ]);
 
         if ($request->has('permissions')) {
             $role->syncPermissions($request->input('permissions'));
         }
 
-        return response()->json($role->load('permissions'), 201);
+        $role->load('permissions');
+        $role->setAttribute(
+            'employee_form_access',
+            $this->employeeFormAccess->profileForRole($role),
+        );
+
+        return response()->json($role, 201);
     }
 
     /**
@@ -70,7 +95,45 @@ class RoleController extends Controller
      */
     public function show(Role $role)
     {
-        return $role->load('permissions');
+        $role->load('permissions');
+        $role->setAttribute(
+            'employee_form_access',
+            $this->employeeFormAccess->profileForRole($role),
+        );
+
+        return $role;
+    }
+
+    public function employeeFormAccessCatalog()
+    {
+        return response()->json([
+            'tabs' => $this->employeeFormAccess->tabCatalog(),
+            'fields' => $this->employeeFormAccess->fieldCatalog(),
+            'tabModes' => EmployeeFormAccessService::TAB_MODES,
+            'fieldModes' => EmployeeFormAccessService::FIELD_MODES,
+        ]);
+    }
+
+    public function updateEmployeeFormAccess(Request $request, Role $role)
+    {
+        $validator = Validator::make($request->all(), [
+            'tabs' => ['required', 'array'],
+            'tabs.*' => ['string', 'in:'.implode(',', EmployeeFormAccessService::TAB_MODES)],
+            'fields' => ['required', 'array'],
+            'fields.*' => ['string', 'in:'.implode(',', EmployeeFormAccessService::FIELD_MODES)],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $profile = $this->employeeFormAccess->normalize($validator->validated());
+        $role->update(['employee_form_access' => $profile]);
+
+        $role->load('permissions');
+        $role->setAttribute('employee_form_access', $profile);
+
+        return response()->json($role);
     }
 
     /**

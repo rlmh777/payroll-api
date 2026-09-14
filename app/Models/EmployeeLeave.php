@@ -16,6 +16,18 @@ class EmployeeLeave extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected static function booted(): void
+    {
+        static::created(function (EmployeeLeave $leave) {
+            try {
+                app(\App\Modules\Hr\Services\Leave\LeaveWorkflowService::class)
+                    ->ensurePipelineStarted($leave);
+            } catch (\Throwable) {
+                // Pipeline start is best-effort during create.
+            }
+        });
+    }
+
     protected $fillable = [
         'employeeId',
         'departmentId',
@@ -29,6 +41,10 @@ class EmployeeLeave extends Model
         'totalDays',
         'notes',
         'multiplier',
+        'paymentTreatment',
+        'paymentConfirmedAt',
+        'paymentConfirmedByUserId',
+        'paidInPayrollRunId',
         'statusNote',
         'approvalDate',
         'approverId',
@@ -38,6 +54,8 @@ class EmployeeLeave extends Model
         'startDate' => 'date:Y-m-d',
         'endDate' => 'date:Y-m-d',
         'approvalDate' => 'date:Y-m-d',
+        'paymentConfirmedAt' => 'datetime',
+        'multiplier' => 'float',
     ];
 
     protected $appends = [
@@ -62,6 +80,16 @@ class EmployeeLeave extends Model
 
     public function approver(): BelongsTo {
         return $this->belongsTo(Employee::class, 'approverId');
+    }
+
+    public function paymentConfirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paymentConfirmedByUserId');
+    }
+
+    public function paidInPayrollRun(): BelongsTo
+    {
+        return $this->belongsTo(PayrollRun::class, 'paidInPayrollRunId');
     }
 
     public function attachments(): HasMany

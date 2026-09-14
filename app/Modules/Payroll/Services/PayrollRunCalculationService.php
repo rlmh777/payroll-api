@@ -27,6 +27,7 @@ class PayrollRunCalculationService
         private readonly PayrollTimesheetScopeService $payrollTimesheetScopeService,
         private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
         private readonly TimesheetProcessingService $timesheetProcessingService,
+        private readonly PayrollFlatBaseScopeService $payrollFlatBaseScopeService,
     ) {
     }
 
@@ -93,6 +94,7 @@ class PayrollRunCalculationService
             $endDate,
             $payPeriodGroupId,
             $frequencyId,
+            (string) $payrollRun->id,
         );
 
         $allowancesByEmployee = $this->allowanceResolutionService->forEmployees(
@@ -235,6 +237,18 @@ class PayrollRunCalculationService
                         'tax' => $preTax['tax'],
                         'allowances' => $allowancesByEmployee[$employeeId] ?? [],
                         'deductions' => $deductions,
+                        'alreadyPaidLeave' => $timesheet['alreadyPaidLeave'] ?? [
+                            'amount' => 0.0,
+                            'days' => 0,
+                            'periodDays' => 0,
+                            'lines' => [],
+                        ],
+                        'vacationPay' => $timesheet['vacationPay'] ?? [
+                            'amount' => 0.0,
+                            'days' => 0,
+                            'periodDays' => 0,
+                            'lines' => [],
+                        ],
                     ],
                 ];
             })
@@ -296,8 +310,8 @@ class PayrollRunCalculationService
     }
 
     /**
-     * Employees in the payroll summary must match accountant review scope:
-     * timesheets in the pay period for the run's pay period group, plus import rows.
+     * Employees in the payroll summary: timesheets, day work, flat-period base salary
+     * (no schedule required), plus import rows already in that set.
      *
      * @return Collection<int, string>
      */
@@ -330,6 +344,15 @@ class PayrollRunCalculationService
             ),
         );
 
+        $fromFlatBase = collect(
+            $this->payrollFlatBaseScopeService->employeeIds(
+                $startDate,
+                $endDate,
+                $payPeriodGroupId,
+                $frequencyId,
+            ),
+        );
+
         $fromImports = HistoricalEmployeeAllowance::query()
             ->where('payroll_run_id', $payrollRun->id)
             ->pluck('employee_id')
@@ -340,7 +363,11 @@ class PayrollRunCalculationService
             )
             ->map(fn ($id) => (string) $id);
 
-        $baseEmployees = $fromTimesheets->merge($fromDayWork)->unique()->values();
+        $baseEmployees = $fromTimesheets
+            ->merge($fromDayWork)
+            ->merge($fromFlatBase)
+            ->unique()
+            ->values();
 
         $fromImports = $fromImports->filter(fn (string $employeeId) => $baseEmployees->contains($employeeId));
 

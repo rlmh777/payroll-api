@@ -16,6 +16,7 @@ use App\Modules\Hr\Services\Attendance\TimesheetCompensationRecalculationService
 use App\Modules\Hr\Services\Employment\EmploymentContractAssignmentService;
 use App\Modules\Hr\Services\Leave\LeaveEntitlementService;
 use App\Modules\Hr\Services\Leave\LeaveWorkflowService;
+use App\Support\PersonName;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -179,7 +180,7 @@ class SchedulerEventController extends Controller
             $entryEndDate = $entry->endDate->format('Y-m-d');
             $rangeStart = Carbon::parse($entryStartDate)->max(Carbon::parse($start));
             $rangeEnd = Carbon::parse($entryEndDate)->min(Carbon::parse($end));
-            $employeeName = trim(sprintf('%s %s', $entry->employee?->firstName, $entry->employee?->lastName));
+            $employeeName = PersonName::lastFirst($entry->employee?->firstName, $entry->employee?->lastName);
             $contractCompensations = $entry->employmentDetailId
                 ? ($compensationsByContract->get((string) $entry->employmentDetailId) ?? collect())
                 : collect();
@@ -255,7 +256,7 @@ class SchedulerEventController extends Controller
             }
         }
 
-        if (!$schedulerOnly && $leaveGroup && ($groupIds->isEmpty() || $groupIds->contains($leaveGroup->id))) {
+        if ($leaveGroup && ($groupIds->isEmpty() || $groupIds->contains($leaveGroup->id))) {
             $leaves = EmployeeLeave::query()
                 ->with(['employee', 'leaveType', 'department', 'leaveStatus'])
                 ->whereDate('startDate', '<=', $end)
@@ -273,7 +274,7 @@ class SchedulerEventController extends Controller
                 $rangeStart = Carbon::parse($leave->startDate)->max(Carbon::parse($start));
                 $rangeEnd = Carbon::parse($leave->endDate)->min(Carbon::parse($end));
                 $leaveTypeName = $leave->leaveType?->name ?? 'Leave';
-                $employeeName = trim(sprintf('%s %s', $leave->employee?->firstName, $leave->employee?->lastName));
+                $employeeName = PersonName::lastFirst($leave->employee?->firstName, $leave->employee?->lastName) ?? '';
                 $typeHint = strtolower($leaveTypeName);
                 $eventType = str_contains($typeHint, 'sick') ? 'sick' : 'vacation';
                 $description = trim(sprintf('%s - %s', $leaveTypeName, $employeeName));
@@ -294,8 +295,8 @@ class SchedulerEventController extends Controller
                         'employee_name' => $employeeName,
                         'leave_type_id' => $leave->leaveTypeId,
                         'leave_type_name' => $leaveTypeName,
-                        'start_date' => $leave->startDate,
-                        'end_date' => $leave->endDate,
+                        'start_date' => Carbon::parse($leave->startDate)->toDateString(),
+                        'end_date' => Carbon::parse($leave->endDate)->toDateString(),
                         'start_time' => $this->formatTime($leave->fromTime),
                         'end_time' => $this->formatTime($leave->toTime),
                         'department_id' => $leave->departmentId,
@@ -338,7 +339,7 @@ class SchedulerEventController extends Controller
                     }
 
                     if ($birthday->betweenIncluded($rangeStart, $rangeEnd)) {
-                        $fullName = trim(sprintf('%s %s', $employee->firstName, $employee->lastName));
+                        $fullName = PersonName::lastFirst($employee->firstName, $employee->lastName) ?? '';
                         $events->push([
                             'id' => sprintf('birthday-%s-%s', $employee->id, $birthday->format('Y-m-d')),
                             'date' => $birthday->format('Y-m-d'),
@@ -350,7 +351,7 @@ class SchedulerEventController extends Controller
                             'calendar_group_color' => $birthdayGroup->color,
                             'source' => 'birthday',
                             'employee_id' => $employee->id,
-                            'employee_name' => $fullName,
+                            'employee_name' => $fullName !== '' ? $fullName : null,
                             'start_date' => $birthday->format('Y-m-d'),
                             'end_date' => $birthday->format('Y-m-d'),
                             'start_time' => null,
@@ -413,7 +414,7 @@ class SchedulerEventController extends Controller
         $approvals = collect();
 
         foreach ($leaves as $leave) {
-            $employeeName = trim(sprintf('%s %s', $leave->employee?->firstName, $leave->employee?->lastName));
+            $employeeName = PersonName::lastFirst($leave->employee?->firstName, $leave->employee?->lastName) ?? '';
             $leaveTypeName = $leave->leaveType?->name ?? 'Leave';
 
             $approvals->push([

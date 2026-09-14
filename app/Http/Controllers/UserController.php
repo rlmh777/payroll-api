@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Services\CompanyModuleService;
 use App\Services\MenuAuthorizationService;
 use App\Models\Role;
+use App\Support\Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
@@ -13,12 +15,29 @@ use Illuminate\Support\Facades\Password;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private readonly LeaveSupervisorAuthorizationService $supervisorAuthorization,
+    ) {
+    }
     /**
      * Display a listing of users with their roles.
      */
     public function index(Request $request)
     {
+        $this->assertCanListUsers($request->user());
+
         $query = User::with(['rolesManyToMany', 'employee']);
+
+        if ($this->mustScopeUsersToSubordinates($request->user())) {
+            $subordinateIds = $this->supervisorAuthorization
+                ->subordinateEmployeeIds($request->user())
+                ->map(fn ($id) => (string) $id)
+                ->all();
+
+            $query->whereHas('employee', function ($q) use ($subordinateIds) {
+                $q->whereIn('id', $subordinateIds);
+            });
+        }
 
         // Search by name or email
         if ($request->has('search')) {
@@ -52,6 +71,8 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        $this->assertCanManageUsers($request->user());
+
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
@@ -81,8 +102,10 @@ class UserController extends Controller
     /**
      * Display the specified user with their roles.
      */
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
+        $this->assertCanViewUser($request->user(), $user);
+
         return $user->load(['rolesManyToMany', 'employee']);
     }
 
@@ -91,6 +114,8 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        $this->assertCanManageUsers($request->user());
+
         if ($request->isMethod('put') && empty($request->all())) {
             return response()->json([
                 'message' => 'No data provided for update'
@@ -130,8 +155,10 @@ class UserController extends Controller
     /**
      * Remove the specified user from storage.
      */
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
+        $this->assertCanManageUsers($request->user());
+
         $user->delete();
         return response()->json(null, 204);
     }
@@ -141,6 +168,8 @@ class UserController extends Controller
      */
     public function assignRoles(Request $request, User $user)
     {
+        $this->assertCanManageUsers($request->user());
+
         $validator = Validator::make($request->all(), [
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id']
@@ -171,6 +200,8 @@ class UserController extends Controller
      */
     public function removeRoles(Request $request, User $user)
     {
+        $this->assertCanManageUsers($request->user());
+
         $validator = Validator::make($request->all(), [
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id']
@@ -192,8 +223,10 @@ class UserController extends Controller
     /**
      * Remove all roles from a user.
      */
-    public function removeAllRoles(User $user)
+    public function removeAllRoles(Request $request, User $user)
     {
+        $this->assertCanManageUsers($request->user());
+
         $user->rolesManyToMany()->sync([]);
         $user->removeAllRoles();
 
@@ -206,8 +239,10 @@ class UserController extends Controller
     /**
      * Get all available roles.
      */
-    public function availableRoles()
+    public function availableRoles(Request $request)
     {
+        $this->assertCanManageUsers($request->user());
+
         $roles = Role::orderBy('name', 'asc')->get(['id', 'name']);
         return response()->json($roles);
     }
@@ -215,8 +250,10 @@ class UserController extends Controller
     /**
      * Get users by role.
      */
-    public function getUsersByRole(Role $role)
+    public function getUsersByRole(Request $request, Role $role)
     {
+        $this->assertCanManageUsers($request->user());
+
         $users = $role->usersManyToMany()->with('rolesManyToMany')->get();
         
         return response()->json([
@@ -230,6 +267,8 @@ class UserController extends Controller
      */
     public function updatePassword(Request $request, User $user)
     {
+        $this->assertCanManageUserPassword($request->user(), $user);
+
         $validator = Validator::make($request->all(), [
             'password' => ['required', 'string', 'min:8'],
         ]);
@@ -244,7 +283,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Password updated successfully',
-            'user' => $user->load(['rolesManyToMany', 'employee'])
+            'user' => $user->load(['rolesManyToMany', 'employee']),
         ]);
     }
 
@@ -253,6 +292,8 @@ class UserController extends Controller
      */
     public function linkEmployee(Request $request, User $user)
     {
+        $this->assertCanManageUsers($request->user());
+
         $validator = Validator::make($request->all(), [
             'employee_id' => ['nullable', 'uuid', 'exists:employee,id'],
         ]);
@@ -297,6 +338,8 @@ class UserController extends Controller
      */
     public function sendPasswordResetEmail(Request $request, User $user)
     {
+        $this->assertCanManageUserPassword($request->user(), $user);
+
         $status = Password::sendResetLink(
             ['email' => $user->email]
         );
@@ -309,7 +352,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Failed to send password reset email',
-            'error' => $status
+            'error' => $status,
         ], 400);
     }
 
@@ -394,5 +437,78 @@ class UserController extends Controller
         $enabledCodes = $companyModuleService->enabledModuleCodes();
 
         return response()->json($menuAuthorizationService->menuTreeForUser($user, $enabledCodes));
+    }
+
+    private function assertCanListUsers(?User $actor): void
+    {
+        if (! $actor) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        if (Access::canManageAllUserPasswords($actor) || Access::can($actor, 'reset-subordinate-passwords')) {
+            return;
+        }
+
+        abort(403, 'You are not allowed to view users.');
+    }
+
+    private function assertCanViewUser(?User $actor, User $target): void
+    {
+        $this->assertCanListUsers($actor);
+
+        if (! $this->mustScopeUsersToSubordinates($actor)) {
+            return;
+        }
+
+        $target->loadMissing('employee');
+        $employeeId = $target->employee?->id;
+
+        if (! $employeeId || ! $this->supervisorAuthorization->isDirectSupervisorOf($actor, (string) $employeeId)) {
+            abort(403, 'You can only view users linked to employees who report to you.');
+        }
+    }
+
+    private function assertCanManageUsers(?User $actor): void
+    {
+        if (! $actor) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        if (! Access::canManageAllUserPasswords($actor)) {
+            abort(403, 'You are not allowed to manage users.');
+        }
+    }
+
+    private function mustScopeUsersToSubordinates(?User $actor): bool
+    {
+        return $actor
+            && ! Access::canManageAllUserPasswords($actor)
+            && Access::can($actor, 'reset-subordinate-passwords');
+    }
+
+    private function assertCanManageUserPassword(?User $actor, User $target): void
+    {
+        if (! $actor) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        if (Access::canManageAllUserPasswords($actor)) {
+            return;
+        }
+
+        if (! Access::can($actor, 'reset-subordinate-passwords')) {
+            abort(403, 'You are not allowed to reset passwords.');
+        }
+
+        $target->loadMissing('employee');
+        $employeeId = $target->employee?->id;
+
+        if (! $employeeId || ! $this->supervisorAuthorization->isDirectSupervisorOf($actor, (string) $employeeId)) {
+            abort(403, 'You can only reset passwords for employees who report to you.');
+        }
+
+        if ((string) $actor->id === (string) $target->id) {
+            abort(403, 'You cannot reset your own password with this action.');
+        }
     }
 }

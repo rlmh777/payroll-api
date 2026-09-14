@@ -7,6 +7,8 @@ enum LeaveStatusCode: string
     case Cancelled = 'CANCELLED';
     case PendingSupervisorApproval = 'PENDING_SUPERVISOR_APPROVAL';
     case PendingApproval = 'PENDING_APPROVAL';
+    case PendingHrApproval = 'PENDING_HR_APPROVAL';
+    case PendingAccountsConfirmation = 'PENDING_ACCOUNTS_CONFIRMATION';
     case Scheduled = 'SCHEDULED';
     case Taken = 'TAKEN';
     case Rejected = 'REJECTED';
@@ -33,6 +35,8 @@ enum LeaveStatusCode: string
         return [
             self::PendingSupervisorApproval,
             self::PendingApproval,
+            self::PendingHrApproval,
+            self::PendingAccountsConfirmation,
             self::Scheduled,
         ];
     }
@@ -46,12 +50,13 @@ enum LeaveStatusCode: string
     }
 
     /**
+     * Fully approved absences that affect timesheets / payroll.
+     *
      * @return array<int, self>
      */
     public static function activeAbsenceStatuses(): array
     {
         return [
-            self::PendingApproval,
             self::Scheduled,
             self::Taken,
         ];
@@ -63,6 +68,40 @@ enum LeaveStatusCode: string
     public static function pendingSupervisorStatuses(): array
     {
         return [self::PendingSupervisorApproval];
+    }
+
+    /**
+     * Statuses awaiting an approval / confirmation action.
+     *
+     * @return array<int, self>
+     */
+    public static function pendingActionStatuses(): array
+    {
+        return [
+            self::PendingSupervisorApproval,
+            self::PendingApproval,
+            self::PendingHrApproval,
+            self::PendingAccountsConfirmation,
+        ];
+    }
+
+    /**
+     * @return array<int, self>
+     */
+    public static function cancellableStatuses(): array
+    {
+        return [
+            self::PendingSupervisorApproval,
+            self::PendingApproval,
+            self::PendingHrApproval,
+            self::PendingAccountsConfirmation,
+            self::Scheduled,
+        ];
+    }
+
+    public function isPendingAction(): bool
+    {
+        return in_array($this, self::pendingActionStatuses(), true);
     }
 
     public function isTerminal(): bool

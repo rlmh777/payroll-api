@@ -3,6 +3,7 @@
 namespace App\Modules\Hr\Http\Controllers;
 
 use App\Models\EmployeeSkill;
+use App\Support\PublicFileUpload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,7 +25,8 @@ class EmployeeSkillController extends Controller
             $query->where(function ($builder) use ($search) {
                 $builder
                     ->where('name', 'ilike', $search)
-                    ->orWhere('proficiencyLevel', 'ilike', $search);
+                    ->orWhere('proficiencyLevel', 'ilike', $search)
+                    ->orWhere('fileName', 'ilike', $search);
             });
         }
 
@@ -43,9 +45,20 @@ class EmployeeSkillController extends Controller
             'proficiencyLevel' => ['nullable', 'string', 'max:64'],
             'yearsExperience' => ['nullable', 'numeric', 'min:0', 'max:80'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'attachmentFile' => PublicFileUpload::optionalRules(),
         ]);
 
-        $record = EmployeeSkill::create($validated);
+        $data = PublicFileUpload::apply(
+            $request,
+            $validated,
+            'employee-skills',
+            'attachmentFile',
+            null,
+            'skill_',
+        );
+        $data = $this->normalizeOptionalStrings($data);
+
+        $record = EmployeeSkill::create($data);
 
         return response()->json([
             'message' => 'Skill created successfully.',
@@ -66,9 +79,20 @@ class EmployeeSkillController extends Controller
             'proficiencyLevel' => ['nullable', 'string', 'max:64'],
             'yearsExperience' => ['nullable', 'numeric', 'min:0', 'max:80'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'attachmentFile' => PublicFileUpload::optionalRules(),
         ]);
 
-        $employeeSkill->update($validated);
+        $data = PublicFileUpload::apply(
+            $request,
+            $validated,
+            'employee-skills',
+            'attachmentFile',
+            $employeeSkill->filePath,
+            'skill_',
+        );
+        $data = $this->normalizeOptionalStrings($data);
+
+        $employeeSkill->update($data);
 
         return response()->json([
             'message' => 'Skill updated successfully.',
@@ -78,10 +102,30 @@ class EmployeeSkillController extends Controller
 
     public function destroy(EmployeeSkill $employeeSkill): JsonResponse
     {
+        PublicFileUpload::delete($employeeSkill->filePath);
         $employeeSkill->delete();
 
         return response()->json([
             'message' => 'Skill deleted successfully.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizeOptionalStrings(array $data): array
+    {
+        foreach (['proficiencyLevel', 'notes'] as $field) {
+            if (array_key_exists($field, $data) && $data[$field] === '') {
+                $data[$field] = null;
+            }
+        }
+
+        if (array_key_exists('yearsExperience', $data) && $data['yearsExperience'] === '') {
+            $data['yearsExperience'] = null;
+        }
+
+        return $data;
     }
 }

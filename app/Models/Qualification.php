@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicFileAttachment;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Qualification extends Model
 {
     use HasUuids;
+    use HasPublicFileAttachment;
 
     protected $table = 'qualification';
     protected $primaryKey = 'id';
@@ -21,7 +23,15 @@ class Qualification extends Model
         'degreeId',
         'from',
         'to',
-        'note'
+        'note',
+        'filePath',
+        'fileName',
+        'mimeType',
+        'fileSize',
+    ];
+
+    protected $appends = [
+        'fileUrl',
     ];
 
     public function employee(): BelongsTo
@@ -38,5 +48,4 @@ class Qualification extends Model
     {
         return $this->belongsTo(Degree::class, 'degreeId');
     }
-
 }

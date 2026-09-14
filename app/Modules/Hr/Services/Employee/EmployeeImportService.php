@@ -57,7 +57,16 @@ class EmployeeImportService
      *     clockingLogs?: list<array<string, mixed>>
      * } $payload
      * @return array{
-     *     summary: array<string, int>,
+     *     summary: array{
+     *         employeesCreated: int,
+     *         usersCreated: int,
+     *         employmentCreated: int,
+     *         compensationCreated: int,
+     *         scheduledWorkCreated: int,
+     *         clockingLogsCreated: int,
+     *         timesheetsCreated: int,
+     *         failed: int
+     *     },
      *     errors: list<array{sheet: string, row: int|null, code: string|null, message: string}>,
      *     createdEmployeeIds: list<string>
      * }
@@ -66,6 +75,7 @@ class EmployeeImportService
     {
         $summary = [
             'employeesCreated' => 0,
+            'usersCreated' => 0,
             'employmentCreated' => 0,
             'compensationCreated' => 0,
             'scheduledWorkCreated' => 0,
@@ -89,6 +99,9 @@ class EmployeeImportService
                     return $this->createEmployeeFromRow($row);
                 });
                 $summary['employeesCreated']++;
+                if ($employee->user_id) {
+                    $summary['usersCreated']++;
+                }
                 $createdEmployeeIds[] = (string) $employee->id;
             } catch (Throwable $e) {
                 $summary['failed']++;
@@ -365,7 +378,23 @@ class EmployeeImportService
             'unionMembership' => $this->nullableString($row['unionMembership'] ?? null),
         ];
 
-        return EmployeePersonSync::create($attributes);
+        $employee = EmployeePersonSync::create($attributes);
+
+        if (!$employee->user_id) {
+            $user = app(EmployeeUserProvisioner::class)->provisionForEmployee(
+                $employee->fresh(['person']) ?? $employee,
+            );
+
+            if (!$user) {
+                throw new \RuntimeException(
+                    "Failed to create a linked user account for employee code: {$code}",
+                );
+            }
+
+            $employee = $employee->fresh() ?? $employee;
+        }
+
+        return $employee;
     }
 
     /**

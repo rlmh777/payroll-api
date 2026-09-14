@@ -14,6 +14,7 @@ use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
 use App\Modules\Hr\Http\Controllers\DepartmentController;
 use App\Modules\Hr\Http\Controllers\EmployeeGroupController;
+use App\Modules\Workflow\Http\Controllers\PipelineTemplateController;
 use App\Modules\Hr\Http\Controllers\DepartmentHeadAssignmentController;
 use App\Modules\Hr\Http\Controllers\WorksiteController;
 use App\Http\Controllers\DegreeController;
@@ -95,7 +96,12 @@ use App\Http\Controllers\CompanyController;
 use App\Modules\Hr\Http\Controllers\CalendarGroupController;
 use App\Modules\Hr\Http\Controllers\PublicHolidayController;
 use App\Modules\Hr\Http\Controllers\ScheduledWorkController;
+use App\Modules\Hr\Http\Controllers\ScheduledWorkImportController;
+use App\Modules\Hr\Http\Controllers\SchedulerDailyMetricController;
 use App\Modules\Hr\Http\Controllers\SchedulerEventController;
+use App\Modules\Hr\Http\Controllers\SchedulerMetricDefinitionController;
+use App\Modules\Hr\Http\Controllers\SchedulerNoticeController;
+use App\Modules\Hr\Http\Controllers\ShiftTemplateController;
 use App\Modules\Hr\Http\Controllers\ScheduleEmployeeTimesheetController;
 use App\Modules\Hr\Http\Controllers\TimesheetTemplateController;
 use App\Modules\Hr\Http\Controllers\TimesheetTemplateDepartmentController;
@@ -112,6 +118,8 @@ use App\Support\AuthUserPresenter;
 Route::get('/user', function (Request $request) {
     return AuthUserPresenter::present($request->user());
 })->middleware('auth:sanctum');
+Route::put('/user/preferences', [\App\Http\Controllers\UserPreferencesController::class, 'update'])
+    ->middleware('auth:sanctum');
 
 Route::post('/tokens/create', [AuthController::class, 'createToken'])->middleware('auth:sanctum');
 Route::post('/tokens/revoke', [AuthController::class, 'revokeToken'])->middleware('auth:sanctum');
@@ -205,6 +213,8 @@ Route::prefix('calendar-groups')->group(function () {
 Route::prefix('scheduled-work')->group(function () {
     Route::get('/', [ScheduledWorkController::class, 'index']);
     Route::post('/', [ScheduledWorkController::class, 'store']);
+    Route::post('/import/preview', [ScheduledWorkImportController::class, 'preview']);
+    Route::post('/import', [ScheduledWorkImportController::class, 'confirm']);
     Route::get('/{scheduledWork}', [ScheduledWorkController::class, 'show']);
     Route::put('/{scheduledWork}', [ScheduledWorkController::class, 'update']);
     Route::delete('/{scheduledWork}', [ScheduledWorkController::class, 'destroy']);
@@ -288,6 +298,36 @@ Route::post('timesheet-template-departments', [TimesheetTemplateDepartmentContro
 // Scheduler merged feed (work, holidays, leaves, birthdays)
 Route::prefix('scheduler-events')->group(function () {
     Route::get('/', [SchedulerEventController::class, 'index']);
+});
+
+Route::prefix('scheduler-metric-definitions')->group(function () {
+    Route::get('/', [SchedulerMetricDefinitionController::class, 'index']);
+    Route::post('/', [SchedulerMetricDefinitionController::class, 'store']);
+    Route::get('/{schedulerMetricDefinition}', [SchedulerMetricDefinitionController::class, 'show']);
+    Route::put('/{schedulerMetricDefinition}', [SchedulerMetricDefinitionController::class, 'update']);
+    Route::delete('/{schedulerMetricDefinition}', [SchedulerMetricDefinitionController::class, 'destroy']);
+});
+
+Route::prefix('scheduler-daily-metrics')->group(function () {
+    Route::get('/', [SchedulerDailyMetricController::class, 'index']);
+    Route::put('/', [SchedulerDailyMetricController::class, 'upsert']);
+});
+
+Route::prefix('scheduler-notices')->group(function () {
+    Route::get('/', [SchedulerNoticeController::class, 'index']);
+    Route::post('/', [SchedulerNoticeController::class, 'store']);
+    Route::get('/{schedulerNotice}', [SchedulerNoticeController::class, 'show']);
+    Route::put('/{schedulerNotice}', [SchedulerNoticeController::class, 'update']);
+    Route::delete('/{schedulerNotice}', [SchedulerNoticeController::class, 'destroy']);
+});
+
+Route::prefix('shift-templates')->group(function () {
+    Route::get('/', [ShiftTemplateController::class, 'index']);
+    Route::post('/', [ShiftTemplateController::class, 'store']);
+    Route::get('/{shiftTemplate}', [ShiftTemplateController::class, 'show']);
+    Route::put('/{shiftTemplate}', [ShiftTemplateController::class, 'update']);
+    Route::delete('/{shiftTemplate}', [ShiftTemplateController::class, 'destroy']);
+    Route::post('/{shiftTemplate}/assign', [ShiftTemplateController::class, 'assign']);
 });
 
 // Leave approvals for scheduler
@@ -398,6 +438,15 @@ Route::prefix('employee-groups')->middleware('auth:sanctum')->group(function () 
     Route::delete('/{employeeGroup}/members/{member}', [EmployeeGroupController::class, 'removeMember']);
 });
 
+Route::prefix('pipeline-templates')->middleware('auth:sanctum')->group(function () {
+    Route::get('/meta', [PipelineTemplateController::class, 'meta']);
+    Route::get('/', [PipelineTemplateController::class, 'index']);
+    Route::post('/', [PipelineTemplateController::class, 'store']);
+    Route::get('/{pipelineTemplate}', [PipelineTemplateController::class, 'show']);
+    Route::put('/{pipelineTemplate}', [PipelineTemplateController::class, 'update']);
+    Route::delete('/{pipelineTemplate}', [PipelineTemplateController::class, 'destroy']);
+});
+
 Route::prefix('department-head-assignments')->group(function () {
     Route::get('/', [DepartmentHeadAssignmentController::class, 'index']);
     Route::post('/', [DepartmentHeadAssignmentController::class, 'store']);
@@ -443,6 +492,7 @@ Route::prefix('employee-pool-points')->group(function () {
 });
 
 Route::get('employees/{employee}/pool-points/current', [EmployeePoolPointController::class, 'currentForEmployee']);
+Route::post('employees/hours-bank/balances', [EmployeeHoursBankController::class, 'balances']);
 Route::get('employees/{employee}/hours-bank', [EmployeeHoursBankController::class, 'show']);
 Route::post('employees/{employee}/hours-bank/adjust', [EmployeeHoursBankController::class, 'adjust']);
 Route::post('employees/{employee}/hours-bank/apply-to-leave', [EmployeeHoursBankController::class, 'applyToLeave']);
@@ -583,7 +633,7 @@ Route::prefix('qualifications')->group(function () {
     Route::get('/', [QualificationController::class, 'index']);
     Route::post('/', [QualificationController::class, 'store']);
     Route::get('/{qualification}', [QualificationController::class, 'show']);
-    Route::put('/{qualification}', [QualificationController::class, 'update']);
+    Route::match(['put', 'post'], '/{qualification}', [QualificationController::class, 'update']);
     Route::delete('/{qualification}', [QualificationController::class, 'destroy']);
 });
 
@@ -591,7 +641,7 @@ Route::prefix('employee-certifications')->group(function () {
     Route::get('/', [EmployeeCertificationController::class, 'index']);
     Route::post('/', [EmployeeCertificationController::class, 'store']);
     Route::get('/{employeeCertification}', [EmployeeCertificationController::class, 'show']);
-    Route::put('/{employeeCertification}', [EmployeeCertificationController::class, 'update']);
+    Route::match(['put', 'post'], '/{employeeCertification}', [EmployeeCertificationController::class, 'update']);
     Route::delete('/{employeeCertification}', [EmployeeCertificationController::class, 'destroy']);
 });
 
@@ -599,7 +649,7 @@ Route::prefix('employee-skills')->group(function () {
     Route::get('/', [EmployeeSkillController::class, 'index']);
     Route::post('/', [EmployeeSkillController::class, 'store']);
     Route::get('/{employeeSkill}', [EmployeeSkillController::class, 'show']);
-    Route::put('/{employeeSkill}', [EmployeeSkillController::class, 'update']);
+    Route::match(['put', 'post'], '/{employeeSkill}', [EmployeeSkillController::class, 'update']);
     Route::delete('/{employeeSkill}', [EmployeeSkillController::class, 'destroy']);
 });
 
@@ -724,9 +774,11 @@ Route::prefix('loan-types')->group(function () {
 Route::prefix('roles')->group(function () {
     Route::get('/', [RoleController::class, 'index']);
     Route::post('/', [RoleController::class, 'store']);
+    Route::get('/employee-form-access/catalog', [RoleController::class, 'employeeFormAccessCatalog']);
     Route::get('/{role}', [RoleController::class, 'show']);
     Route::put('/{role}', [RoleController::class, 'update']);
     Route::delete('/{role}', [RoleController::class, 'destroy']);
+    Route::put('/{role}/employee-form-access', [RoleController::class, 'updateEmployeeFormAccess']);
     Route::post('/{role}/permissions', [RoleController::class, 'assignPermissions']);
     Route::delete('/{role}/permissions', [RoleController::class, 'removePermissions']);
 });
@@ -857,6 +909,7 @@ Route::prefix('reports')->group(function () {
     Route::get('/salary-review', [ReportController::class, 'salaryReview']);
     Route::get('/scheduled-vs-worked-hours', [ReportController::class, 'scheduledVsWorkedHours']);
     Route::get('/paye-employment-details', [ReportController::class, 'payeEmploymentDetails']);
+    Route::get('/paye-employment-details/periods', [ReportController::class, 'payeEmploymentDetailsPeriods']);
     Route::get('/social-security-payments-by-month', [ReportController::class, 'socialSecurityPaymentsByMonth']);
     Route::get('/social-security-payments-by-month/periods', [ReportController::class, 'socialSecurityPaymentsByMonthPeriods']);
     Route::post('/social-security-payments-by-month/recalculate', [ReportController::class, 'recalculateSocialSecurityPaymentsByMonth']);

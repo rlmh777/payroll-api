@@ -29,6 +29,18 @@ class PayrollMissingEmployeesServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_treats_already_paid_leave_as_unpaid_for_payroll(): void
+    {
+        $leave = new EmployeeLeave([
+            'multiplier' => 1,
+            'paymentTreatment' => 'already_paid',
+        ]);
+        $leave->setRelation('leaveType', new LeaveType(['isPaid' => true]));
+
+        $this->assertTrue(PayrollMissingEmployeesService::leaveIsUnpaid($leave));
+    }
+
+    #[Test]
     public function it_treats_paid_leave_type_with_positive_multiplier_as_paid(): void
     {
         $leave = new EmployeeLeave(['multiplier' => 1]);

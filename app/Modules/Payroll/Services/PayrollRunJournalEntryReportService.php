@@ -65,6 +65,11 @@ class PayrollRunJournalEntryReportService
         $employerSocialSecurityAccountId = $this->payrollAccountMappingService->journalAccountKey('EMPLOYER_SOCIAL_SECURITY_EXPENSE');
         $departmentWagesFallback = $this->payrollAccountMappingService->journalAccountKey('DEPARTMENT_WAGES');
         $allowancesFallback = $this->payrollAccountMappingService->journalAccountKey('ALLOWANCES');
+        $vacationPayAccountId = $this->payrollAccountMappingService->journalAccountKey('VACATION_PAY');
+        $leaveAdvanceClearingAccountId = $this->payrollAccountMappingService->journalAccountKey('LEAVE_ADVANCE_CLEARING');
+        if (isset($earningAccounts['VACATION'])) {
+            $vacationPayAccountId = $earningAccounts['VACATION'];
+        }
 
         $departmentIds = $rows
             ->pluck('departmentId')
@@ -104,7 +109,8 @@ class PayrollRunJournalEntryReportService
 
                 $overtimeAmount = round($overtimeHours * $hourlyRate * $otMultiplier, 2);
                 $holidayAmount = round($holidayHours * $hourlyRate, 2);
-                $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount), 2);
+                $vacationPayAmount = round((float) ($row['_calculation']['vacationPay']['amount'] ?? 0), 2);
+                $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount - $vacationPayAmount), 2);
 
                 if ($regularAmount > 0) {
                     $this->addDebit(
@@ -155,6 +161,13 @@ class PayrollRunJournalEntryReportService
                     );
                     $this->addDebit($lines, $accountId, $amount);
                 }
+
+                $alreadyPaidAmount = round((float) ($row['_calculation']['alreadyPaidLeave']['amount'] ?? 0), 2);
+                $vacationPayAmount = round((float) ($row['_calculation']['vacationPay']['amount'] ?? 0), 2);
+                $vacationExpenseAmount = round($alreadyPaidAmount + $vacationPayAmount, 2);
+                if ($vacationExpenseAmount > 0) {
+                    $this->addDebit($lines, $vacationPayAccountId, $vacationExpenseAmount);
+                }
             }
         }
 
@@ -183,6 +196,12 @@ class PayrollRunJournalEntryReportService
 
                 $accountId = $this->resolveDeductionAccountId($deductionLine, $deductionsPayableAccountId);
                 $this->addCredit($lines, $accountId, $amount);
+            }
+
+            // Offset vacation expense when leave was paid in advance (net cash unchanged).
+            $alreadyPaidAmount = round((float) ($row['_calculation']['alreadyPaidLeave']['amount'] ?? 0), 2);
+            if ($alreadyPaidAmount > 0) {
+                $this->addCredit($lines, $leaveAdvanceClearingAccountId, $alreadyPaidAmount);
             }
 
             $netPay = round((float) ($row['netPay'] ?? 0), 2);

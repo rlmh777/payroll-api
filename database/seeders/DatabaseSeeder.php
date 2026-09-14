@@ -43,6 +43,7 @@ class DatabaseSeeder extends Seeder
             DepartmentSeeder::class,
             WorksiteSeeder::class,
             TimesheetTemplateSeeder::class,
+            ShiftTemplateSeeder::class,
             CalendarGroupSeeder::class,
             BelizePublicHolidays2026Seeder::class,
             PayPeriodGroupSeeder::class,
@@ -50,6 +51,7 @@ class DatabaseSeeder extends Seeder
             SupervisorUserSeeder::class,
             SupervisorDepartmentHeadSeeder::class,
             SuperAdminSeeder::class,
+            PipelineTemplateSeeder::class,
         ]);
     }
 }

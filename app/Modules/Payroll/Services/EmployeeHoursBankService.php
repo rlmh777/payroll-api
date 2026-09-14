@@ -41,6 +41,38 @@ class EmployeeHoursBankService
     }
 
     /**
+     * @param  list<string>  $employeeIds
+     * @return array<string, float>
+     */
+    public function balancesByEmployeeIds(array $employeeIds): array
+    {
+        $ids = collect($employeeIds)
+            ->map(fn ($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $existing = EmployeeHoursBank::query()
+            ->whereIn('employee_id', $ids->all())
+            ->get(['employee_id', 'balance_hours'])
+            ->keyBy(fn (EmployeeHoursBank $bank) => (string) $bank->employee_id);
+
+        $balances = [];
+        foreach ($ids as $employeeId) {
+            $bank = $existing->get($employeeId);
+            $balances[$employeeId] = $bank
+                ? round((float) $bank->balance_hours, 4)
+                : 0.0;
+        }
+
+        return $balances;
+    }
+
+    /**
      * @return array{
      *     balanceHours: float,
      *     ledger: list<array<string, mixed>>

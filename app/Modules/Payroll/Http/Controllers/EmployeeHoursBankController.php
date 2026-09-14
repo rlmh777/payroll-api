@@ -28,6 +28,20 @@ class EmployeeHoursBankController extends Controller
         ]);
     }
 
+    public function balances(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'employee_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'employee_ids.*' => ['required', 'uuid'],
+        ]);
+
+        $balances = $this->hoursBankService->balancesByEmployeeIds($validated['employee_ids']);
+
+        return response()->json([
+            'balances' => $balances,
+        ]);
+    }
+
     public function adjust(Employee $employee, Request $request): JsonResponse
     {
         $validated = $request->validate([

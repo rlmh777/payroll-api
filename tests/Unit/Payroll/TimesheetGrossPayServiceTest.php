@@ -4,8 +4,6 @@ namespace Tests\Unit\Payroll;
 
 use App\Enums\CompensationMethod;
 use App\Models\Timesheet;
-use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
-use App\Modules\Payroll\Services\PayrollTimesheetScopeService;
 use App\Modules\Payroll\Services\TimesheetGrossPayService;
 use Tests\TestCase;
 
@@ -13,10 +11,7 @@ class TimesheetGrossPayServiceTest extends TestCase
 {
     private function service(): TimesheetGrossPayService
     {
-        return new TimesheetGrossPayService(
-            new PayrollTimesheetScopeService(),
-            app(EmployeeCompensationResolver::class),
-        );
+        return app(TimesheetGrossPayService::class);
     }
 
     public function test_hourly_pay_includes_overtime_multiplier(): void

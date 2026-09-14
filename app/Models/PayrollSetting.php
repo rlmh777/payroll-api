@@ -11,6 +11,7 @@ class PayrollSetting extends Model
     protected $fillable = [
         'incomeTaxRate',
         'secondReliefAmount',
+        'postVacationPayToVacationAccount',
         'timesheetLockBeforeDate',
         'timesheetAutoLockEnabled',
         'timesheetAutoLockTime',
@@ -22,6 +23,7 @@ class PayrollSetting extends Model
     protected $casts = [
         'incomeTaxRate' => 'decimal:4',
         'secondReliefAmount' => 'decimal:2',
+        'postVacationPayToVacationAccount' => 'boolean',
         'timesheetLockBeforeDate' => 'date:Y-m-d',
         'timesheetAutoLockEnabled' => 'boolean',
         'timesheetAutoLockDaysAfterPayDate' => 'integer',
@@ -40,6 +42,7 @@ class PayrollSetting extends Model
         return static::query()->create([
             'incomeTaxRate' => (float) config('payroll.income_tax_rate', 0.25),
             'secondReliefAmount' => (float) config('payroll.second_relief_amount', 100),
+            'postVacationPayToVacationAccount' => true,
         ]);
     }
 
@@ -51,5 +54,10 @@ class PayrollSetting extends Model
     public static function secondReliefAmount(): float
     {
         return (float) static::current()->secondReliefAmount;
+    }
+
+    public static function postVacationPayToVacationAccount(): bool
+    {
+        return (bool) (static::current()->postVacationPayToVacationAccount ?? true);
     }
 }

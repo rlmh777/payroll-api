@@ -38,6 +38,7 @@ use App\Modules\Hr\Services\Attendance\TimesheetRoundOffService;
 use App\Modules\Hr\Services\Attendance\TimesheetScheduledHoursResolver;
 use App\Modules\Hr\Services\Attendance\TimesheetScheduleCoverageService;
 use App\Modules\Hr\Services\Attendance\TimesheetScopeService;
+use App\Support\PersonName;
 use App\Modules\Payroll\Services\PayrollMissingEmployeesService;
 use App\Modules\Payroll\Services\PayrollRunFrequencyResolver;
 use Carbon\Carbon;
@@ -453,11 +454,10 @@ class TimesheetController extends Controller
         $employeeSummaries->getCollection()->transform(function ($row) use ($employees, $departments, $employmentDetails) {
             $employee = $employees->get($row->employeeId);
             $employmentDetail = $row->employmentDetailId ? $employmentDetails->get($row->employmentDetailId) : null;
-            $employeeName = trim(sprintf(
-                '%s %s',
+            $employeeName = PersonName::lastFirst(
                 $employee?->firstName ?? '',
-                $employee?->lastName ?? ''
-            ));
+                $employee?->lastName ?? '',
+            );
             $pendingCount = (int) $row->pendingCount;
             $approvedCount = (int) $row->approvedCount;
             $rejectedCount = (int) $row->rejectedCount;
@@ -468,7 +468,7 @@ class TimesheetController extends Controller
                 'employmentDetailId' => $row->employmentDetailId,
                 'employmentContractLabel' => $employmentDetail ? $this->employmentContractLabel($employmentDetail) : null,
                 'employeeCode' => $employee?->code,
-                'employeeName' => $employeeName !== '' ? $employeeName : null,
+                'employeeName' => $employeeName,
                 'departmentId' => $row->departmentId,
                 'departmentName' => $departments->get($row->departmentId)?->name,
                 'payType' => $row->payType ? strtoupper((string) $row->payType) : null,
@@ -1503,19 +1503,17 @@ class TimesheetController extends Controller
     ): array {
         $employee = $timesheet->employee;
         $employeePerson = $employee?->person;
-        $employeeName = trim(sprintf(
-            '%s %s',
+        $employeeName = PersonName::lastFirst(
             $employeePerson?->firstName ?? $employee?->firstName ?? '',
-            $employeePerson?->lastName ?? $employee?->lastName ?? ''
-        ));
+            $employeePerson?->lastName ?? $employee?->lastName ?? '',
+        );
 
         $approver = $timesheet->approver;
         $approverPerson = $approver?->person;
-        $approverName = trim(sprintf(
-            '%s %s',
+        $approverName = PersonName::lastFirst(
             $approverPerson?->firstName ?? $approver?->firstName ?? '',
-            $approverPerson?->lastName ?? $approver?->lastName ?? ''
-        ));
+            $approverPerson?->lastName ?? $approver?->lastName ?? '',
+        );
 
         // Prefer stored lunch fields on the timesheet to avoid per-row schedule lookups on list.
         if ($timesheet->includeLunchHour !== null) {
@@ -1558,7 +1556,7 @@ class TimesheetController extends Controller
                 : null,
             'slotIndex' => (int) ($timesheet->slotIndex ?? 0),
             'employeeCode' => $timesheet->employee?->code,
-            'employeeName' => $employeeName !== '' ? $employeeName : null,
+            'employeeName' => $employeeName,
             'date' => $timesheet->date?->format('Y-m-d'),
             'clockInTime' => $timesheet->clockInTime?->format('Y-m-d H:i:s'),
             'clockInDeviceId' => $timesheet->clockInDeviceId,
@@ -1597,7 +1595,7 @@ class TimesheetController extends Controller
             'baseSalary' => $timesheet->baseSalary !== null ? (float) $timesheet->baseSalary : null,
             'approvalStatus' => strtoupper((string) $timesheet->approvalStatus),
             'approvedBy' => $timesheet->approvedBy,
-            'approvedByName' => $approverName !== '' ? $approverName : null,
+            'approvedByName' => $approverName,
             'approvedAt' => $timesheet->approvedAt?->format('Y-m-d H:i:s'),
             'remarks' => $timesheet->remarks,
             'comment' => $timesheet->comment,

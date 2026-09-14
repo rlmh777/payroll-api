@@ -12,6 +12,7 @@ class PayrollRunProcessingService
         private readonly PayrollRunCalculationService $payrollRunCalculationService,
         private readonly PayrollRunEarningLineBuilderService $payrollRunEarningLineBuilderService,
         private readonly PayrollRunTimesheetPaidMarker $payrollRunTimesheetPaidMarker,
+        private readonly PayrollRunLeavePaidMarker $payrollRunLeavePaidMarker,
     ) {
     }
 
@@ -48,6 +49,7 @@ class PayrollRunProcessingService
                 $payrollRun,
                 $rows,
             );
+            $this->payrollRunLeavePaidMarker->markForProcessedRun($payrollRun, $rows);
 
             return [
                 'payrollRunId' => (string) $payrollRun->id,

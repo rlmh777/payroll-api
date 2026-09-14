@@ -15,6 +15,18 @@ class Timesheet extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected static function booted(): void
+    {
+        static::created(function (Timesheet $timesheet) {
+            try {
+                app(\App\Modules\Hr\Services\Attendance\TimesheetScopeService::class)
+                    ->ensurePipelineStarted($timesheet);
+            } catch (\Throwable) {
+                // Pipeline start is best-effort during create.
+            }
+        });
+    }
+
     protected $fillable = [
         'employeeId',
         'employmentDetailId',

@@ -13,35 +13,35 @@ use RuntimeException;
 
 class EmployeeUserProvisioner
 {
-    public function buildUsername(string $firstName, string $lastName): string
+    public function buildUsername(string $firstName, string $lastName, ?string $middleName = null): string
     {
-        $last = $this->slugNamePart($lastName);
         $first = $this->slugNamePart($firstName);
+        $last = $this->slugNamePart($lastName);
 
-        if ($last === '' || $first === '') {
+        if ($first === '' || $last === '') {
             throw new RuntimeException('First and last name are required to generate a username.');
         }
 
-        return "{$last}.{$first}";
+        $middleInitial = $this->middleInitial($middleName);
+        if ($middleInitial !== null) {
+            return "{$first}.{$middleInitial}.{$last}";
+        }
+
+        return "{$first}.{$last}";
     }
 
     /**
      * @return array{username: string, email: string}
      */
-    public function generateUniqueLoginCredentials(string $firstName, string $lastName): array
-    {
+    public function generateUniqueLoginCredentials(
+        string $firstName,
+        string $lastName,
+        ?string $middleName = null,
+    ): array {
         $domain = $this->resolveEmailDomain();
-        $baseUsername = $this->buildUsername($firstName, $lastName);
-        $username = $baseUsername;
-        $email = "{$username}@{$domain}";
+        $candidates = $this->usernameCandidates($firstName, $lastName, $middleName);
 
-        if (!$this->loginEmailExists($email)) {
-            return compact('username', 'email');
-        }
-
-        for ($attempt = 0; $attempt < 100; $attempt++) {
-            $suffix = (string) random_int(10, 99);
-            $username = "{$baseUsername}{$suffix}";
+        foreach ($candidates as $username) {
             $email = "{$username}@{$domain}";
 
             if (!$this->loginEmailExists($email)) {
@@ -50,6 +50,40 @@ class EmployeeUserProvisioner
         }
 
         throw new RuntimeException('Unable to generate a unique employee login username.');
+    }
+
+    /**
+     * Preferred order:
+     * 1. firstname.lastname
+     * 2. firstname.m.lastname (middle initial, when available)
+     * 3. firstname.lastname2, firstname.lastname3, ...
+     *
+     * @return list<string>
+     */
+    public function usernameCandidates(
+        string $firstName,
+        string $lastName,
+        ?string $middleName = null,
+    ): array {
+        $first = $this->slugNamePart($firstName);
+        $last = $this->slugNamePart($lastName);
+
+        if ($first === '' || $last === '') {
+            throw new RuntimeException('First and last name are required to generate a username.');
+        }
+
+        $candidates = ["{$first}.{$last}"];
+
+        $middleInitial = $this->middleInitial($middleName);
+        if ($middleInitial !== null) {
+            $candidates[] = "{$first}.{$middleInitial}.{$last}";
+        }
+
+        for ($suffix = 2; $suffix <= 100; $suffix++) {
+            $candidates[] = "{$first}.{$last}{$suffix}";
+        }
+
+        return $candidates;
     }
 
     public function provisionForEmployee(Employee $employee): ?User
@@ -68,6 +102,7 @@ class EmployeeUserProvisioner
         ['username' => $username, 'email' => $email] = $this->generateUniqueLoginCredentials(
             (string) $person->firstName,
             (string) $person->lastName,
+            $person->middleName !== null ? (string) $person->middleName : null,
         );
 
         $user = User::query()->create([
@@ -111,6 +146,20 @@ class EmployeeUserProvisioner
         }
 
         return 'payroll.local';
+    }
+
+    private function middleInitial(?string $middleName): ?string
+    {
+        if ($middleName === null) {
+            return null;
+        }
+
+        $slug = $this->slugNamePart($middleName);
+        if ($slug === '') {
+            return null;
+        }
+
+        return $slug[0];
     }
 
     private function slugNamePart(string $value): string

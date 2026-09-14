@@ -38,8 +38,14 @@ class EmployeePersonSync
             $employee = Employee::query()->create($employeeData);
             self::syncSupervisorReporting($employee);
 
-            if (empty($employeeData['user_id'])) {
-                app(EmployeeUserProvisioner::class)->provisionForEmployee($employee);
+            if (empty($employeeData['user_id'] ?? null)) {
+                $user = app(EmployeeUserProvisioner::class)->provisionForEmployee($employee->fresh(['person']));
+
+                if (!$user) {
+                    throw new \RuntimeException(
+                        'Failed to create a linked user account for the employee.',
+                    );
+                }
             }
 
             return $employee->fresh();

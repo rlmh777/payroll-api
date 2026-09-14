@@ -19,6 +19,11 @@ class Role extends SpatieRole
     protected $fillable = [
         'name',
         'guard_name',
+        'employee_form_access',
+    ];
+
+    protected $casts = [
+        'employee_form_access' => 'array',
     ];
 
     protected static function boot()

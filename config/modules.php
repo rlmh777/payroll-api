@@ -7,10 +7,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | When true, all menus are shown together without module filtering.
-    | Menus are tagged as payroll in the database until multi-module split.
+    | When false, the Applications launcher filters menus by the active module.
     |
     */
-    'single_module_mode' => env('MODULES_SINGLE_MODE', true),
+    'single_module_mode' => env('MODULES_SINGLE_MODE', false),
 
     'default_module' => env('MODULES_DEFAULT', 'payroll'),
 ];

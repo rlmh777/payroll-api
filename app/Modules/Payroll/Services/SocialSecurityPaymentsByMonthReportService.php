@@ -31,6 +31,7 @@ class SocialSecurityPaymentsByMonthReportService
 
     public function __construct(
         private readonly SocialSecurityContributionService $socialSecurityContributionService,
+        private readonly PostedPayrollRunPeriodCatalog $postedPayrollRunPeriodCatalog,
     ) {
     }
 
@@ -44,49 +45,7 @@ class SocialSecurityPaymentsByMonthReportService
      */
     public function availablePeriods(): array
     {
-        $schedules = DB::table('payroll_runs')
-            ->join('pay_period_schedule', 'pay_period_schedule.id', '=', 'payroll_runs.pay_period_schedule_id')
-            ->whereRaw('LOWER(payroll_runs.status) = ?', ['posted'])
-            ->select([
-                'pay_period_schedule.start_date',
-                'pay_period_schedule.end_date',
-            ])
-            ->get();
-
-        $monthsByYear = [];
-
-        foreach ($schedules as $schedule) {
-            $cursor = Carbon::parse($schedule->start_date)->startOfMonth();
-            $end = Carbon::parse($schedule->end_date)->startOfMonth();
-
-            while ($cursor->lte($end)) {
-                $year = (int) $cursor->year;
-                $month = (int) $cursor->month;
-                $monthsByYear[$year][$month] = self::MONTH_NAMES[$month];
-                $cursor->addMonth();
-            }
-        }
-
-        krsort($monthsByYear);
-
-        $years = array_map('intval', array_keys($monthsByYear));
-        $serializedMonths = [];
-
-        foreach ($monthsByYear as $year => $months) {
-            krsort($months);
-            $serializedMonths[(string) $year] = collect($months)
-                ->map(fn (string $label, int $value) => [
-                    'value' => $value,
-                    'label' => $label,
-                ])
-                ->values()
-                ->all();
-        }
-
-        return [
-            'years' => $years,
-            'monthsByYear' => $serializedMonths,
-        ];
+        return $this->postedPayrollRunPeriodCatalog->available();
     }
 
     /**

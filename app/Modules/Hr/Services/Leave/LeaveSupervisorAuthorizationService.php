@@ -10,6 +10,7 @@ use App\Models\EmployeeReporting;
 use App\Models\User;
 use App\Support\Access;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class LeaveSupervisorAuthorizationService
 {
@@ -80,7 +81,7 @@ class LeaveSupervisorAuthorizationService
     }
 
     /**
-     * Leave List is visible to leave admins, supervisors, and department heads.
+     * Leave List is visible to leave admins, supervisors, department heads, and accounts.
      */
     public function canAccessLeaveList(?User $user): bool
     {
@@ -88,7 +89,7 @@ class LeaveSupervisorAuthorizationService
             return false;
         }
 
-        if ($this->isLeaveAdmin($user)) {
+        if ($this->isLeaveAdmin($user) || Access::canConfirmLeavePayment($user)) {
             return true;
         }
 
@@ -97,7 +98,7 @@ class LeaveSupervisorAuthorizationService
     }
 
     /**
-     * null = unrestricted (leave admin). Empty collection = no visible employees.
+     * null = unrestricted (leave admin / accounts confirmer). Empty collection = no visible employees.
      *
      * @return Collection<int, string>|null
      */
@@ -107,7 +108,7 @@ class LeaveSupervisorAuthorizationService
             return collect();
         }
 
-        if ($this->isLeaveAdmin($user)) {
+        if ($this->isLeaveAdmin($user) || Access::canConfirmLeavePayment($user)) {
             return null;
         }
 
@@ -205,7 +206,7 @@ class LeaveSupervisorAuthorizationService
     }
 
     /**
-     * Department-head / final step.
+     * Department-head step (legacy templates).
      */
     public function canActAsDepartmentHead(?User $user, EmployeeLeave $leave): bool
     {
@@ -230,6 +231,62 @@ class LeaveSupervisorAuthorizationService
     }
 
     /**
+     * HR step: leave admins or users with the hr role.
+     */
+    public function canActAsHr(?User $user, EmployeeLeave $leave): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $approver = $this->actorEmployee($user);
+        if ($approver && (string) $leave->employeeId === (string) $approver->id) {
+            return false;
+        }
+
+        return $this->isLeaveAdmin($user) || $user->hasRole('hr');
+    }
+
+    /**
+     * Accounts payment confirmation step.
+     */
+    public function canActAsAccounts(?User $user, EmployeeLeave $leave): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $approver = $this->actorEmployee($user);
+        if ($approver && (string) $leave->employeeId === (string) $approver->id) {
+            return false;
+        }
+
+        return Access::canConfirmLeavePayment($user);
+    }
+
+    public function canActAsRole(?User $user, EmployeeLeave $leave, ?string $role): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $normalized = Str::lower(trim((string) $role));
+        if (in_array($normalized, ['accountant', 'payroll-accountant', 'accounts'], true)) {
+            return $this->canActAsAccounts($user, $leave);
+        }
+
+        if ($normalized === 'admin' || $normalized === 'hr') {
+            return $this->canActAsHr($user, $leave);
+        }
+
+        if ($normalized !== '' && $user->hasRole($normalized)) {
+            return true;
+        }
+
+        return $this->isLeaveAdmin($user);
+    }
+
+    /**
      * Status-aware manage check for sequential approval.
      */
     public function canManageLeave(?User $user, EmployeeLeave $leave): bool
@@ -242,11 +299,21 @@ class LeaveSupervisorAuthorizationService
         }
 
         if ($status === LeaveStatusCode::PendingApproval) {
-            return $this->canActAsDepartmentHead($user, $leave);
+            return $this->canActAsDepartmentHead($user, $leave)
+                || $this->canActAsHr($user, $leave);
         }
 
-        // Scheduled / other actionable states: either supervisor or dept head of the employee.
+        if ($status === LeaveStatusCode::PendingHrApproval) {
+            return $this->canActAsHr($user, $leave);
+        }
+
+        if ($status === LeaveStatusCode::PendingAccountsConfirmation) {
+            return $this->canActAsAccounts($user, $leave);
+        }
+
         return $this->canActAsSupervisor($user, $leave)
-            || $this->canActAsDepartmentHead($user, $leave);
+            || $this->canActAsDepartmentHead($user, $leave)
+            || $this->canActAsHr($user, $leave)
+            || $this->canActAsAccounts($user, $leave);
     }
 }

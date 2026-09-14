@@ -3,6 +3,7 @@
 namespace App\Modules\Payroll\Services;
 
 use App\Enums\CompensationMethod;
+use App\Enums\LeavePaymentTreatment;
 use App\Enums\LeaveStatusCode;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeDayWork;
@@ -17,6 +18,7 @@ class PayrollMissingEmployeesService
     public function __construct(
         private readonly PayrollTimesheetScopeService $payrollTimesheetScopeService,
         private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly PayrollFlatBaseScopeService $payrollFlatBaseScopeService,
     ) {
     }
 
@@ -74,6 +76,11 @@ class PayrollMissingEmployeesService
 
     public static function leaveIsUnpaid(EmployeeLeave $leave): bool
     {
+        $treatment = LeavePaymentTreatment::fromStored($leave->paymentTreatment);
+        if ($treatment?->shouldExcludeFromPayrollPay()) {
+            return true;
+        }
+
         if ((float) ($leave->multiplier ?? 1) <= 0) {
             return true;
         }
@@ -212,8 +219,18 @@ class PayrollMissingEmployeesService
             ->pluck('employeeId')
             ->map(fn ($id) => (string) $id);
 
+        $fromFlatBase = collect(
+            $this->payrollFlatBaseScopeService->employeeIds(
+                $startDate,
+                $endDate,
+                $payPeriodGroupId,
+                $frequencyId,
+            ),
+        );
+
         return $fromTimesheets
             ->merge($fromDayWork)
+            ->merge($fromFlatBase)
             ->unique()
             ->values();
     }

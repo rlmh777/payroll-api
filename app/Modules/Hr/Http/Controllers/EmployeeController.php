@@ -9,6 +9,7 @@ use App\Modules\Hr\Services\EmployeeNameSearch;
 use App\Modules\Hr\Services\EmployeePersonSync;
 use App\Modules\Hr\Services\Employee\EmployeeCodeGenerator;
 use App\Modules\Hr\Services\Activity\EmployeeTimeTravelService;
+use App\Services\EmployeeFormAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -17,15 +18,6 @@ use Illuminate\Support\Str;
 
 class EmployeeController extends Controller
 {
-    private const EMPLOYMENT_RELATIONS = [
-        'employmentDetails.department',
-        'employmentDetails.worksite',
-        'employmentDetails.contractType',
-        'employmentDetails.jobTitle',
-        'employmentDetails.defaultPayPeriodGroup',
-        'employeeCompensations',
-    ];
-
     /** Slim payload for scheduler/timesheet browsing (avoids heavy person lookups). */
     private const SCHEDULER_RELATIONS = [
         'employmentDetails.department:id,name',
@@ -39,6 +31,7 @@ class EmployeeController extends Controller
     public function __construct(
         private readonly EmployeeCodeGenerator $codeGenerator,
         private readonly EmployeeTimeTravelService $employeeTimeTravelService,
+        private readonly EmployeeFormAccessService $employeeFormAccess,
     ) {
     }
 
@@ -51,7 +44,30 @@ class EmployeeController extends Controller
             return self::SCHEDULER_RELATIONS;
         }
 
-        return array_merge(self::EMPLOYMENT_RELATIONS, EmployeePersonSync::defaultRelations());
+        $profile = $this->employeeFormAccess->forUser($request->user());
+        $relations = array_merge(EmployeePersonSync::defaultRelations(), [
+            'employmentDetails.department',
+            'employmentDetails.worksite',
+            'employmentDetails.contractType',
+            'employmentDetails.jobTitle',
+            'employmentDetails.defaultPayPeriodGroup',
+        ]);
+
+        if (
+            ! $this->employeeFormAccess->fieldVisible($profile, 'paymentMethodId')
+            && ! $this->employeeFormAccess->tabVisible($profile, 'payment_details')
+        ) {
+            $relations = array_values(array_filter(
+                $relations,
+                fn (string $relation) => $relation !== 'paymentMethod',
+            ));
+        }
+
+        if ($this->employeeFormAccess->tabVisible($profile, 'compensation')) {
+            $relations[] = 'employeeCompensations';
+        }
+
+        return array_values(array_unique($relations));
     }
 
     public function byUser(Request $request, string $userId)
@@ -165,13 +181,26 @@ class EmployeeController extends Controller
         }
 
         $perPage = $request->input('per_page', 20);
+        $paginator = $query->paginate($perPage);
 
-        return response()->json($query->paginate($perPage));
+        if ($request->input('context') !== 'scheduler') {
+            $profile = $this->employeeFormAccess->forUser($request->user());
+            $paginator->setCollection(
+                $paginator->getCollection()->map(
+                    fn (Employee $employee) => $this->sanitizeEmployee($employee, $profile),
+                ),
+            );
+        }
+
+        return response()->json($paginator);
     }
 
     public function store(Request $request)
     {
-        $input = $request->all();
+        $profile = $this->employeeFormAccess->forUser($request->user());
+        $input = $this->employeeFormAccess->filterWritableAttributes($request->all(), $profile, true);
+        $request->merge($input);
+
         $code = trim((string) ($input['code'] ?? ''));
 
         if ($code === '') {
@@ -189,14 +218,18 @@ class EmployeeController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $validator->validated();
+        $data = $this->employeeFormAccess->filterWritableAttributes(
+            $validator->validated(),
+            $profile,
+            true,
+        );
 
         $employee = EmployeePersonSync::create($data);
         $employee->load(EmployeePersonSync::defaultRelations());
 
         $response = [
             'message' => 'Employee created successfully',
-            'data' => $employee,
+            'data' => $this->sanitizeEmployee($employee, $profile),
         ];
 
         if ($employee->user) {
@@ -210,9 +243,12 @@ class EmployeeController extends Controller
         return response()->json($response, 201);
     }
 
-    public function show(Employee $employee)
+    public function show(Request $request, Employee $employee)
     {
-        return response()->json($employee->load(EmployeePersonSync::detailRelations()));
+        $profile = $this->employeeFormAccess->forUser($request->user());
+        $employee->load($this->employeeFormAccess->detailRelationsForProfile($profile));
+
+        return response()->json($this->sanitizeEmployee($employee, $profile));
     }
 
     public function update(Request $request, Employee $employee)
@@ -221,17 +257,27 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'No data provided for update'], 422);
         }
 
+        $profile = $this->employeeFormAccess->forUser($request->user());
+        $writable = $this->employeeFormAccess->filterWritableAttributes($request->all(), $profile, false);
+        $request->replace($writable);
+
         $validator = Validator::make($request->all(), self::validationRules($employee->id, partial: true));
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $employee = EmployeePersonSync::update($employee, $validator->validated());
+        $employee = EmployeePersonSync::update(
+            $employee,
+            $this->employeeFormAccess->filterWritableAttributes($validator->validated(), $profile, false),
+        );
 
         return response()->json([
             'message' => 'Employee updated successfully',
-            'data' => $employee->load(EmployeePersonSync::defaultRelations()),
+            'data' => $this->sanitizeEmployee(
+                $employee->load(EmployeePersonSync::defaultRelations()),
+                $profile,
+            ),
         ]);
     }
 
@@ -307,6 +353,11 @@ class EmployeeController extends Controller
 
     public function timeTravel(Request $request, Employee $employee)
     {
+        $profile = $this->employeeFormAccess->forUser($request->user());
+        if (! $this->employeeFormAccess->tabVisible($profile, 'time_travel')) {
+            return response()->json(['message' => 'Time travel is not available for your role.'], 403);
+        }
+
         $filters = $request->validate([
             'event' => ['nullable', 'string', 'in:created,updated,deleted'],
             'resource' => ['nullable', 'string', 'max:128'],
@@ -317,6 +368,18 @@ class EmployeeController extends Controller
 
         return response()->json(
             $this->employeeTimeTravelService->timeline($employee, $filters),
+        );
+    }
+
+    /**
+     * @param  array{tabs: array<string, string>, fields: array<string, string>}  $profile
+     * @return array<string, mixed>
+     */
+    private function sanitizeEmployee(Employee $employee, array $profile): array
+    {
+        return $this->employeeFormAccess->sanitizeReadablePayload(
+            $employee->toArray(),
+            $profile,
         );
     }
 

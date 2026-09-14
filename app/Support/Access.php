@@ -49,6 +49,34 @@ class Access
     }
 
     /**
+     * Accounts / payroll confirmation of leave payment treatment.
+     */
+    public static function canConfirmLeavePayment(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if (self::canManageAllLeave($user)) {
+            return true;
+        }
+
+        if (self::canAny($user, ['pay-employees-crud', 'view-payroll', 'manager-tax'])) {
+            return true;
+        }
+
+        return $user->hasAnyRole(['admin', 'accountant', 'payroll-accountant']);
+    }
+
+    /**
+     * Company-wide user password management (settings → users).
+     */
+    public static function canManageAllUserPasswords(?User $user): bool
+    {
+        return self::can($user, 'manager-users');
+    }
+
+    /**
      * Company-wide Payroll other payment entry (not limited to subordinates).
      */
     public static function canManageCompanyPayrollAllowances(?User $user): bool
@@ -68,5 +96,25 @@ class Access
             'pay-employees-crud',
             'employees-crud',
         ]);
+    }
+
+    /**
+     * Company-wide scheduler shift management (GM / admin / HR — not limited to subordinates).
+     */
+    public static function canManageCompanyScheduler(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if (self::canViewAllEmployees($user)) {
+            return true;
+        }
+
+        if (self::can($user, 'scheduler-daily-metrics-crud')) {
+            return true;
+        }
+
+        return $user->hasAnyRole(['admin', 'gm']);
     }
 }

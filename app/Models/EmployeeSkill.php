@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicFileAttachment;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeSkill extends Model
 {
     use HasUuids;
+    use HasPublicFileAttachment;
 
     protected $table = 'employee_skill';
     protected $primaryKey = 'id';
@@ -21,6 +23,14 @@ class EmployeeSkill extends Model
         'proficiencyLevel',
         'yearsExperience',
         'notes',
+        'filePath',
+        'fileName',
+        'mimeType',
+        'fileSize',
+    ];
+
+    protected $appends = [
+        'fileUrl',
     ];
 
     protected $casts = [

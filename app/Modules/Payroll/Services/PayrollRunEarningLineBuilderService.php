@@ -17,6 +17,7 @@ class PayrollRunEarningLineBuilderService
 {
     public function __construct(
         private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly PayrollAccountMappingService $payrollAccountMappingService,
     ) {
     }
 
@@ -46,9 +47,9 @@ class PayrollRunEarningLineBuilderService
         $otMultiplier = (float) config('payroll.overtime_multiplier', 1.5);
 
         $earningCodes = PayrollEarningCode::query()
-            ->whereIn('code', ['REGULAR', 'OVERTIME', 'HOLIDAY', 'ALLOWANCE'])
+            ->whereIn('code', ['REGULAR', 'OVERTIME', 'HOLIDAY', 'ALLOWANCE', 'VACATION'])
             ->get()
-            ->keyBy('code');
+            ->keyBy(fn (PayrollEarningCode $code) => strtoupper((string) $code->code));
 
         $payrollsByEmployee = Payroll::query()
             ->where('payroll_run_id', $payrollRun->id)
@@ -85,7 +86,11 @@ class PayrollRunEarningLineBuilderService
             $holidayHours = round((float) ($row['holidayHours'] ?? 0), 2);
             $overtimeAmount = round($overtimeHours * $hourlyRate * $otMultiplier, 2);
             $holidayAmount = round($holidayHours * $hourlyRate, 2);
-            $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount), 2);
+            $vacationPay = $row['_calculation']['vacationPay'] ?? [];
+            $vacationPayAmount = round((float) ($vacationPay['amount'] ?? 0), 2);
+            $alreadyPaidLeave = $row['_calculation']['alreadyPaidLeave'] ?? [];
+            $alreadyPaidAmount = round((float) ($alreadyPaidLeave['amount'] ?? 0), 2);
+            $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount - $vacationPayAmount), 2);
 
             $this->createLine(
                 $payrollRun,
@@ -158,6 +163,49 @@ class PayrollRunEarningLineBuilderService
                     isset($allowanceLine['sourceId']) ? (string) $allowanceLine['sourceId'] : null,
                 );
             }
+
+            $vacationCode = $earningCodes->get('VACATION');
+            $vacationAccountId = filled($vacationCode?->account_id)
+                ? (string) $vacationCode->account_id
+                : $this->payrollAccountMappingService->accountIdFor('VACATION_PAY');
+
+            if ($vacationPayAmount > 0) {
+                $this->createLine(
+                    $payrollRun,
+                    $employeeId,
+                    $payrollId,
+                    $departmentId,
+                    $vacationCode,
+                    isset($vacationPay['days']) && (float) $vacationPay['days'] > 0
+                        ? (float) $vacationPay['days']
+                        : null,
+                    null,
+                    $vacationPayAmount,
+                    $vacationAccountId,
+                    'VACATION_PAY',
+                    null,
+                    'Vacation leave pay',
+                );
+            }
+
+            if ($alreadyPaidAmount > 0) {
+                $this->createLine(
+                    $payrollRun,
+                    $employeeId,
+                    $payrollId,
+                    $departmentId,
+                    $vacationCode,
+                    isset($alreadyPaidLeave['days']) && (float) $alreadyPaidLeave['days'] > 0
+                        ? (float) $alreadyPaidLeave['days']
+                        : null,
+                    null,
+                    $alreadyPaidAmount,
+                    $vacationAccountId,
+                    'ALREADY_PAID_LEAVE',
+                    null,
+                    'Already paid in advance',
+                );
+            }
         }
     }
 
@@ -173,6 +221,7 @@ class PayrollRunEarningLineBuilderService
         ?string $accountId,
         string $sourceType = 'CALCULATED',
         ?string $sourceId = null,
+        ?string $note = null,
     ): void {
         if ($amount <= 0 || !$earningCode) {
             return;
@@ -193,6 +242,7 @@ class PayrollRunEarningLineBuilderService
             'is_ss_subject' => (bool) $earningCode->is_ss_subject,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
+            'note' => $note,
         ]);
     }
 

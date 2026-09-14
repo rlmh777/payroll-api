@@ -15,6 +15,7 @@ use App\Models\Timesheet;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use App\Models\TimesheetTemplate;
 use App\Models\TimesheetTemplateDepartment;
+use App\Support\PersonName;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -520,7 +521,8 @@ class TimesheetProcessingService
             ->where(function ($query) {
                 $query
                     ->whereHas('leaveType', fn ($leaveTypeQuery) => $leaveTypeQuery->where('isPaid', false))
-                    ->orWhere('multiplier', '<=', 0);
+                    ->orWhere('multiplier', '<=', 0)
+                    ->orWhereIn('paymentTreatment', ['unpaid', 'already_paid']);
             })
             ->get();
 
@@ -1143,9 +1145,7 @@ class TimesheetProcessingService
             return null;
         }
 
-        $name = trim(sprintf('%s %s', $employee->firstName ?? '', $employee->lastName ?? ''));
-
-        return $name !== '' ? $name : null;
+        return PersonName::lastFirst($employee->firstName ?? '', $employee->lastName ?? '');
     }
 
     private function normalizePunchType(mixed $value): ?string

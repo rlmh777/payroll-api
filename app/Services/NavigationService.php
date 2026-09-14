@@ -22,11 +22,12 @@ class NavigationService
             ->values()
             ->all();
 
+        $moduleCodes = $enabledCodes?->values()->all()
+            ?? $modules->pluck('code')->filter()->values()->all();
+
         $moduleMenus = [];
-        if ($enabledCodes !== null) {
-            foreach ($enabledCodes as $code) {
-                $moduleMenus[$code] = $this->filterTreeByModule($menuTree, $code);
-            }
+        foreach ($moduleCodes as $code) {
+            $moduleMenus[$code] = $this->filterTreeByModule($menuTree, (string) $code);
         }
 
         return [

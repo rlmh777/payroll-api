@@ -98,6 +98,13 @@ class ReportController extends Controller
         }
     }
 
+    public function payeEmploymentDetailsPeriods(): JsonResponse
+    {
+        return response()->json(
+            $this->payeEmploymentDetailsReportService->availablePeriods(),
+        );
+    }
+
     public function socialSecurityPaymentsByMonth(Request $request): JsonResponse
     {
         $validated = $request->validate([

@@ -25,6 +25,7 @@ class PayrollSettingController extends Controller
         $validated = $request->validate([
             'incomeTaxRate' => ['sometimes', 'required', 'numeric', 'min:0', 'max:1'],
             'secondReliefAmount' => ['sometimes', 'required', 'numeric', 'min:0'],
+            'postVacationPayToVacationAccount' => ['sometimes', 'boolean'],
             'timesheetLockBeforeDate' => ['nullable', 'date'],
             'timesheetAutoLockEnabled' => ['sometimes', 'boolean'],
             'timesheetAutoLockTime' => ['sometimes', 'date_format:H:i'],
@@ -51,6 +52,7 @@ class PayrollSettingController extends Controller
         foreach ([
             'incomeTaxRate',
             'secondReliefAmount',
+            'postVacationPayToVacationAccount',
             'timesheetLockBeforeDate',
             'timesheetAutoLockEnabled',
             'timesheetAutoLockTime',
@@ -86,6 +88,7 @@ class PayrollSettingController extends Controller
             'incomeTaxRate' => $rate,
             'incomeTaxRatePercent' => round($rate * 100, 2),
             'secondReliefAmount' => round((float) $setting->secondReliefAmount, 2),
+            'postVacationPayToVacationAccount' => (bool) ($setting->postVacationPayToVacationAccount ?? true),
             'timesheetLockBeforeDate' => $setting->timesheetLockBeforeDate?->format('Y-m-d'),
             'timesheetAutoLockEnabled' => (bool) ($setting->timesheetAutoLockEnabled ?? true),
             'timesheetAutoLockTime' => (string) ($setting->timesheetAutoLockTime ?? config('payroll.timesheet_auto_lock.lock_time', '17:00')),

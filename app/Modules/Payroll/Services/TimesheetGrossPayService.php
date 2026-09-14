@@ -5,6 +5,7 @@ namespace App\Modules\Payroll\Services;
 use App\Enums\CompensationMethod;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeDayWork;
+use App\Models\PayrollSetting;
 use App\Models\Timesheet;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use Carbon\Carbon;
@@ -16,6 +17,7 @@ class TimesheetGrossPayService
     public function __construct(
         private readonly PayrollTimesheetScopeService $payrollTimesheetScopeService,
         private readonly EmployeeCompensationResolver $compensationResolver,
+        private readonly PayrollFlatBaseScopeService $payrollFlatBaseScopeService,
     ) {
     }
 
@@ -27,7 +29,19 @@ class TimesheetGrossPayService
      *     holidayHours: float,
      *     employmentDetailId: string|null,
      *     employeeCompensationId: string|null,
-     *     departmentId: int|null
+     *     departmentId: int|null,
+     *     alreadyPaidLeave: array{
+     *         amount: float,
+     *         days: int,
+     *         periodDays: int,
+     *         lines: list<array<string, mixed>>
+     *     },
+     *     vacationPay: array{
+     *         amount: float,
+     *         days: int,
+     *         periodDays: int,
+     *         lines: list<array<string, mixed>>
+     *     }
      * }
      */
     public function forEmployee(
@@ -36,6 +50,7 @@ class TimesheetGrossPayService
         Carbon $endDate,
         string $payPeriodGroupId,
         ?int $payrateFrequencyId = null,
+        ?string $payrollRunId = null,
     ): array {
         $timesheets = $this->payrollTimesheetScopeService
             ->apply(
@@ -81,14 +96,71 @@ class TimesheetGrossPayService
         );
 
         if ($flatPeriodBasePay !== null) {
+            $periodDays = max(1, $startDate->diffInDays($endDate) + 1);
+            $nonPayableLeaveDays = $this->payrollFlatBaseScopeService->nonPayableLeaveDaysInPeriod(
+                $employeeId,
+                $startDate,
+                $endDate,
+                $payrollRunId,
+            );
+            $payableDays = max(0, $periodDays - $nonPayableLeaveDays);
+            $adjustedFlatPay = $nonPayableLeaveDays > 0
+                ? round($flatPeriodBasePay * ($payableDays / $periodDays), 2)
+                : $flatPeriodBasePay;
+
+            $alreadyPaidLeave = $this->payrollFlatBaseScopeService->alreadyPaidLeaveAttribution(
+                $employeeId,
+                $startDate,
+                $endDate,
+                $flatPeriodBasePay,
+            );
+
+            $vacationPay = [
+                'amount' => 0.0,
+                'days' => 0,
+                'periodDays' => $periodDays,
+                'lines' => [],
+            ];
+            if (PayrollSetting::postVacationPayToVacationAccount()) {
+                $vacationPay = $this->payrollFlatBaseScopeService->payableVacationLeaveAttribution(
+                    $employeeId,
+                    $startDate,
+                    $endDate,
+                    $flatPeriodBasePay,
+                    $payrollRunId,
+                );
+            }
+
+            $employmentContext = null;
+            if ($employmentDetailId === null || $employeeCompensationId === null || $departmentId === null) {
+                $employmentContext = $this->payrollFlatBaseScopeService->employmentContext(
+                    $employeeId,
+                    $startDate,
+                    $endDate,
+                    $payPeriodGroupId,
+                    $payrateFrequencyId,
+                );
+            }
+
             return [
-                'baseEarnings' => round($flatPeriodBasePay + $dayWorkEarnings['baseEarnings'], 2),
+                'baseEarnings' => round($adjustedFlatPay + $dayWorkEarnings['baseEarnings'], 2),
                 'regularHours' => $regularHours,
                 'overtimeHours' => $overtimeHours,
                 'holidayHours' => $holidayHours,
-                'employmentDetailId' => $employmentDetailId ?? $dayWorkEarnings['employmentDetailId'],
-                'employeeCompensationId' => $employeeCompensationId ?? $dayWorkEarnings['employeeCompensationId'],
-                'departmentId' => $departmentId ?? $dayWorkEarnings['departmentId'],
+                'employmentDetailId' => $employmentDetailId
+                    ?? $dayWorkEarnings['employmentDetailId']
+                    ?? $employmentContext['employmentDetailId']
+                    ?? null,
+                'employeeCompensationId' => $employeeCompensationId
+                    ?? $dayWorkEarnings['employeeCompensationId']
+                    ?? $employmentContext['employeeCompensationId']
+                    ?? null,
+                'departmentId' => $departmentId
+                    ?? $dayWorkEarnings['departmentId']
+                    ?? $employmentContext['departmentId']
+                    ?? null,
+                'alreadyPaidLeave' => $alreadyPaidLeave,
+                'vacationPay' => $vacationPay,
             ];
         }
 
@@ -105,6 +177,18 @@ class TimesheetGrossPayService
             'employmentDetailId' => $employmentDetailId ?? $dayWorkEarnings['employmentDetailId'],
             'employeeCompensationId' => $employeeCompensationId ?? $dayWorkEarnings['employeeCompensationId'],
             'departmentId' => $departmentId ?? $dayWorkEarnings['departmentId'],
+            'alreadyPaidLeave' => [
+                'amount' => 0.0,
+                'days' => 0,
+                'periodDays' => max(1, $startDate->diffInDays($endDate) + 1),
+                'lines' => [],
+            ],
+            'vacationPay' => [
+                'amount' => 0.0,
+                'days' => 0,
+                'periodDays' => max(1, $startDate->diffInDays($endDate) + 1),
+                'lines' => [],
+            ],
         ];
     }
 
@@ -118,6 +202,7 @@ class TimesheetGrossPayService
         Carbon $endDate,
         string $payPeriodGroupId,
         ?int $payrateFrequencyId = null,
+        ?string $payrollRunId = null,
     ): array {
         $results = [];
 
@@ -128,6 +213,7 @@ class TimesheetGrossPayService
                 $endDate,
                 $payPeriodGroupId,
                 $payrateFrequencyId,
+                $payrollRunId,
             );
         }
 

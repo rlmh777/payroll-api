@@ -14,11 +14,6 @@ class MenuAuthorizationService
 
         return Menu::query()
             ->active()
-            ->where(function ($query) use ($permissionNames) {
-                $query->whereIn('permission', $permissionNames)
-                    ->orWhereNull('permission')
-                    ->orWhere('permission', '');
-            })
             ->when($enabledModuleCodes !== null, function ($query) use ($enabledModuleCodes) {
                 $query->where(function ($moduleQuery) use ($enabledModuleCodes) {
                     $moduleQuery->whereNull('module_code')
@@ -28,13 +23,29 @@ class MenuAuthorizationService
             ->orderBy('order')
             ->get()
             ->filter(function (Menu $menu) use ($permissionNames) {
-                if (! $menu->permission) {
-                    return true;
-                }
-
-                return $permissionNames->contains($menu->permission);
+                return $this->userHasMenuPermission($permissionNames, $menu->permission);
             })
             ->values();
+    }
+
+    /**
+     * Menu permission may be a single name or an OR-list separated by "|".
+     */
+    private function userHasMenuPermission(Collection $permissionNames, ?string $permission): bool
+    {
+        if ($permission === null || trim($permission) === '') {
+            return true;
+        }
+
+        $required = preg_split('/\s*\|\s*/', $permission) ?: [];
+
+        foreach ($required as $name) {
+            if ($name !== '' && $permissionNames->contains($name)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function menuTreeForUser(User $user, ?Collection $enabledModuleCodes = null): array

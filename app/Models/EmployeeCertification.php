@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPublicFileAttachment;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeCertification extends Model
 {
     use HasUuids;
+    use HasPublicFileAttachment;
 
     protected $table = 'employee_certification';
     protected $primaryKey = 'id';
@@ -23,6 +25,14 @@ class EmployeeCertification extends Model
         'issuedOn',
         'expiresOn',
         'notes',
+        'filePath',
+        'fileName',
+        'mimeType',
+        'fileSize',
+    ];
+
+    protected $appends = [
+        'fileUrl',
     ];
 
     protected $casts = [

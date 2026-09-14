@@ -242,15 +242,16 @@ class LeaveTeamListService
         }
 
         $canManage = $this->authorization->canManageLeave($user, $leave);
-        $pending = in_array($statusCode, [
-            LeaveStatusCode::PendingSupervisorApproval->value,
-            LeaveStatusCode::PendingApproval->value,
-        ], true);
-        $cancellable = in_array($statusCode, [
-            LeaveStatusCode::PendingSupervisorApproval->value,
-            LeaveStatusCode::PendingApproval->value,
-            LeaveStatusCode::Scheduled->value,
-        ], true);
+        $pending = in_array($statusCode, array_map(
+            fn (LeaveStatusCode $code) => $code->value,
+            LeaveStatusCode::pendingActionStatuses(),
+        ), true);
+        $cancellable = in_array($statusCode, array_map(
+            fn (LeaveStatusCode $code) => $code->value,
+            LeaveStatusCode::cancellableStatuses(),
+        ), true);
+        $requiresPaymentConfirmation = $statusCode === LeaveStatusCode::PendingAccountsConfirmation->value
+            && (bool) $leave->leaveType?->isVacation();
 
         return [
             'id' => $leave->id,
@@ -262,6 +263,8 @@ class LeaveTeamListService
             'endDate' => $end,
             'leaveTypeId' => $leave->leaveTypeId,
             'leaveType' => $leave->leaveType?->name,
+            'leaveTypeCode' => $leave->leaveType?->code,
+            'leaveTypeIsPaid' => $leave->leaveType ? (bool) $leave->leaveType->isPaid : null,
             'departmentId' => $leave->departmentId ?? $activeEmployment?->departmentId,
             'departmentName' => $leave->department?->name
                 ?? $activeEmployment?->department?->name,
@@ -273,6 +276,8 @@ class LeaveTeamListService
             'statusName' => $leave->leaveStatus?->name,
             'notes' => $leave->notes,
             'statusNote' => $leave->statusNote,
+            'paymentTreatment' => $leave->paymentTreatment,
+            'multiplier' => (float) ($leave->multiplier ?? 1),
             'attachments' => $leave->attachments?->map(fn ($attachment) => [
                 'id' => $attachment->id,
                 'employeeLeaveId' => $attachment->employeeLeaveId,
@@ -285,6 +290,7 @@ class LeaveTeamListService
             'canApprove' => $canManage && $pending,
             'canReject' => $canManage && $pending,
             'canCancel' => $canManage && $cancellable,
+            'requiresPaymentConfirmation' => $requiresPaymentConfirmation,
             'duration' => $leave->duration,
             'approvalDate' => $leave->approvalDate?->format('Y-m-d'),
         ];

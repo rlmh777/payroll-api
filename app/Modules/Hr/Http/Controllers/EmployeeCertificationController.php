@@ -3,6 +3,7 @@
 namespace App\Modules\Hr\Http\Controllers;
 
 use App\Models\EmployeeCertification;
+use App\Support\PublicFileUpload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,7 +26,8 @@ class EmployeeCertificationController extends Controller
                 $builder
                     ->where('name', 'ilike', $search)
                     ->orWhere('issuingOrganization', 'ilike', $search)
-                    ->orWhere('credentialId', 'ilike', $search);
+                    ->orWhere('credentialId', 'ilike', $search)
+                    ->orWhere('fileName', 'ilike', $search);
             });
         }
 
@@ -46,9 +48,20 @@ class EmployeeCertificationController extends Controller
             'issuedOn' => ['nullable', 'date'],
             'expiresOn' => ['nullable', 'date', 'after_or_equal:issuedOn'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'attachmentFile' => PublicFileUpload::optionalRules(),
         ]);
 
-        $record = EmployeeCertification::create($validated);
+        $data = PublicFileUpload::apply(
+            $request,
+            $validated,
+            'employee-certifications',
+            'attachmentFile',
+            null,
+            'cert_',
+        );
+        $data = $this->normalizeOptionalStrings($data);
+
+        $record = EmployeeCertification::create($data);
 
         return response()->json([
             'message' => 'Certification created successfully.',
@@ -71,9 +84,20 @@ class EmployeeCertificationController extends Controller
             'issuedOn' => ['nullable', 'date'],
             'expiresOn' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'attachmentFile' => PublicFileUpload::optionalRules(),
         ]);
 
-        $employeeCertification->update($validated);
+        $data = PublicFileUpload::apply(
+            $request,
+            $validated,
+            'employee-certifications',
+            'attachmentFile',
+            $employeeCertification->filePath,
+            'cert_',
+        );
+        $data = $this->normalizeOptionalStrings($data);
+
+        $employeeCertification->update($data);
 
         return response()->json([
             'message' => 'Certification updated successfully.',
@@ -83,10 +107,26 @@ class EmployeeCertificationController extends Controller
 
     public function destroy(EmployeeCertification $employeeCertification): JsonResponse
     {
+        PublicFileUpload::delete($employeeCertification->filePath);
         $employeeCertification->delete();
 
         return response()->json([
             'message' => 'Certification deleted successfully.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizeOptionalStrings(array $data): array
+    {
+        foreach (['issuingOrganization', 'credentialId', 'issuedOn', 'expiresOn', 'notes'] as $field) {
+            if (array_key_exists($field, $data) && $data[$field] === '') {
+                $data[$field] = null;
+            }
+        }
+
+        return $data;
     }
 }

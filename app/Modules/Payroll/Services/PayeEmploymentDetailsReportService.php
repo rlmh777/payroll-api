@@ -26,6 +26,24 @@ class PayeEmploymentDetailsReportService
         12 => 'December',
     ];
 
+    public function __construct(
+        private readonly PostedPayrollRunPeriodCatalog $postedPayrollRunPeriodCatalog,
+    ) {
+    }
+
+    /**
+     * Years/months that overlap at least one posted (processed) payroll run.
+     *
+     * @return array{
+     *   years: list<int>,
+     *   monthsByYear: array<string, list<array{value: int, label: string}>>
+     * }
+     */
+    public function availablePeriods(): array
+    {
+        return $this->postedPayrollRunPeriodCatalog->available();
+    }
+
     /**
      * @return array<string, mixed>
      */

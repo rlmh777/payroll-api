@@ -136,6 +136,8 @@ class SuperAdminSeeder extends Seeder
             'department-head-crud',
             'view-employee-groups',
             'employee-groups-crud',
+            'view-pipeline-templates',
+            'pipeline-templates-crud',
             'pay-employees-crud',
             'roles-crud',
             'menu-crud',

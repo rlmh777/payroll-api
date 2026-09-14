@@ -174,7 +174,9 @@ class PayrollRunPayslipService
 
                 $overtimeAmount = round($overtimeHours * $hourlyRate * $otMultiplier, 2);
                 $holidayAmount = round($holidayHours * $hourlyRate, 2);
-                $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount), 2);
+                $vacationPay = $calculation['vacationPay'] ?? [];
+                $vacationPayAmount = round((float) ($vacationPay['amount'] ?? 0), 2);
+                $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount - $vacationPayAmount), 2);
                 $regularHoursDisplay = $regularHours > 0 ? $regularHours : ($regularAmount > 0 ? 1.0 : 0.0);
                 $regularRate = $regularHoursDisplay > 0
                     ? round($regularAmount / $regularHoursDisplay, 2)
@@ -185,7 +187,68 @@ class PayrollRunPayslipService
                 $holidayRate = $holidayHours > 0
                     ? round($holidayAmount / $holidayHours, 2)
                     : round($hourlyRate, 2);
-                $payPeriodEarningsTotal = round($regularAmount + $overtimeAmount + $holidayAmount, 2);
+
+                $vacationEarningsRows = collect($vacationPay['lines'] ?? [])
+                    ->filter(fn (array $line) => round((float) ($line['amount'] ?? 0), 2) > 0)
+                    ->map(function (array $line) {
+                        $days = (float) ($line['days'] ?? 0);
+                        $amount = round((float) ($line['amount'] ?? 0), 2);
+                        $typeName = trim((string) ($line['leaveTypeName'] ?? 'Vacation'));
+
+                        return [
+                            'label' => $typeName,
+                            'hours' => $days,
+                            'rate' => $days > 0 ? round($amount / $days, 2) : 0.0,
+                            'amount' => $amount,
+                            'alreadyPaid' => false,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                if ($vacationEarningsRows === [] && $vacationPayAmount > 0) {
+                    $days = (float) ($vacationPay['days'] ?? 0);
+                    $vacationEarningsRows[] = [
+                        'label' => 'Vacation',
+                        'hours' => $days,
+                        'rate' => $days > 0 ? round($vacationPayAmount / $days, 2) : 0.0,
+                        'amount' => $vacationPayAmount,
+                        'alreadyPaid' => false,
+                    ];
+                }
+
+                $payPeriodEarningsTotal = round($regularAmount + $overtimeAmount + $holidayAmount + $vacationPayAmount, 2);
+
+                $alreadyPaidLeave = $calculation['alreadyPaidLeave'] ?? [];
+                $alreadyPaidEarningsRows = collect($alreadyPaidLeave['lines'] ?? [])
+                    ->filter(fn (array $line) => round((float) ($line['amount'] ?? 0), 2) > 0)
+                    ->map(function (array $line) {
+                        $days = (float) ($line['days'] ?? 0);
+                        $amount = round((float) ($line['amount'] ?? 0), 2);
+                        $typeName = trim((string) ($line['leaveTypeName'] ?? 'Leave'));
+
+                        return [
+                            'label' => $typeName.' (already paid)',
+                            'hours' => $days,
+                            'rate' => $days > 0 ? round($amount / $days, 2) : 0.0,
+                            'amount' => $amount,
+                            'alreadyPaid' => true,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                if ($alreadyPaidEarningsRows === [] && round((float) ($alreadyPaidLeave['amount'] ?? 0), 2) > 0) {
+                    $days = (float) ($alreadyPaidLeave['days'] ?? 0);
+                    $amount = round((float) $alreadyPaidLeave['amount'], 2);
+                    $alreadyPaidEarningsRows[] = [
+                        'label' => 'Vacation (already paid)',
+                        'hours' => $days,
+                        'rate' => $days > 0 ? round($amount / $days, 2) : 0.0,
+                        'amount' => $amount,
+                        'alreadyPaid' => true,
+                    ];
+                }
 
                 $allowanceLines = collect($allowanceData['lines'] ?? [])
                     ->map(fn (array $line) => [
@@ -265,7 +328,7 @@ class PayrollRunPayslipService
                     'socialSecurityNumber' => $employee?->socialSecurityNumber,
                     'payrollNumber' => $payrollNumber,
                     'paymentMethodLabel' => $paymentMethodLabel,
-                    'earningsRows' => array_values(array_filter([
+                    'earningsRows' => array_values(array_filter(array_merge([
                         $regularAmount > 0 || $regularHoursDisplay > 0
                             ? [
                                 'label' => 'Regular',
@@ -286,7 +349,7 @@ class PayrollRunPayslipService
                             'rate' => $holidayRate,
                             'amount' => $holidayAmount,
                         ],
-                    ])),
+                    ], $vacationEarningsRows, $alreadyPaidEarningsRows))),
                     'payPeriodEarningsTotal' => $payPeriodEarningsTotal,
                     'overtimeHours' => $overtimeHours,
                     'holidayHours' => $holidayHours,

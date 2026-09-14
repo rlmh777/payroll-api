@@ -81,6 +81,17 @@ class ScheduledWorkController extends Controller
         return Carbon::parse((string) $value)->format('H:i');
     }
 
+    private function normalizeDescription(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
     private function normalizeTimeFields(Request $request): void
     {
         $normalized = [];
@@ -148,7 +159,7 @@ class ScheduledWorkController extends Controller
                 'worksiteId' => $validatedData['worksiteId'] ?? null,
                 'includeLunchHour' => (bool) ($validatedData['includeLunchHour'] ?? false),
                 'lunchHourHours' => $validatedData['lunchHourHours'] ?? 1,
-                'description' => trim((string) ($validatedData['description'] ?? '')),
+                'description' => $this->normalizeDescription($validatedData['description'] ?? null),
                 'rate' => $validatedData['rate'] ?? 1,
             ]);
             $payload = $this->applyEmploymentAssignment($payload);
@@ -208,6 +219,9 @@ class ScheduledWorkController extends Controller
                 ]),
                 $validatedData,
             ));
+            if (array_key_exists('description', $validatedData)) {
+                $payload['description'] = $this->normalizeDescription($validatedData['description'] ?? null);
+            }
             $payload = $this->applyEmploymentAssignment($payload);
 
             $this->overlapValidator->validate(

@@ -9,7 +9,25 @@ use Illuminate\Database\Seeder;
 
 class MenuSeeder extends Seeder
 {
-    private const MODULE_CODE = 'payroll';
+    private const ROOT_MODULE_BY_SYSTEM_KEY = [
+        'core.dashboard' => 'payroll',
+        'core.reports' => 'payroll',
+        'hr.employees' => 'hr',
+        'payroll.employees' => 'payroll',
+        'hr.scheduler' => 'payroll',
+        'hr.timesheet' => 'payroll',
+        'hr.leaves' => 'payroll',
+        'payroll.root' => 'payroll',
+        'payroll.settings' => 'payroll',
+        'admin.modules' => 'admin',
+        'admin.database_backup' => 'admin',
+        'admin.menu' => 'admin',
+        'admin.roles' => 'admin',
+        'admin.organization' => 'admin',
+        'admin.users' => 'admin',
+        'admin.settings' => 'admin',
+        'admin.pipelines' => 'admin',
+    ];
 
     /**
      * Run the database seeds.
@@ -26,36 +44,77 @@ class MenuSeeder extends Seeder
             'order' => 1,
             'type' => 'menu',
             'system_key' => 'core.dashboard',
+            'module_code' => 'payroll',
         ]);
 
         $employees = $this->ensureMenu([
+            'title' => 'Employees',
+            'route' => '/hr/employees',
+            'icon' => 'fas fa-user-friends',
+            'permission' => 'view-employees',
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'hr.employees',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $employees->id,
+            'title' => 'Add Employee',
+            'route' => '/hr/employees/new',
+            'icon' => 'person_add',
+            'permission' => 'employees-crud',
+            'order' => 1,
+            'type' => 'submenu',
+            'system_key' => 'hr.employees.new',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $employees->id,
+            'title' => 'Import Employees',
+            'route' => '/hr/employees/import',
+            'icon' => 'upload_file',
+            'permission' => 'employees-crud',
+            'order' => 2,
+            'type' => 'submenu',
+            'system_key' => 'hr.employees.import',
+            'module_code' => 'hr',
+        ]);
+
+        $payrollEmployees = $this->ensureMenu([
             'title' => 'Employees',
             'route' => '/payroll/employees',
             'icon' => 'fas fa-user-friends',
             'permission' => 'view-employees',
             'order' => 2,
             'type' => 'menu',
-            'system_key' => 'hr.employees',
+            'system_key' => 'payroll.employees',
+            'module_code' => 'payroll',
         ]);
 
         $this->ensureMenu([
-            'parent_id' => $employees->id,
+            'parent_id' => $payrollEmployees->id,
             'title' => 'Add Employee',
             'route' => '/payroll/employees/new',
             'icon' => 'person_add',
             'permission' => 'employees-crud',
             'order' => 1,
             'type' => 'submenu',
+            'system_key' => 'payroll.employees.new',
+            'module_code' => 'payroll',
         ]);
 
         $this->ensureMenu([
-            'parent_id' => $employees->id,
+            'parent_id' => $payrollEmployees->id,
             'title' => 'Import Employees',
             'route' => '/payroll/employees/import',
             'icon' => 'upload_file',
             'permission' => 'employees-crud',
             'order' => 2,
             'type' => 'submenu',
+            'system_key' => 'payroll.employees.import',
+            'module_code' => 'payroll',
         ]);
 
         $settings = $this->ensureMenu([
@@ -65,7 +124,103 @@ class MenuSeeder extends Seeder
             'permission' => 'view-settings',
             'order' => 3,
             'type' => 'menu',
+            'system_key' => 'payroll.settings',
+            'module_code' => 'payroll',
+        ]);
+
+        $adminSettings = $this->ensureMenu([
+            'title' => 'Settings',
+            'route' => '/admin/settings',
+            'icon' => 'fas fa-cog',
+            'permission' => 'view-settings',
+            'order' => 1,
+            'type' => 'menu',
             'system_key' => 'admin.settings',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Pipelines',
+            'route' => '/admin/settings/pipelines',
+            'icon' => 'account_tree',
+            'permission' => 'view-pipeline-templates',
+            'order' => 1,
+            'type' => 'submenu',
+            'system_key' => 'admin.pipelines',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Modules',
+            'route' => '/admin/settings/modules',
+            'icon' => 'apps',
+            'permission' => 'manage-modules',
+            'order' => 2,
+            'type' => 'submenu',
+            'system_key' => 'admin.modules',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Database Backup',
+            'route' => '/admin/settings/database-backup',
+            'icon' => 'fas fa-database',
+            'permission' => 'view-database-backup',
+            'order' => 3,
+            'type' => 'submenu',
+            'system_key' => 'admin.database_backup',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Menu',
+            'route' => '/admin/settings/menu',
+            'icon' => 'fas fa-bars',
+            'permission' => 'view-menu',
+            'order' => 4,
+            'type' => 'submenu',
+            'system_key' => 'admin.menu',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Roles',
+            'route' => '/admin/settings/roles',
+            'icon' => 'fas fa-user-shield',
+            'permission' => 'view-roles',
+            'order' => 5,
+            'type' => 'submenu',
+            'system_key' => 'admin.roles',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Organization',
+            'route' => '/admin/settings/organization',
+            'icon' => 'fas fa-building',
+            'permission' => 'view-organization',
+            'order' => 6,
+            'type' => 'submenu',
+            'system_key' => 'admin.organization',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Users',
+            'route' => '/admin/settings/users',
+            'icon' => 'fa-solid fa-users',
+            'permission' => 'manager-users|reset-subordinate-passwords',
+            'order' => 7,
+            'type' => 'submenu',
+            'system_key' => 'admin.users',
+            'module_code' => 'admin',
         ]);
 
         $this->ensureMenu([
@@ -76,6 +231,7 @@ class MenuSeeder extends Seeder
             'order' => 4,
             'type' => 'menu',
             'system_key' => 'hr.scheduler',
+            'module_code' => 'payroll',
         ]);
 
         $this->ensureMenu([
@@ -86,6 +242,7 @@ class MenuSeeder extends Seeder
             'order' => 5,
             'type' => 'menu',
             'system_key' => 'hr.timesheet',
+            'module_code' => 'payroll',
         ]);
 
         $leaves = $this->ensureMenu([
@@ -96,6 +253,7 @@ class MenuSeeder extends Seeder
             'order' => 6,
             'type' => 'menu',
             'system_key' => 'hr.leaves',
+            'module_code' => 'payroll',
         ]);
 
         $leaveSubmenus = [
@@ -117,6 +275,7 @@ class MenuSeeder extends Seeder
                 'permission' => $permission,
                 'order' => $order,
                 'type' => 'submenu',
+                'module_code' => 'payroll',
             ]);
         }
 
@@ -128,21 +287,16 @@ class MenuSeeder extends Seeder
             'permission' => 'view-general',
             'order' => 1,
             'type' => 'submenu',
+            'module_code' => 'payroll',
         ]);
 
         $settingsSubmenus = [
-            ['Organization', '/payroll/settings/organization', 'fas fa-building', 'view-organization', 2],
             ['Accounts', '/payroll/settings/accounts', 'fas fa-wallet', 'view-accounts', 3],
             ['Account Mapping', '/payroll/settings/account-mapping', 'fas fa-project-diagram', 'view-account-mappings', 4],
             ['Social Security', '/payroll/settings/social-security', 'fa-solid fa-city', 'manager-social-security', 6],
             ['Personal Relief', '/payroll/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7],
             ['Payroll Settings', '/payroll/settings/payroll-settings', 'fa-solid fa-percent', 'manager-tax', 8],
             ['GST Calculator', '/payroll/settings/tax-calculator-accounts', 'fa-solid fa-file-invoice-dollar', 'view-tax-calculator', 9],
-            ['Roles', '/payroll/settings/roles', 'fas fa-user-shield', 'view-roles', 9],
-            ['Menu', '/payroll/settings/menu', 'fas fa-bars', 'view-menu', 10],
-            ['Modules', '/payroll/settings/modules', 'apps', 'manage-modules', 11],
-            ['Users', '/payroll/settings/users', 'fa-solid fa-users', 'manager-users', 12],
-            ['Database Backup', '/payroll/settings/database-backup', 'fas fa-database', 'view-database-backup', 20],
         ];
 
         foreach ($settingsSubmenus as [$title, $route, $icon, $permission, $order]) {
@@ -154,7 +308,7 @@ class MenuSeeder extends Seeder
                 'permission' => $permission,
                 'order' => $order,
                 'type' => 'submenu',
-                'system_key' => $route === '/payroll/settings/modules' ? 'admin.modules' : null,
+                'module_code' => 'payroll',
             ]);
         }
 
@@ -176,6 +330,7 @@ class MenuSeeder extends Seeder
             ['Attendance', '/payroll/settings/attendance', 'schedule', 'view-attendance-settings', 14],
             ['Employee Groups', '/payroll/settings/employee-groups', 'groups', 'view-employee-groups', 15],
             ['Department Heads', '/payroll/settings/department-heads', 'supervisor_account', 'view-department-heads', 16],
+            ['Scheduler Metrics', '/payroll/settings/scheduler-metrics', 'analytics', 'view-scheduler-metrics', 17],
         ];
 
         foreach ($generalSubmenus as [$title, $route, $icon, $permission, $order]) {
@@ -187,6 +342,7 @@ class MenuSeeder extends Seeder
                 'permission' => $permission,
                 'order' => $order,
                 'type' => 'submenu',
+                'module_code' => 'payroll',
             ]);
         }
 
@@ -198,6 +354,7 @@ class MenuSeeder extends Seeder
             'order' => 7,
             'type' => 'menu',
             'system_key' => 'payroll.root',
+            'module_code' => 'payroll',
         ]);
 
         $payrollSubmenus = [
@@ -219,6 +376,7 @@ class MenuSeeder extends Seeder
                 'permission' => $permission,
                 'order' => $order,
                 'type' => 'submenu',
+                'module_code' => 'payroll',
             ]);
         }
 
@@ -230,6 +388,7 @@ class MenuSeeder extends Seeder
             'order' => 8,
             'type' => 'menu',
             'system_key' => 'core.reports',
+            'module_code' => 'payroll',
         ]);
     }
 
@@ -246,8 +405,11 @@ class MenuSeeder extends Seeder
             $existing = Menu::query()->where('route', $route)->first();
         }
 
+        if (! array_key_exists('module_code', $attributes) || blank($attributes['module_code'])) {
+            $attributes['module_code'] = $this->resolveModuleCode($attributes);
+        }
+
         $payload = array_merge([
-            'module_code' => self::MODULE_CODE,
             'source' => 'system',
             'is_active' => true,
         ], $attributes);
@@ -259,6 +421,24 @@ class MenuSeeder extends Seeder
         }
 
         return Menu::create($payload);
+    }
+
+    private function resolveModuleCode(array $attributes): string
+    {
+        $systemKey = $attributes['system_key'] ?? null;
+        if ($systemKey && isset(self::ROOT_MODULE_BY_SYSTEM_KEY[$systemKey])) {
+            return self::ROOT_MODULE_BY_SYSTEM_KEY[$systemKey];
+        }
+
+        $parentId = $attributes['parent_id'] ?? null;
+        if ($parentId) {
+            $parentModule = Menu::query()->where('id', $parentId)->value('module_code');
+            if ($parentModule) {
+                return $parentModule;
+            }
+        }
+
+        return config('modules.default_module', 'payroll');
     }
 
     private function createPermissions(): void
@@ -288,6 +468,7 @@ class MenuSeeder extends Seeder
             'view-leave',
             'view-leave-types',
             'manager-users',
+            'reset-subordinate-passwords',
             'manager-tax',
             'manager-social-security',
             'view-country',
@@ -326,6 +507,11 @@ class MenuSeeder extends Seeder
             'department-head-crud',
             'view-employee-groups',
             'employee-groups-crud',
+            'view-scheduler-metrics',
+            'scheduler-metrics-crud',
+            'scheduler-daily-metrics-crud',
+            'view-pipeline-templates',
+            'pipeline-templates-crud',
             'view-overview',
             'employees-crud',
             'leave-crud',

@@ -40,4 +40,14 @@ class LeaveType extends Model
     {
         return $this->hasOne(LeaveTypePolicy::class, 'leaveTypeId');
     }
+
+    public function isVacation(): bool
+    {
+        $code = strtoupper(trim((string) $this->code));
+        if ($code === 'VACATION') {
+            return true;
+        }
+
+        return str_contains(strtolower((string) $this->name), 'vacation');
+    }
 }

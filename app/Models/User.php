@@ -33,6 +33,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'preferences',
     ];
 
     /**
@@ -48,14 +49,30 @@ class User extends Authenticatable
     /**
      * Get the attributes that should be cast.
      *
-     * @return array<string, string>
+     * @return array<string, bool|string>
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'preferences' => 'array',
         ];
+    }
+
+    public function defaultModule(): string
+    {
+        $preferred = $this->preferences['default_module'] ?? null;
+        if (is_string($preferred) && $preferred !== '') {
+            return $preferred;
+        }
+
+        return (string) config('modules.default_module', 'payroll');
+    }
+
+    public function preference(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->preferences ?? [], $key, $default);
     }
 
     /**
