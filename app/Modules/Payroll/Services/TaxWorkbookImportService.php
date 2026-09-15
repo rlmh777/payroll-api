@@ -292,12 +292,14 @@ class TaxWorkbookImportService
      */
     public function extractGstTotals(array $rows): array
     {
-        $debitCol = $this->findHeaderColumn($rows, 'Debit') ?? 'M';
-        $balanceCol = $this->findHeaderColumn($rows, 'Balance') ?? 'Q';
+        $debitCol = $this->findHeaderColumn($rows, 'Debit');
+        $amountCol = $this->findHeaderColumn($rows, 'Amount');
+        $typeCol = $this->findHeaderColumn($rows, 'Type');
+        $legacyDebitCol = $debitCol ?? 'M';
 
         $partial = 0.0;
         $totalDebits = 0.0;
-        $net = 0.0;
+        $totalRowDebit = 0.0;
 
         foreach ($rows as $cells) {
             $labelInfo = $this->firstLabel($cells);
@@ -308,7 +310,7 @@ class TaxWorkbookImportService
             $normalized = $this->normalizeLabel($label);
 
             if (str_starts_with($normalized, 'total 2251-a') && str_contains($normalized, 'partial exemption')) {
-                $partial = $this->numericValue($cells[$debitCol]['v'] ?? null) ?? 0.0;
+                $partial = $this->numericValue($cells[$legacyDebitCol]['v'] ?? null) ?? 0.0;
                 continue;
             }
 
@@ -318,16 +320,85 @@ class TaxWorkbookImportService
                 && ! str_contains($normalized, 'other')
                 && ! str_contains($normalized, '2251-a')
             ) {
-                $totalDebits = $this->numericValue($cells[$debitCol]['v'] ?? null) ?? 0.0;
-                $net = $this->numericValue($cells[$balanceCol]['v'] ?? null) ?? 0.0;
+                $totalDebits = $this->numericValue($cells[$legacyDebitCol]['v'] ?? null) ?? 0.0;
+                $totalRowDebit = $this->positiveGstDebit($cells, $debitCol, $amountCol);
             }
         }
+
+        $transactionDebits = $this->sumTransactionDebits($rows, $typeCol, $debitCol, $amountCol);
 
         return [
             'total_debits' => $totalDebits,
             'partial_exemptions_total' => $partial,
-            'net_of_2251' => $net,
+            'net_of_2251' => $transactionDebits['count'] > 0
+                ? $transactionDebits['sum']
+                : $totalRowDebit,
         ];
+    }
+
+    /**
+     * Sum actual 2251 transaction debits (not the signed total-row net/balance).
+     *
+     * Debit/Credit registers: sum the Debit column on typed transaction rows.
+     * Amount sheets: sum negative Amounts as positive debits (liability sign).
+     *
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     * @return array{sum: float, count: int}
+     */
+    private function sumTransactionDebits(array $rows, ?string $typeCol, ?string $debitCol, ?string $amountCol): array
+    {
+        if ($typeCol === null) {
+            return ['sum' => 0.0, 'count' => 0];
+        }
+
+        $sum = 0.0;
+        $count = 0;
+        foreach ($rows as $cells) {
+            $type = trim((string) ($cells[$typeCol]['v'] ?? ''));
+            if ($type === '' || strcasecmp($type, 'Type') === 0) {
+                continue;
+            }
+
+            $count++;
+            if ($debitCol !== null) {
+                $value = $this->numericValue($cells[$debitCol]['v'] ?? null);
+                if ($value !== null && $value != 0.0) {
+                    $sum += abs($value);
+                }
+
+                continue;
+            }
+
+            if ($amountCol !== null) {
+                $value = $this->numericValue($cells[$amountCol]['v'] ?? null);
+                if ($value !== null && $value < 0) {
+                    $sum += abs($value);
+                }
+            }
+        }
+
+        return ['sum' => round($sum, 2), 'count' => $count];
+    }
+
+    /**
+     * Fallback when the GST sheet has no typed transaction rows.
+     *
+     * @param  array<string, array{v: mixed, f: ?string}>  $cells
+     */
+    private function positiveGstDebit(array $cells, ?string $debitCol, ?string $amountCol): float
+    {
+        foreach ([$debitCol, $amountCol] as $column) {
+            if ($column === null) {
+                continue;
+            }
+
+            $value = $this->numericValue($cells[$column]['v'] ?? null);
+            if ($value !== null) {
+                return abs($value);
+            }
+        }
+
+        return 0.0;
     }
 
     /**

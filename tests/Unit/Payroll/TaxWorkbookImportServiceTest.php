@@ -23,7 +23,7 @@ class TaxWorkbookImportServiceTest extends TestCase
 
         $this->assertEqualsWithDelta(37824.98, $parsed['total_debits'], 0.01);
         $this->assertEqualsWithDelta(6142.0, $parsed['partial_exemptions_total'], 0.01);
-        $this->assertEqualsWithDelta(64946.23, $parsed['net_of_2251'], 0.01);
+        $this->assertEqualsWithDelta(37824.98, $parsed['net_of_2251'], 0.01);
         $this->assertNotEmpty($parsed['accounts_sheet']);
         $this->assertNotEmpty($parsed['gst_sheet']);
 
@@ -100,6 +100,73 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->service->parse($this->fixturePath(), 2026, 7);
     }
 
+    public function test_net_of_2251_uses_debit_not_balance(): void
+    {
+        $rows = [
+            1 => [
+                'Q' => ['v' => 'Debit', 'f' => null],
+                'S' => ['v' => 'Credit', 'f' => null],
+                'U' => ['v' => 'Balance', 'f' => null],
+            ],
+            10 => [
+                'C' => ['v' => 'Total 2251 · GST Payable', 'f' => null],
+                'Q' => ['v' => 37824.98, 'f' => null],
+                'U' => ['v' => 64946.23, 'f' => null],
+            ],
+        ];
+
+        $totals = $this->service->extractGstTotals($rows);
+
+        $this->assertEqualsWithDelta(37824.98, $totals['net_of_2251'], 0.01);
+        $this->assertEqualsWithDelta(37824.98, $totals['total_debits'], 0.01);
+    }
+
+    public function test_net_of_2251_sums_transaction_debits_not_signed_total(): void
+    {
+        $rows = [
+            1 => [
+                'G' => ['v' => 'Type', 'f' => null],
+                'S' => ['v' => 'Amount', 'f' => null],
+                'U' => ['v' => 'Balance', 'f' => null],
+            ],
+            5 => [
+                'G' => ['v' => 'Bill', 'f' => null],
+                'S' => ['v' => -27700.90, 'f' => null],
+            ],
+            6 => [
+                'G' => ['v' => 'Check', 'f' => null],
+                'S' => ['v' => -17.14, 'f' => null],
+            ],
+            7 => [
+                'G' => ['v' => 'General Journal', 'f' => null],
+                'S' => ['v' => -52.30, 'f' => null],
+            ],
+            8 => [
+                'G' => ['v' => 'General Journal', 'f' => null],
+                'S' => ['v' => 1333.33, 'f' => null],
+            ],
+            9 => [
+                'G' => ['v' => 'Credit', 'f' => null],
+                'S' => ['v' => 46.67, 'f' => null],
+            ],
+            22 => [
+                'D' => ['v' => 'Total 2251-a · Partial Exemption GST', 'f' => null],
+                'S' => ['v' => -5504.71, 'f' => null],
+                'U' => ['v' => -5504.71, 'f' => null],
+            ],
+            297 => [
+                'C' => ['v' => 'Total 2251 · GST Payable', 'f' => null],
+                'S' => ['v' => -26389.5, 'f' => null],
+                'U' => ['v' => -26389.5, 'f' => null],
+            ],
+        ];
+
+        $totals = $this->service->extractGstTotals($rows);
+
+        $this->assertEqualsWithDelta(27770.34, $totals['net_of_2251'], 0.01);
+        $this->assertEqualsWithDelta(0.0, $totals['total_debits'], 0.01);
+    }
+
     public function test_parse_account_labels(): void
     {
         $this->assertSame('4501A', $this->service->parseAccountLabel('4501a · Tikal Tour Guide Prof Services')['code']);
@@ -114,7 +181,7 @@ class TaxWorkbookImportServiceTest extends TestCase
 
         $this->assertEqualsWithDelta(10402.87, $parsed['total_debits'], 0.01);
         $this->assertEqualsWithDelta(1737.67, $parsed['partial_exemptions_total'], 0.01);
-        $this->assertEqualsWithDelta(-10402.87, $parsed['net_of_2251'], 0.01);
+        $this->assertEqualsWithDelta(10402.87, $parsed['net_of_2251'], 0.01);
         $this->assertNotEmpty($parsed['accounts_sheet']);
         $this->assertNotEmpty($parsed['gst_sheet']);
 
