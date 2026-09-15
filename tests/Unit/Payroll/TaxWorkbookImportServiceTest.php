@@ -165,7 +165,9 @@ class TaxWorkbookImportServiceTest extends TestCase
         $totals = $this->service->extractGstTotals($rows);
 
         $this->assertEqualsWithDelta(27770.34, $totals['net_of_2251'], 0.01);
-        $this->assertEqualsWithDelta(0.0, $totals['total_debits'], 0.01);
+        $this->assertEqualsWithDelta(27770.34, $totals['total_debits'], 0.01);
+        $this->assertEqualsWithDelta(5504.71, $totals['partial_exemptions_total'], 0.01);
+        $this->assertNotEqualsWithDelta(26389.5, $totals['total_debits'], 0.01);
     }
 
     public function test_parse_account_labels(): void

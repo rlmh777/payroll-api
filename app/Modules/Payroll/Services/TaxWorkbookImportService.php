@@ -46,6 +46,13 @@ class TaxWorkbookImportService
         }
 
         $gst = $this->extractGstTotals($gstSheet);
+        $fromAccounts = $this->extractGstTotalsFromAccounts($accountsSheet);
+        if ($gst['total_debits'] == 0.0) {
+            $gst['total_debits'] = $fromAccounts['total_debits'];
+        }
+        if ($gst['partial_exemptions_total'] == 0.0) {
+            $gst['partial_exemptions_total'] = $fromAccounts['partial_exemptions_total'];
+        }
 
         return [
             'accounts_sheet' => $this->compactSheet($accountsSheet),
@@ -295,12 +302,9 @@ class TaxWorkbookImportService
         $debitCol = $this->findHeaderColumn($rows, 'Debit');
         $amountCol = $this->findHeaderColumn($rows, 'Amount');
         $typeCol = $this->findHeaderColumn($rows, 'Type');
-        $legacyDebitCol = $debitCol ?? 'M';
 
         $partial = 0.0;
-        $totalDebits = 0.0;
         $totalRowDebit = 0.0;
-        $totalRowAmount = 0.0;
 
         foreach ($rows as $cells) {
             $labelInfo = $this->firstLabel($cells);
@@ -310,7 +314,7 @@ class TaxWorkbookImportService
             $normalized = $this->normalizeLabel($labelInfo['label']);
 
             if (str_starts_with($normalized, 'total 2251-a') && str_contains($normalized, 'partial exemption')) {
-                $partial = $this->numericValue($cells[$legacyDebitCol]['v'] ?? null) ?? 0.0;
+                $partial = $this->totalRowDebitSide($cells, $debitCol, $amountCol);
                 continue;
             }
 
@@ -320,31 +324,70 @@ class TaxWorkbookImportService
                 && ! str_contains($normalized, 'other')
                 && ! str_contains($normalized, '2251-a')
             ) {
-                $totalDebits = $this->numericValue($cells[$legacyDebitCol]['v'] ?? null) ?? 0.0;
+                // Debit only — Amount/Balance on this row is the signed net, not total debits.
                 $totalRowDebit = $this->absColumn($cells, $debitCol);
-                $totalRowAmount = $this->absColumn($cells, $amountCol);
             }
         }
 
         $transactionDebits = $this->sumTransactionColumn($rows, $typeCol, $debitCol, signedNegative: false);
         $transactionAmountDebits = $this->sumTransactionColumn($rows, $typeCol, $amountCol, signedNegative: true);
 
-        $netOf2251 = 0.0;
+        $debitSide = 0.0;
         if ($debitCol !== null) {
-            $netOf2251 = $transactionDebits['count'] > 0
+            $debitSide = $transactionDebits['count'] > 0
                 ? $transactionDebits['sum']
                 : $totalRowDebit;
         }
-        if ($netOf2251 == 0.0 && $amountCol !== null) {
-            $netOf2251 = $transactionAmountDebits['count'] > 0
-                ? $transactionAmountDebits['sum']
-                : $totalRowAmount;
+        if ($debitSide == 0.0 && $amountCol !== null && $transactionAmountDebits['count'] > 0) {
+            $debitSide = $transactionAmountDebits['sum'];
+        }
+        if ($debitSide == 0.0) {
+            $debitSide = $totalRowDebit;
+        }
+
+        $totalDebits = $totalRowDebit != 0.0 ? $totalRowDebit : $debitSide;
+
+        return [
+            'total_debits' => $totalDebits,
+            'partial_exemptions_total' => $partial,
+            'net_of_2251' => $debitSide,
+        ];
+    }
+
+    /**
+     * Taxes Calculator / P&L often repeats GST inputs as labeled rows.
+     *
+     * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
+     * @return array{total_debits: float, partial_exemptions_total: float}
+     */
+    private function extractGstTotalsFromAccounts(array $rows): array
+    {
+        $amountCol = $this->findAmountColumn($rows);
+        $totalDebits = 0.0;
+        $partial = 0.0;
+
+        foreach ($rows as $cells) {
+            $labelInfo = $this->firstLabel($cells, $amountCol);
+            if ($labelInfo === null) {
+                continue;
+            }
+            $normalized = $this->normalizeLabel($labelInfo['label']);
+            $amount = abs($this->numericValue($cells[$amountCol]['v'] ?? null) ?? 0.0);
+            if ($amount == 0.0) {
+                continue;
+            }
+
+            if (str_contains($normalized, 'total partial exemption')) {
+                $partial = $amount;
+            }
+            if (str_contains($normalized, 'total debits on 2251') || $normalized === 'total debits') {
+                $totalDebits = $amount;
+            }
         }
 
         return [
             'total_debits' => $totalDebits,
             'partial_exemptions_total' => $partial,
-            'net_of_2251' => $netOf2251,
         ];
     }
 
@@ -393,6 +436,21 @@ class TaxWorkbookImportService
         }
 
         return abs($this->numericValue($cells[$column]['v'] ?? null) ?? 0.0);
+    }
+
+    /**
+     * Debit-side money on a GST total row: Debit if present, otherwise |Amount|.
+     *
+     * @param  array<string, array{v: mixed, f: ?string}>  $cells
+     */
+    private function totalRowDebitSide(array $cells, ?string $debitCol, ?string $amountCol): float
+    {
+        $debit = $this->absColumn($cells, $debitCol);
+        if ($debit != 0.0) {
+            return $debit;
+        }
+
+        return $this->absColumn($cells, $amountCol);
     }
 
     /**
