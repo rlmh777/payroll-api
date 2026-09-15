@@ -287,6 +287,7 @@ class MenuSeeder extends Seeder
             'permission' => 'view-general',
             'order' => 1,
             'type' => 'submenu',
+            'system_key' => 'payroll.settings.general',
             'module_code' => 'payroll',
         ]);
 
@@ -402,7 +403,18 @@ class MenuSeeder extends Seeder
             $existing = Menu::query()->where('system_key', $systemKey)->first();
         }
         if (! $existing && $route) {
-            $existing = Menu::query()->where('route', $route)->first();
+            // Prefer matching the same parent so a child that shares a route with its
+            // parent (e.g. Settings + General both use /payroll/settings) cannot
+            // overwrite the parent row and end up parented to itself.
+            $query = Menu::query()->where('route', $route);
+            if (array_key_exists('parent_id', $attributes)) {
+                if ($attributes['parent_id'] === null) {
+                    $query->whereNull('parent_id');
+                } else {
+                    $query->where('parent_id', $attributes['parent_id']);
+                }
+            }
+            $existing = $query->first();
         }
 
         if (! array_key_exists('module_code', $attributes) || blank($attributes['module_code'])) {
