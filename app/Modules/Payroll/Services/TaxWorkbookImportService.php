@@ -300,14 +300,14 @@ class TaxWorkbookImportService
         $partial = 0.0;
         $totalDebits = 0.0;
         $totalRowDebit = 0.0;
+        $totalRowAmount = 0.0;
 
         foreach ($rows as $cells) {
             $labelInfo = $this->firstLabel($cells);
             if ($labelInfo === null) {
                 continue;
             }
-            $label = $labelInfo['label'];
-            $normalized = $this->normalizeLabel($label);
+            $normalized = $this->normalizeLabel($labelInfo['label']);
 
             if (str_starts_with($normalized, 'total 2251-a') && str_contains($normalized, 'partial exemption')) {
                 $partial = $this->numericValue($cells[$legacyDebitCol]['v'] ?? null) ?? 0.0;
@@ -321,33 +321,42 @@ class TaxWorkbookImportService
                 && ! str_contains($normalized, '2251-a')
             ) {
                 $totalDebits = $this->numericValue($cells[$legacyDebitCol]['v'] ?? null) ?? 0.0;
-                $totalRowDebit = $this->positiveGstDebit($cells, $debitCol, $amountCol);
+                $totalRowDebit = $this->absColumn($cells, $debitCol);
+                $totalRowAmount = $this->absColumn($cells, $amountCol);
             }
         }
 
-        $transactionDebits = $this->sumTransactionDebits($rows, $typeCol, $debitCol, $amountCol);
+        $transactionDebits = $this->sumTransactionColumn($rows, $typeCol, $debitCol, signedNegative: false);
+        $transactionAmountDebits = $this->sumTransactionColumn($rows, $typeCol, $amountCol, signedNegative: true);
+
+        $netOf2251 = 0.0;
+        if ($debitCol !== null) {
+            $netOf2251 = $transactionDebits['count'] > 0
+                ? $transactionDebits['sum']
+                : $totalRowDebit;
+        }
+        if ($netOf2251 == 0.0 && $amountCol !== null) {
+            $netOf2251 = $transactionAmountDebits['count'] > 0
+                ? $transactionAmountDebits['sum']
+                : $totalRowAmount;
+        }
 
         return [
             'total_debits' => $totalDebits,
             'partial_exemptions_total' => $partial,
-            'net_of_2251' => $transactionDebits['count'] > 0
-                ? $transactionDebits['sum']
-                : $totalRowDebit,
+            'net_of_2251' => $netOf2251,
         ];
     }
 
     /**
-     * Sum actual 2251 transaction debits (not the signed total-row net/balance).
-     *
-     * Debit/Credit registers: sum the Debit column on typed transaction rows.
-     * Amount sheets: sum negative Amounts as positive debits (liability sign).
+     * Sum a money column on typed GST transaction rows. Total/balance rows have no Type.
      *
      * @param  array<int, array<string, array{v: mixed, f: ?string}>>  $rows
      * @return array{sum: float, count: int}
      */
-    private function sumTransactionDebits(array $rows, ?string $typeCol, ?string $debitCol, ?string $amountCol): array
+    private function sumTransactionColumn(array $rows, ?string $typeCol, ?string $moneyCol, bool $signedNegative): array
     {
-        if ($typeCol === null) {
+        if ($typeCol === null || $moneyCol === null) {
             return ['sum' => 0.0, 'count' => 0];
         }
 
@@ -360,45 +369,30 @@ class TaxWorkbookImportService
             }
 
             $count++;
-            if ($debitCol !== null) {
-                $value = $this->numericValue($cells[$debitCol]['v'] ?? null);
-                if ($value !== null && $value != 0.0) {
-                    $sum += abs($value);
-                }
-
+            $value = $this->numericValue($cells[$moneyCol]['v'] ?? null);
+            if ($value === null || $value == 0.0) {
+                continue;
+            }
+            if ($signedNegative && $value >= 0) {
                 continue;
             }
 
-            if ($amountCol !== null) {
-                $value = $this->numericValue($cells[$amountCol]['v'] ?? null);
-                if ($value !== null && $value < 0) {
-                    $sum += abs($value);
-                }
-            }
+            $sum += abs($value);
         }
 
         return ['sum' => round($sum, 2), 'count' => $count];
     }
 
     /**
-     * Fallback when the GST sheet has no typed transaction rows.
-     *
      * @param  array<string, array{v: mixed, f: ?string}>  $cells
      */
-    private function positiveGstDebit(array $cells, ?string $debitCol, ?string $amountCol): float
+    private function absColumn(array $cells, ?string $column): float
     {
-        foreach ([$debitCol, $amountCol] as $column) {
-            if ($column === null) {
-                continue;
-            }
-
-            $value = $this->numericValue($cells[$column]['v'] ?? null);
-            if ($value !== null) {
-                return abs($value);
-            }
+        if ($column === null) {
+            return 0.0;
         }
 
-        return 0.0;
+        return abs($this->numericValue($cells[$column]['v'] ?? null) ?? 0.0);
     }
 
     /**

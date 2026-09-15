@@ -100,7 +100,7 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->service->parse($this->fixturePath(), 2026, 7);
     }
 
-    public function test_net_of_2251_uses_debit_not_balance(): void
+    public function test_net_of_2251_uses_debit_not_credit_or_balance(): void
     {
         $rows = [
             1 => [
@@ -111,6 +111,7 @@ class TaxWorkbookImportServiceTest extends TestCase
             10 => [
                 'C' => ['v' => 'Total 2251 · GST Payable', 'f' => null],
                 'Q' => ['v' => 37824.98, 'f' => null],
+                'S' => ['v' => 102771.21, 'f' => null],
                 'U' => ['v' => 64946.23, 'f' => null],
             ],
         ];
