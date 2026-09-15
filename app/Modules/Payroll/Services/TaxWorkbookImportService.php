@@ -563,6 +563,23 @@ class TaxWorkbookImportService
             ];
         }
 
+        // Azure / P&L exports often omit the middle-dot: "4827A Spa Services GST-Other"
+        if (preg_match('/^(?:Total\s+)?(\d+)\s+([A-Za-z])\s+(.+)$/u', $clean, $match)) {
+            return [
+                'code' => $this->normalizeCode($match[1].$match[2]),
+                'name' => trim($match[3]),
+                'is_total' => $isTotal,
+            ];
+        }
+
+        if (preg_match('/^(?:Total\s+)?(\d+[A-Za-z]*)\s+(.+)$/u', $clean, $match)) {
+            return [
+                'code' => $this->normalizeCode($match[1]),
+                'name' => trim($match[2]),
+                'is_total' => $isTotal,
+            ];
+        }
+
         return ['code' => null, 'name' => $clean, 'is_total' => $isTotal];
     }
 
@@ -595,6 +612,10 @@ class TaxWorkbookImportService
             return 'total';
         }
 
+        if ($this->isQbDetailAccountName($label)) {
+            return 'account';
+        }
+
         if (! $hasAmount) {
             return 'heading';
         }
@@ -604,6 +625,19 @@ class TaxWorkbookImportService
         }
 
         return 'account';
+    }
+
+    /**
+     * QuickBooks posting accounts such as "Spa Services GST-Other", not section labels.
+     */
+    private function isQbDetailAccountName(string $label): bool
+    {
+        $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $label) ?? $label));
+        $normalized = str_replace(['·', '•'], ' ', $normalized);
+
+        return str_contains($normalized, 'gst-other')
+            || str_contains($normalized, 'gst other')
+            || (bool) preg_match('/\s-\sother\b/', $normalized);
     }
 
     /**

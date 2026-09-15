@@ -306,7 +306,14 @@ class TaxCalculatorAccount extends Model
             return false;
         }
 
-        if (str_contains($name, ' - ') || str_contains($name, '- ') || str_contains($name, '(gross)') || str_contains($name, '(net)')) {
+        if (
+            str_contains($name, 'gst-other')
+            || str_contains($name, 'gst other')
+            || str_contains($name, ' - ')
+            || str_contains($name, '- ')
+            || str_contains($name, '(gross)')
+            || str_contains($name, '(net)')
+        ) {
             return false;
         }
 

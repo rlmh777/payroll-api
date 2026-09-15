@@ -176,6 +176,45 @@ class TaxWorkbookImportServiceTest extends TestCase
         $this->assertSame('4001A', $this->service->parseAccountLabel('4001 A· Spa Villa Income')['code']);
         $this->assertTrue($this->service->parseAccountLabel('Total 4501 · Tikal Tours Income (NET)')['is_total']);
         $this->assertSame('4715', $this->service->parseAccountLabel('4715 . Tubing')['code']);
+        $this->assertSame('4827A', $this->service->parseAccountLabel('4827A Spa Services GST-Other')['code']);
+        $this->assertSame('Spa Services GST-Other', $this->service->parseAccountLabel('4827A Spa Services GST-Other')['name']);
+        $this->assertSame('4827', $this->service->parseAccountLabel('4827 Spa Services GST-Other')['code']);
+        $this->assertSame('4001A', $this->service->parseAccountLabel('4001 A Spa Villa Income')['code']);
+    }
+
+    public function test_spa_services_gst_other_is_a_qb_account_not_a_heading(): void
+    {
+        $withDot = $this->service->extractAccountLines([
+            10 => [
+                'B' => ['v' => '4827A · Spa Services GST-Other', 'f' => null],
+                'E' => ['v' => 20548.70, 'f' => null],
+            ],
+        ]);
+        $withoutDot = $this->service->extractAccountLines([
+            10 => [
+                'B' => ['v' => '4827 Spa Services GST-Other', 'f' => null],
+                'E' => ['v' => 180, 'f' => null],
+            ],
+        ]);
+        $zeroAmount = $this->service->extractAccountLines([
+            10 => [
+                'B' => ['v' => '4827A · Spa Services GST-Other', 'f' => null],
+            ],
+        ]);
+
+        $this->assertCount(1, $withDot);
+        $this->assertSame('account', $withDot[0]['row_type']);
+        $this->assertSame('4827A', $withDot[0]['account_code']);
+        $this->assertEqualsWithDelta(20548.70, $withDot[0]['amount'], 0.01);
+
+        $this->assertCount(1, $withoutDot);
+        $this->assertSame('account', $withoutDot[0]['row_type']);
+        $this->assertSame('4827', $withoutDot[0]['account_code']);
+        $this->assertStringContainsString('Spa Services GST-Other', $withoutDot[0]['account_name']);
+
+        $this->assertCount(1, $zeroAmount);
+        $this->assertSame('account', $zeroAmount[0]['row_type']);
+        $this->assertSame('4827A', $zeroAmount[0]['account_code']);
     }
 
     public function test_parses_pnl_workbook(): void

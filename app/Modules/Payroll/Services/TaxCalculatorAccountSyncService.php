@@ -144,6 +144,11 @@ class TaxCalculatorAccountSyncService
         );
 
         if ($kind === 'qb_account' && $rowType === 'heading') {
+            $name = strtolower(trim((string) ($line['account_name'] ?? '')));
+            if (str_contains($name, 'gst-other') || str_contains($name, 'gst other')) {
+                return 'qb_account';
+            }
+
             return 'section';
         }
 
@@ -159,10 +164,25 @@ class TaxCalculatorAccountSyncService
         $name = trim((string) ($line['account_name'] ?? ''));
         $lineKind = $this->lineKindFromLine($line);
 
-        return TaxCalculatorAccount::query()
+        $accounts = TaxCalculatorAccount::query()
             ->where('qb_code', $code)
-            ->get()
-            ->first(fn (TaxCalculatorAccount $account) => $this->namesMatch((string) $account->qb_name, $name, $account->line_kind, $lineKind));
+            ->get();
+
+        $sameKind = $accounts->first(
+            fn (TaxCalculatorAccount $account) => $this->namesMatch((string) $account->qb_name, $name, $account->line_kind, $lineKind)
+        );
+        if ($sameKind) {
+            return $sameKind;
+        }
+
+        if ($lineKind === 'qb_account') {
+            return $accounts->first(
+                fn (TaxCalculatorAccount $account) => $account->line_kind === 'section'
+                    && $this->namesEquivalent((string) $account->qb_name, $name)
+            );
+        }
+
+        return null;
     }
 
     private function namesMatch(string $left, string $right, ?string $leftKind = null, ?string $rightKind = null): bool
@@ -194,6 +214,22 @@ class TaxCalculatorAccountSyncService
     }
 
     /**
+     * Promotion from a misclassified section must not attach a detail row
+     * such as "4511 · … - Other (GROSS)" onto the "4511 · …" heading.
+     */
+    private function namesEquivalent(string $left, string $right): bool
+    {
+        $normalize = static function (string $value): string {
+            $value = strtolower(trim(preg_replace('/\s+/', ' ', $value) ?? $value));
+            $value = str_replace(['·', '•', '.'], ' ', $value);
+
+            return trim(preg_replace('/\s+/', ' ', $value) ?? $value);
+        };
+
+        return $normalize($left) === $normalize($right);
+    }
+
+    /**
      * @param  array<string, mixed>  $defaults
      */
     private function applyStructuralUpdates(TaxCalculatorAccount $account, array $defaults): bool
@@ -205,6 +241,12 @@ class TaxCalculatorAccountSyncService
                 $account->{$field} = $defaults[$field];
                 $changed = true;
             }
+        }
+
+        if ($account->line_kind === 'section' && ($defaults['line_kind'] ?? null) === 'qb_account') {
+            $account->line_kind = 'qb_account';
+            $account->is_rollup = false;
+            $changed = true;
         }
 
         if (! $account->hasTaxRates() && ($account->tax_basis ?? null) !== $defaults['tax_basis']) {

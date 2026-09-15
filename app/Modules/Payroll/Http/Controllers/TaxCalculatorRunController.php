@@ -694,6 +694,11 @@ class TaxCalculatorRunController extends Controller
     {
         $kind = $mapping->lineKind();
         if ($kind === 'section') {
+            $mappedName = strtolower((string) $mapping->qb_name);
+            if (str_contains($mappedName, 'gst-other') || str_contains($mappedName, 'gst other')) {
+                return $rowType === 'account';
+            }
+
             return false;
         }
         if ($kind === 'net_total') {
