@@ -68,4 +68,19 @@ class TaxCalculatorLineBasisTest extends TestCase
 
         $this->assertFalse(TaxCalculatorLineBasis::qualifiesForBtb($line, $mapping));
     }
+
+    public function test_imported_account_line_applies_full_amount_even_when_rate_basis_is_net(): void
+    {
+        $line = [
+            'account_code' => '4801',
+            'account_name' => '4801 · Sundries',
+            'row_type' => 'account',
+            'amount' => -180,
+        ];
+
+        $this->assertTrue(TaxCalculatorLineBasis::shouldApplyAssignment($line, TaxCalculatorAccount::TAX_BASIS_GROSS));
+        $this->assertTrue(TaxCalculatorLineBasis::shouldApplyAssignment($line, TaxCalculatorAccount::TAX_BASIS_NET));
+        $this->assertFalse(TaxCalculatorLineBasis::shouldApplyAssignment($line, TaxCalculatorAccount::TAX_BASIS_NONE));
+        $this->assertFalse(TaxCalculatorLineBasis::qualifies($line, TaxCalculatorAccount::TAX_BASIS_NET));
+    }
 }

@@ -131,10 +131,14 @@ class TaxCalculatorAccount extends Model
         $assignments = [];
         foreach ($rateRows as $rateRow) {
             $code = (string) $rateRow->rate_code;
+            $storedBasis = strtolower(trim((string) ($rateRow->tax_basis ?? '')));
+            $basis = in_array($storedBasis, [self::TAX_BASIS_GROSS, self::TAX_BASIS_NET], true)
+                ? $storedBasis
+                : $this->implicitTaxBasis();
             $assignments[] = [
                 'code' => $code,
-                'tax_basis' => $this->implicitTaxBasis(),
-                'category' => (string) ($categories[$code] ?? ''),
+                'tax_basis' => $basis,
+                'category' => (string) ($rateRow->rate?->category ?? $categories[$code] ?? ''),
             ];
         }
 

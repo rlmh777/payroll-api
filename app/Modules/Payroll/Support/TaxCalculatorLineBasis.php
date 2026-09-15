@@ -22,6 +22,22 @@ class TaxCalculatorLineBasis
         return false;
     }
 
+    /**
+     * Imported account lines always take the full signed amount on configured rates
+     * (including negatives). Totals still honor gross/net so they are not double-counted.
+     *
+     * @param  array<string, mixed>  $line
+     */
+    public static function shouldApplyAssignment(array $line, string $basis): bool
+    {
+        $rowType = (string) ($line['row_type'] ?? 'account');
+        if ($rowType === 'account' && ! self::isSpreadsheetTotalLine($line)) {
+            return $basis !== TaxCalculatorAccount::TAX_BASIS_NONE;
+        }
+
+        return self::qualifies($line, $basis);
+    }
+
     public static function isSpreadsheetTotalLine(array $line): bool
     {
         $name = strtolower(trim((string) ($line['account_name'] ?? '')));

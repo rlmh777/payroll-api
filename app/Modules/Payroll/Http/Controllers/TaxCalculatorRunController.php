@@ -440,6 +440,14 @@ class TaxCalculatorRunController extends Controller
             'lines.*.amount' => ['nullable', 'numeric'],
             'lines.*.business_tax_code' => ['nullable', 'string', 'max:64'],
             'lines.*.gst_code' => ['nullable', 'string', 'max:64'],
+            'lines.*.business_tax_codes' => ['nullable', 'array'],
+            'lines.*.business_tax_codes.*' => ['string', 'max:64'],
+            'lines.*.gst_codes' => ['nullable', 'array'],
+            'lines.*.gst_codes.*' => ['string', 'max:64'],
+            'lines.*.tax_rate_assignments' => ['nullable', 'array'],
+            'lines.*.tax_rate_assignments.*.code' => ['required', 'string', 'max:64'],
+            'lines.*.tax_rate_assignments.*.tax_basis' => ['nullable', 'string', 'max:16'],
+            'lines.*.tax_rate_assignments.*.category' => ['nullable', 'string', 'max:32'],
             'lines.*.include_btb' => ['boolean'],
             'lines.*.is_rollup' => ['boolean'],
             'lines.*.row_type' => ['nullable', 'string', 'max:32'],
@@ -483,7 +491,7 @@ class TaxCalculatorRunController extends Controller
             $applied = [];
             foreach ($mapping->rateAssignments() as $assignment) {
                 $basis = (string) ($assignment['tax_basis'] ?? TaxCalculatorAccount::TAX_BASIS_GROSS);
-                if (! TaxCalculatorLineBasis::qualifies($line, $basis)) {
+                if (! TaxCalculatorLineBasis::shouldApplyAssignment($line, $basis)) {
                     continue;
                 }
                 $applied[] = $assignment;
