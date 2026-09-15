@@ -74,4 +74,41 @@ class TaxCalculatorServiceTest extends TestCase
         $this->assertEqualsWithDelta(64946.23, $result['partial_exemption']['net_of_2251'], 0.01);
         $this->assertEqualsWithDelta(-6944.003528, $result['partial_exemption']['additional_liability'], 0.001);
     }
+
+    public function test_negative_imported_amount_applies_in_full_to_assigned_taxes(): void
+    {
+        $service = new TaxCalculatorService();
+
+        $result = $service->calculate(
+            [
+                TaxCalculatorService::BUSINESS_INCOME => 0.0175,
+                TaxCalculatorService::GST_INCOME => 0.125,
+                TaxCalculatorService::BTB_HOTEL_TAX => 0.09,
+            ],
+            [
+                [
+                    'amount' => 1000,
+                    'business_tax_code' => TaxCalculatorService::BUSINESS_INCOME,
+                    'gst_code' => TaxCalculatorService::GST_INCOME,
+                ],
+                [
+                    'account_code' => '4801',
+                    'account_name' => '4801 · Sundries',
+                    'amount' => -180,
+                    'business_tax_code' => TaxCalculatorService::BUSINESS_INCOME,
+                    'gst_code' => TaxCalculatorService::GST_INCOME,
+                    'include_btb' => true,
+                ],
+            ],
+            0,
+            0,
+        );
+
+        $this->assertEqualsWithDelta(820.0, $result['business_tax']['income'], 0.01);
+        $this->assertEqualsWithDelta(820.0, $result['gst']['line_100'], 0.01);
+        $this->assertEqualsWithDelta(-180.0, $result['btb']['base'], 0.01);
+        $this->assertEqualsWithDelta(14.35, $result['business_tax']['income_tax'], 0.001);
+        $this->assertEqualsWithDelta(102.5, $result['gst']['line_140'], 0.001);
+        $this->assertEqualsWithDelta(-16.2, $result['btb']['tax'], 0.001);
+    }
 }
