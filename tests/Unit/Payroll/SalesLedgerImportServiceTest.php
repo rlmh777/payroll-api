@@ -50,6 +50,31 @@ class SalesLedgerImportServiceTest extends TestCase
         $this->assertSame('GLC Daily Sales', $first['G']);
     }
 
+    public function test_taxable_sales_net_is_credit_minus_debit(): void
+    {
+        $path = dirname(__DIR__, 2).'/Fixtures/raw-sales-ledger.xlsx';
+        $parsed = $this->service->parse($path, 2026, 8);
+
+        $debit = 0.0;
+        $credit = 0.0;
+        foreach ($parsed['rows'] as $row) {
+            if (! empty($row['is_section']) || ! empty($row['is_total'])) {
+                continue;
+            }
+            if (($row['B'] ?? null) !== 'Taxable Sales') {
+                continue;
+            }
+            $debit += (float) ($row['I'] ?? 0);
+            $credit += (float) ($row['K'] ?? 0);
+        }
+
+        $this->assertEqualsWithDelta(5178.82, $debit, 0.01);
+        $this->assertEqualsWithDelta(187893.60, $credit, 0.01);
+        $this->assertEqualsWithDelta(182714.78, $credit - $debit, 0.01);
+        $this->assertNotEqualsWithDelta($credit, $credit - $debit, 0.01);
+        $this->assertNotEqualsWithDelta($debit, $credit - $debit, 0.01);
+    }
+
     public function test_rejects_wrong_period(): void
     {
         $path = dirname(__DIR__, 2).'/Fixtures/raw-sales-ledger.xlsx';
