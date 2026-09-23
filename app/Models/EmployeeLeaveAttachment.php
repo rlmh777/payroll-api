@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Models\Concerns\HasPublicFileAttachment;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class EmployeeLeaveAttachment extends Model
 {
     use HasUuids;
+    use HasPublicFileAttachment;
 
     protected $table = 'employee_leave_attachment';
     protected $primaryKey = 'id';
@@ -27,13 +28,6 @@ class EmployeeLeaveAttachment extends Model
     protected $appends = [
         'fileUrl',
     ];
-
-    protected function fileUrl(): Attribute
-    {
-        return Attribute::get(
-            fn () => $this->filePath ? asset('storage/'.$this->filePath) : null,
-        );
-    }
 
     public function employeeLeave(): BelongsTo
     {

@@ -79,6 +79,8 @@ class SuperAdminSeeder extends Seeder
             'account-mapping-crud',
             'view-database-backup',
             'database-backup-crud',
+            'view-file-storage',
+            'file-storage-crud',
             'view-settings',
             'view-reports',
             'list-reports',

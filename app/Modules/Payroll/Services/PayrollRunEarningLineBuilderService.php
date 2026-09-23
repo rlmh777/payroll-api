@@ -47,9 +47,14 @@ class PayrollRunEarningLineBuilderService
         $otMultiplier = (float) config('payroll.overtime_multiplier', 1.5);
 
         $earningCodes = PayrollEarningCode::query()
-            ->whereIn('code', ['REGULAR', 'OVERTIME', 'HOLIDAY', 'ALLOWANCE', 'VACATION'])
-            ->get()
-            ->keyBy(fn (PayrollEarningCode $code) => strtoupper((string) $code->code));
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+        $codesById = $earningCodes->keyBy('id');
+        $codesBySource = $earningCodes
+            ->filter(fn (PayrollEarningCode $code) => filled($code->source))
+            ->keyBy(fn (PayrollEarningCode $code) => (string) $code->source);
 
         $payrollsByEmployee = Payroll::query()
             ->where('payroll_run_id', $payrollRun->id)
@@ -92,16 +97,22 @@ class PayrollRunEarningLineBuilderService
             $alreadyPaidAmount = round((float) ($alreadyPaidLeave['amount'] ?? 0), 2);
             $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount - $vacationPayAmount), 2);
 
+            $regularCode = $codesBySource->get(PayrollEarningCode::SOURCE_TIMESHEET_REGULAR);
+            $overtimeCode = $codesBySource->get(PayrollEarningCode::SOURCE_TIMESHEET_OVERTIME);
+            $holidayCode = $codesBySource->get(PayrollEarningCode::SOURCE_TIMESHEET_HOLIDAY);
+            $vacationCode = $codesBySource->get(PayrollEarningCode::SOURCE_VACATION);
+            $allowanceFallback = $codesBySource->get(PayrollEarningCode::SOURCE_ALLOWANCE_FALLBACK);
+
             $this->createLine(
                 $payrollRun,
                 $employeeId,
                 $payrollId,
                 $departmentId,
-                $earningCodes->get('REGULAR'),
+                $regularCode,
+                $departmentsById,
                 null,
                 null,
                 $regularAmount,
-                $this->resolveDepartmentWageAccountId($departmentId, $departmentsById, $earningCodes->get('REGULAR')?->account_id),
             );
 
             $this->createLine(
@@ -109,11 +120,11 @@ class PayrollRunEarningLineBuilderService
                 $employeeId,
                 $payrollId,
                 $departmentId,
-                $earningCodes->get('OVERTIME'),
+                $overtimeCode,
+                $departmentsById,
                 $overtimeHours > 0 ? $overtimeHours : null,
                 $overtimeHours > 0 ? $hourlyRate * $otMultiplier : null,
                 $overtimeAmount,
-                $this->resolveDepartmentWageAccountId($departmentId, $departmentsById, $earningCodes->get('OVERTIME')?->account_id),
             );
 
             $this->createLine(
@@ -121,11 +132,11 @@ class PayrollRunEarningLineBuilderService
                 $employeeId,
                 $payrollId,
                 $departmentId,
-                $earningCodes->get('HOLIDAY'),
+                $holidayCode,
+                $departmentsById,
                 $holidayHours > 0 ? $holidayHours : null,
                 $holidayHours > 0 ? $hourlyRate : null,
                 $holidayAmount,
-                $this->resolveDepartmentWageAccountId($departmentId, $departmentsById, $earningCodes->get('HOLIDAY')?->account_id),
             );
 
             $allowanceData = $row['_calculation']['allowances'] ?? [];
@@ -135,39 +146,28 @@ class PayrollRunEarningLineBuilderService
                     continue;
                 }
 
-                $earningCode = $earningCodes->get('ALLOWANCE');
-                $poolEarningCodeId = $allowanceLine['payrollEarningCodeId'] ?? null;
-                if (($allowanceLine['source'] ?? null) === 'pool' && $poolEarningCodeId) {
-                    $poolCode = PayrollEarningCode::query()->find($poolEarningCodeId);
-                    if ($poolCode) {
-                        $earningCode = $poolCode;
-                    }
-                }
-
-                $accountId = $this->resolveAllowanceAccountId(
-                    $allowanceLine,
-                    $earningCode?->account_id ?? $earningCodes->get('ALLOWANCE')?->account_id,
-                );
+                $assignedCodeId = $allowanceLine['payrollEarningCodeId'] ?? null;
+                $earningCode = $assignedCodeId
+                    ? ($codesById->get((int) $assignedCodeId) ?? PayrollEarningCode::query()->find($assignedCodeId))
+                    : null;
+                $earningCode ??= $allowanceFallback;
 
                 $this->createLine(
                     $payrollRun,
                     $employeeId,
                     $payrollId,
                     $departmentId,
-                    $earningCode,
+                    $earningCode instanceof PayrollEarningCode ? $earningCode : null,
+                    $departmentsById,
                     null,
                     null,
                     $amount,
-                    $accountId,
                     (string) ($allowanceLine['source'] ?? 'CALCULATED'),
                     isset($allowanceLine['sourceId']) ? (string) $allowanceLine['sourceId'] : null,
+                    null,
+                    filled($allowanceLine['accountId'] ?? null) ? (string) $allowanceLine['accountId'] : null,
                 );
             }
-
-            $vacationCode = $earningCodes->get('VACATION');
-            $vacationAccountId = filled($vacationCode?->account_id)
-                ? (string) $vacationCode->account_id
-                : $this->payrollAccountMappingService->accountIdFor('VACATION_PAY');
 
             if ($vacationPayAmount > 0) {
                 $this->createLine(
@@ -176,12 +176,12 @@ class PayrollRunEarningLineBuilderService
                     $payrollId,
                     $departmentId,
                     $vacationCode,
+                    $departmentsById,
                     isset($vacationPay['days']) && (float) $vacationPay['days'] > 0
                         ? (float) $vacationPay['days']
                         : null,
                     null,
                     $vacationPayAmount,
-                    $vacationAccountId,
                     'VACATION_PAY',
                     null,
                     'Vacation leave pay',
@@ -195,12 +195,12 @@ class PayrollRunEarningLineBuilderService
                     $payrollId,
                     $departmentId,
                     $vacationCode,
+                    $departmentsById,
                     isset($alreadyPaidLeave['days']) && (float) $alreadyPaidLeave['days'] > 0
                         ? (float) $alreadyPaidLeave['days']
                         : null,
                     null,
                     $alreadyPaidAmount,
-                    $vacationAccountId,
                     'ALREADY_PAID_LEAVE',
                     null,
                     'Already paid in advance',
@@ -209,19 +209,23 @@ class PayrollRunEarningLineBuilderService
         }
     }
 
+    /**
+     * @param Collection<int, Department> $departmentsById
+     */
     private function createLine(
         PayrollRun $payrollRun,
         string $employeeId,
         ?string $payrollId,
         ?int $departmentId,
         ?PayrollEarningCode $earningCode,
+        Collection $departmentsById,
         ?float $hours,
         ?float $rate,
         float $amount,
-        ?string $accountId,
         string $sourceType = 'CALCULATED',
         ?string $sourceId = null,
         ?string $note = null,
+        ?string $accountOverride = null,
     ): void {
         if ($amount <= 0 || !$earningCode) {
             return;
@@ -237,7 +241,12 @@ class PayrollRunEarningLineBuilderService
             'hours' => $hours,
             'rate' => $rate,
             'amount' => $amount,
-            'accountId' => $accountId,
+            'accountId' => $this->resolvePostingAccountId(
+                $earningCode,
+                $departmentId,
+                $departmentsById,
+                $accountOverride,
+            ),
             'is_taxable' => (bool) $earningCode->is_taxable,
             'is_ss_subject' => (bool) $earningCode->is_ss_subject,
             'source_type' => $sourceType,
@@ -249,31 +258,37 @@ class PayrollRunEarningLineBuilderService
     /**
      * @param Collection<int, Department> $departmentsById
      */
-    private function resolveDepartmentWageAccountId(
+    private function resolvePostingAccountId(
+        PayrollEarningCode $earningCode,
         ?int $departmentId,
         Collection $departmentsById,
-        ?string $fallbackAccountId,
+        ?string $accountOverride,
     ): ?string {
-        if ($departmentId !== null) {
+        if (filled($accountOverride)) {
+            return $accountOverride;
+        }
+
+        if ($earningCode->usesDepartmentAccount() && $departmentId !== null) {
             $departmentAccountId = $departmentsById->get($departmentId)?->accountId;
             if (filled($departmentAccountId)) {
                 return (string) $departmentAccountId;
             }
         }
 
-        return filled($fallbackAccountId) ? (string) $fallbackAccountId : null;
-    }
-
-    /**
-     * @param array<string, mixed> $line
-     */
-    private function resolveAllowanceAccountId(array $line, ?string $fallbackAccountId): ?string
-    {
-        if (filled($line['accountId'] ?? null)) {
-            return (string) $line['accountId'];
+        if (filled($earningCode->account_id)) {
+            return (string) $earningCode->account_id;
         }
 
-        return filled($fallbackAccountId) ? (string) $fallbackAccountId : null;
+        if ($earningCode->source === PayrollEarningCode::SOURCE_ALLOWANCE_FALLBACK) {
+            return $this->payrollAccountMappingService->accountIdFor('ALLOWANCES');
+        }
+
+        if ($earningCode->usesDepartmentAccount() || $earningCode->source === PayrollEarningCode::SOURCE_VACATION) {
+            return $this->payrollAccountMappingService->accountIdFor('DEPARTMENT_WAGES')
+                ?? $this->payrollAccountMappingService->accountIdFor('VACATION_PAY');
+        }
+
+        return null;
     }
 
     private function resolveHourlyRate(

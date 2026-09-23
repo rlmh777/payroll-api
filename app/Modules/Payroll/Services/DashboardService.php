@@ -3,6 +3,7 @@
 namespace App\Modules\Payroll\Services;
 
 use App\Models\Payroll;
+use App\Models\PayrollEarningCode;
 use App\Models\PayrollEarningLine;
 use App\Models\PayrollRun;
 use App\Models\Timesheet;
@@ -44,7 +45,7 @@ class DashboardService
             ? round((float) PayrollEarningLine::query()
                 ->join('payroll_earning_code', 'payroll_earning_code.id', '=', 'payroll_earning_line.payroll_earning_code_id')
                 ->where('payroll_earning_line.payroll_run_id', $currentRun->id)
-                ->whereRaw('UPPER(payroll_earning_code.code) = ?', ['OVERTIME'])
+                ->where('payroll_earning_code.source', PayrollEarningCode::SOURCE_TIMESHEET_OVERTIME)
                 ->sum('payroll_earning_line.amount'), 2)
             : 0.0;
 
@@ -179,17 +180,14 @@ class DashboardService
     }
 
     /**
-     * @return array{departments: list<string>, regular: list<float>, overtime: list<float>, holiday: list<float>, allowances: list<float>}
+     * @return array{departments: list<string>, series: list<array{key: string, name: string, data: list<float>}>}
      */
     private function costByDepartment(?PayrollRun $currentRun): array
     {
         if (! $currentRun) {
             return [
                 'departments' => [],
-                'regular' => [],
-                'overtime' => [],
-                'holiday' => [],
-                'allowances' => [],
+                'series' => [],
             ];
         }
 
@@ -197,54 +195,58 @@ class DashboardService
             ->leftJoin('department', 'department.id', '=', 'payroll_earning_line.departmentId')
             ->join('payroll_earning_code', 'payroll_earning_code.id', '=', 'payroll_earning_line.payroll_earning_code_id')
             ->where('payroll_earning_line.payroll_run_id', $currentRun->id)
-            ->whereRaw('UPPER(payroll_earning_code.code) IN (?, ?, ?, ?)', ['REGULAR', 'OVERTIME', 'HOLIDAY', 'ALLOWANCE'])
             ->select([
                 'payroll_earning_line.departmentId',
                 DB::raw('COALESCE(department.name, \'Unassigned\') as department_name'),
-                DB::raw('UPPER(payroll_earning_code.code) as earning_code'),
+                'payroll_earning_code.id as earning_code_id',
+                DB::raw('COALESCE(NULLIF(TRIM(payroll_earning_code.name), \'\'), payroll_earning_code.code) as earning_name'),
+                'payroll_earning_code.sort_order',
                 DB::raw('SUM(payroll_earning_line.amount) as total_amount'),
             ])
             ->groupBy(
                 'payroll_earning_line.departmentId',
                 DB::raw('COALESCE(department.name, \'Unassigned\')'),
-                DB::raw('UPPER(payroll_earning_code.code)'),
+                'payroll_earning_code.id',
+                DB::raw('COALESCE(NULLIF(TRIM(payroll_earning_code.name), \'\'), payroll_earning_code.code)'),
+                'payroll_earning_code.sort_order',
             )
             ->orderBy('department_name')
+            ->orderBy('payroll_earning_code.sort_order')
             ->get();
 
-        $byDept = [];
+        $departments = $rows->pluck('department_name')->unique()->values()->all();
+        $seriesMeta = [];
         foreach ($rows as $row) {
-            $name = (string) $row->department_name;
-            if (! isset($byDept[$name])) {
-                $byDept[$name] = [
-                    'regular' => 0.0,
-                    'overtime' => 0.0,
-                    'holiday' => 0.0,
-                    'allowances' => 0.0,
-                ];
-            }
-
-            $amount = round((float) $row->total_amount, 2);
-            $code = strtoupper((string) $row->earning_code);
-            if ($code === 'REGULAR') {
-                $byDept[$name]['regular'] = $amount;
-            } elseif ($code === 'OVERTIME') {
-                $byDept[$name]['overtime'] = $amount;
-            } elseif ($code === 'HOLIDAY') {
-                $byDept[$name]['holiday'] = $amount;
-            } elseif ($code === 'ALLOWANCE') {
-                $byDept[$name]['allowances'] = $amount;
-            }
+            $key = (string) $row->earning_code_id;
+            $seriesMeta[$key] ??= [
+                'key' => $key,
+                'name' => (string) $row->earning_name,
+                'sort' => (int) $row->sort_order,
+            ];
         }
 
-        $departments = array_keys($byDept);
+        uasort($seriesMeta, fn (array $left, array $right) => $left['sort'] <=> $right['sort'] ?: strcmp($left['name'], $right['name']));
+
+        $amounts = [];
+        foreach ($rows as $row) {
+            $amounts[(string) $row->department_name][(string) $row->earning_code_id] = round((float) $row->total_amount, 2);
+        }
+
+        $series = [];
+        foreach ($seriesMeta as $meta) {
+            $series[] = [
+                'key' => $meta['key'],
+                'name' => $meta['name'],
+                'data' => array_map(
+                    fn (string $department) => $amounts[$department][$meta['key']] ?? 0.0,
+                    $departments,
+                ),
+            ];
+        }
 
         return [
             'departments' => $departments,
-            'regular' => array_map(fn ($name) => $byDept[$name]['regular'], $departments),
-            'overtime' => array_map(fn ($name) => $byDept[$name]['overtime'], $departments),
-            'holiday' => array_map(fn ($name) => $byDept[$name]['holiday'], $departments),
-            'allowances' => array_map(fn ($name) => $byDept[$name]['allowances'], $departments),
+            'series' => $series,
         ];
     }
 

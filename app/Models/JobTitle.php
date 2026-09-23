@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\ConfiguredStorage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 class JobTitle extends Model
 {
@@ -33,6 +33,6 @@ class JobTitle extends Model
             return null;
         }
 
-        return url(Storage::disk('public')->url($this->jobDescriptionPath));
+        return app(ConfiguredStorage::class)->url($this->jobDescriptionPath);
     }
 }

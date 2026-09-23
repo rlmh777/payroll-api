@@ -2,6 +2,7 @@
 
 namespace App\Modules\Payroll\Http\Controllers;
 
+use App\Enums\PayrollItemOccurrence;
 use App\Models\EmployeeDefaultAllowance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -10,7 +11,7 @@ class EmployeeDefaultAllowanceController extends Controller
 {
     private const RELATIONS = [
         'employee',
-        'allowance',
+        'allowance.account',
         'chartOfAccount',
     ];
 
@@ -26,8 +27,19 @@ class EmployeeDefaultAllowanceController extends Controller
             $query->where('allowanceId', $request->input('allowance_id'));
         }
 
-        if ($request->has('account_id')) {
-            $query->where('accountId', $request->input('account_id'));
+        if ($request->filled('occurrence')) {
+            $query->where('occurrence', $request->input('occurrence'));
+        }
+
+        if ($request->filled('account_id')) {
+            $accountId = $request->input('account_id');
+            $query->where(function ($accountQuery) use ($accountId) {
+                $accountQuery
+                    ->where('accountId', $accountId)
+                    ->orWhereHas('allowance', function ($allowanceQuery) use ($accountId) {
+                        $allowanceQuery->where('accountId', $accountId);
+                    });
+            });
         }
 
         if ($request->has('search')) {
@@ -50,18 +62,19 @@ class EmployeeDefaultAllowanceController extends Controller
         $validator = Validator::make($request->all(), [
             'employeeId' => 'required|uuid|exists:employee,id',
             'allowanceId' => 'required|uuid|exists:allowance,id',
-            'accountId' => 'required|uuid|exists:accounts,id',
+            'accountId' => 'nullable|uuid|exists:accounts,id',
             'note' => 'nullable|string|max:1024',
             'quantity' => 'required|numeric|min:0.0001|max:999999999.9999',
             'unitAmount' => 'required|numeric|min:0|max:999999999999.99',
             'amount' => 'nullable|numeric|min:0|max:999999999999.99',
+            ...PayrollItemOccurrence::assignmentRules(),
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $validator->validated();
+        $data = PayrollItemOccurrence::normalizeAssignment($validator->validated());
         $data['quantity'] = round((float) $data['quantity'], 4);
         $data['unitAmount'] = round((float) $data['unitAmount'], 2);
         $data['amount'] = round($data['quantity'] * $data['unitAmount'], 2);
@@ -88,18 +101,19 @@ class EmployeeDefaultAllowanceController extends Controller
         $validator = Validator::make($request->all(), [
             'employeeId' => 'uuid|exists:employee,id',
             'allowanceId' => 'uuid|exists:allowance,id',
-            'accountId' => 'uuid|exists:accounts,id',
+            'accountId' => 'nullable|uuid|exists:accounts,id',
             'note' => 'nullable|string|max:1024',
             'quantity' => 'numeric|min:0.0001|max:999999999.9999',
             'unitAmount' => 'numeric|min:0|max:999999999999.99',
             'amount' => 'nullable|numeric|min:0|max:999999999999.99',
+            ...PayrollItemOccurrence::assignmentRules(false),
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $validator->validated();
+        $data = PayrollItemOccurrence::normalizeAssignment($validator->validated());
 
         if (array_key_exists('quantity', $data) || array_key_exists('unitAmount', $data)) {
             $quantity = array_key_exists('quantity', $data)

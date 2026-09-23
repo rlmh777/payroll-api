@@ -32,7 +32,8 @@ class PayrollRunTimesheetPaidMarker
         }
 
         $startDate = Carbon::parse($schedule->start_date)->startOfDay();
-        $endDate = Carbon::parse($schedule->end_date)->startOfDay();
+        $endDate = PayPeriodHelper::timesheetEndDate($schedule)
+            ?? Carbon::parse($schedule->end_date)->startOfDay();
         $payPeriodGroupId = (string) ($schedule->pay_period_group_id ?? '');
         if ($payPeriodGroupId === '') {
             return 0;

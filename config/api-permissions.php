@@ -73,6 +73,7 @@ return [
         'contract-types' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'countries' => ['view' => 'view-country', 'write' => 'country-crud'],
         'database-backups' => ['view' => 'view-database-backup', 'write' => 'database-backup-crud'],
+        'storage-settings' => ['view' => 'view-file-storage', 'write' => 'file-storage-crud'],
         'dashboard' => ['view' => 'view-dashboard', 'write' => 'view-dashboard'],
         'deduction-types' => ['view' => 'view-pay-items', 'write' => 'view-pay-items'],
         'degrees' => ['view' => 'view-degree', 'write' => 'degree-crud'],

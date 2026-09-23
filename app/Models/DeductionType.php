@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DeductionType extends Model
@@ -14,8 +15,14 @@ class DeductionType extends Model
         'name',
         'category',
         'note',
-        'defaultAmount'
+        'defaultAmount',
+        'accountId',
     ];
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'accountId');
+    }
 
     public function deductions(): HasMany
     {

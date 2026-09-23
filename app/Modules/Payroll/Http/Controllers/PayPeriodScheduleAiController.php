@@ -106,7 +106,7 @@ class PayPeriodScheduleAiController extends Controller
             'records' => ['required', 'array', 'min:1'],
             'records.*.start_date' => ['required', 'date', 'date_format:Y-m-d'],
             'records.*.end_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:records.*.start_date'],
-            'records.*.pay_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:records.*.end_date'],
+            'records.*.pay_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:records.*.start_date'],
             'records.*.pay_period_group_id' => ['nullable', 'uuid', 'exists:pay_period_groups,id'],
             'operation' => ['required', 'in:insert,update'],
             'description' => ['nullable', 'string', 'max:2000'],
@@ -326,7 +326,7 @@ class PayPeriodScheduleAiController extends Controller
         $rules = [
             'start_date' => ['required', 'date', 'date_format:Y-m-d'],
             'end_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
-            'pay_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:end_date'],
+            'pay_date' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'pay_period_group_id' => ['nullable', 'uuid', 'exists:pay_period_groups,id'],
         ];
 

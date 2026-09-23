@@ -51,6 +51,7 @@ class PayrollRunCalculationService
         $startDate = Carbon::parse($schedule->start_date)->startOfDay();
         $endDate = Carbon::parse($schedule->end_date)->startOfDay();
         $payDate = Carbon::parse($schedule->pay_date ?? $schedule->end_date)->startOfDay();
+        $timesheetEndDate = PayPeriodHelper::timesheetEndDate($schedule) ?? $endDate;
         $payPeriodGroupId = (string) $schedule->pay_period_group_id;
         $frequencyId = $this->payrollRunFrequencyResolver->resolveForRun($payrollRun, $schedule);
         $frequencyName = $payrollRun->payrateFrequency?->name
@@ -62,7 +63,7 @@ class PayrollRunCalculationService
 
         $this->timesheetProcessingService->generateScheduledTimesheets([
             'startDate' => $startDate->toDateString(),
-            'endDate' => $endDate->toDateString(),
+            'endDate' => $timesheetEndDate->toDateString(),
             'payPeriodGroupId' => $payPeriodGroupId,
         ]);
 
@@ -100,7 +101,6 @@ class PayrollRunCalculationService
         $allowancesByEmployee = $this->allowanceResolutionService->forEmployees(
             $employeeIds,
             (string) $payrollRun->id,
-            $frequencyId,
         );
 
         $preTaxByEmployee = [];
@@ -158,7 +158,6 @@ class PayrollRunCalculationService
         $deductionsByEmployee = $this->deductionResolutionService->forEmployees(
             $employeeIds,
             (string) $payrollRun->id,
-            $frequencyId,
             function (string $employeeId) use ($preTaxByEmployee) {
                 $preTax = $preTaxByEmployee[$employeeId];
 

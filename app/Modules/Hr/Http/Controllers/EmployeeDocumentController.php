@@ -3,9 +3,9 @@
 namespace App\Modules\Hr\Http\Controllers;
 
 use App\Models\EmployeeDocument;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class EmployeeDocumentController extends Controller
@@ -122,7 +122,7 @@ class EmployeeDocumentController extends Controller
         $file = $request->file('documentFile');
         $extension = $file->getClientOriginalExtension() ?: 'bin';
         $storedName = 'doc_'.Str::uuid().'.'.$extension;
-        $filePath = $file->storeAs('employee-documents', $storedName, 'public');
+        $filePath = app(ConfiguredStorage::class)->store($file, 'employee-documents', $storedName);
 
         $data['filePath'] = $filePath;
         $data['fileName'] = $file->getClientOriginalName();
@@ -151,8 +151,6 @@ class EmployeeDocumentController extends Controller
 
     private function deleteStoredFile(?string $path): void
     {
-        if ($path && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
-        }
+        app(ConfiguredStorage::class)->delete($path);
     }
 }

@@ -64,9 +64,10 @@ class PasskeyService
             'attestation' => 'none',
             'excludeCredentials' => $excludeCredentials,
             'authenticatorSelection' => [
-                'residentKey' => 'preferred',
-                'userVerification' => 'preferred',
-                'requireResidentKey' => false,
+                'authenticatorAttachment' => 'platform',
+                'residentKey' => 'required',
+                'requireResidentKey' => true,
+                'userVerification' => 'required',
             ],
         ];
 
@@ -113,9 +114,9 @@ class PasskeyService
                 PublicKeyCredentialParameters::createPk(-257),
             ],
             AuthenticatorSelectionCriteria::create(
-                null,
-                AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_PREFERRED,
-                AuthenticatorSelectionCriteria::RESIDENT_KEY_REQUIREMENT_PREFERRED,
+                AuthenticatorSelectionCriteria::AUTHENTICATOR_ATTACHMENT_PLATFORM,
+                AuthenticatorSelectionCriteria::USER_VERIFICATION_REQUIREMENT_REQUIRED,
+                AuthenticatorSelectionCriteria::RESIDENT_KEY_REQUIREMENT_REQUIRED,
             ),
             PublicKeyCredentialCreationOptions::ATTESTATION_CONVEYANCE_PREFERENCE_NONE,
         );
@@ -130,7 +131,7 @@ class PasskeyService
     }
 
     /**
-     * @return array{options: array<string, mixed>, challenge_key: string}
+     * @return array{options: array<string, mixed>, challenge_key: string, has_passkeys: bool}
      */
     public function authenticationOptions(?string $email = null): array
     {
@@ -138,6 +139,7 @@ class PasskeyService
         $challengeKey = 'webauthn:login:'.Str::uuid()->toString();
         $allowCredentials = [];
         $userId = null;
+        $hasPasskeys = false;
 
         if ($email) {
             $user = $this->findUserByLoginIdentifier($email);
@@ -148,6 +150,7 @@ class PasskeyService
                     'id' => $this->toBase64Url($this->decodeBinary($credential->credential_id)),
                     'transports' => $credential->transports ?? [],
                 ])->values()->all();
+                $hasPasskeys = $allowCredentials !== [];
             }
         }
 
@@ -167,6 +170,7 @@ class PasskeyService
         return [
             'options' => $options,
             'challenge_key' => $challengeKey,
+            'has_passkeys' => $hasPasskeys,
         ];
     }
 

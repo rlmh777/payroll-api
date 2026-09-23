@@ -2,6 +2,7 @@
 
 namespace App\Modules\Payroll\Http\Controllers;
 
+use App\Enums\PayrollItemOccurrence;
 use App\Models\EmployeeDefaultDeduction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -10,10 +11,9 @@ class EmployeeDefaultDeductionController extends Controller
 {
     private const RELATIONS = [
         'employee',
-        'deduction',
-        'deductionType',
+        'deduction.account',
+        'deductionType.account',
         'bank',
-        'payrateFrequency',
         'chartOfAccount',
     ];
 
@@ -33,12 +33,19 @@ class EmployeeDefaultDeductionController extends Controller
             $query->where('deductionTypeId', $request->input('deductionId'));
         }
 
-        if ($request->has('frequency_id')) {
-            $query->where('frequencyId', $request->input('frequency_id'));
+        if ($request->filled('occurrence')) {
+            $query->where('occurrence', $request->input('occurrence'));
         }
 
-        if ($request->has('account_id')) {
-            $query->where('accountId', $request->input('account_id'));
+        if ($request->filled('account_id')) {
+            $accountId = $request->input('account_id');
+            $query->where(function ($accountQuery) use ($accountId) {
+                $accountQuery
+                    ->where('accountId', $accountId)
+                    ->orWhereHas('deductionType', function ($typeQuery) use ($accountId) {
+                        $typeQuery->where('accountId', $accountId);
+                    });
+            });
         }
 
         if ($request->has('sortBy')) {
@@ -56,10 +63,10 @@ class EmployeeDefaultDeductionController extends Controller
         $validator = Validator::make($request->all(), [
             'employeeId' => ['required', 'uuid', 'exists:employee,id'],
             'deductionTypeId' => ['required', 'numeric', 'exists:deduction_type,id'],
-            'bankId' => ['required', 'uuid', 'exists:bank,id'],
-            'accountNumber' => ['required', 'string', 'max:255'],
-            'frequencyId' => ['required', 'numeric', 'exists:payrate_frequency,id'],
-            'accountId' => ['required', 'uuid', 'exists:accounts,id'],
+            'bankId' => ['nullable', 'uuid', 'exists:bank,id'],
+            'accountNumber' => ['nullable', 'string', 'max:255'],
+            ...PayrollItemOccurrence::assignmentRules(),
+            'accountId' => ['nullable', 'uuid', 'exists:accounts,id'],
             'amount' => ['required', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:255'],
             'allowPartialDeduction' => ['sometimes', 'boolean'],
@@ -69,6 +76,14 @@ class EmployeeDefaultDeductionController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = PayrollItemOccurrence::normalizeAssignment($validator->validated());
+        if (($data['accountNumber'] ?? null) === '') {
+            $data['accountNumber'] = null;
+        }
+        if (($data['bankId'] ?? null) === '') {
+            $data['bankId'] = null;
         }
 
         $exists = EmployeeDefaultDeduction::where('employeeId', $request->employeeId)
@@ -81,7 +96,7 @@ class EmployeeDefaultDeductionController extends Controller
             ], 422);
         }
 
-        $defaultDeduction = EmployeeDefaultDeduction::create($validator->validated());
+        $defaultDeduction = EmployeeDefaultDeduction::create($data);
 
         return response()->json($defaultDeduction->load(self::RELATIONS), 201);
     }
@@ -102,10 +117,10 @@ class EmployeeDefaultDeductionController extends Controller
         $validator = Validator::make($request->all(), [
             'employeeId' => ['sometimes', 'uuid', 'exists:employee,id'],
             'deductionTypeId' => ['sometimes', 'numeric', 'exists:deduction_type,id'],
-            'bankId' => ['sometimes', 'uuid', 'exists:bank,id'],
-            'accountNumber' => ['sometimes', 'string', 'max:255'],
-            'frequencyId' => ['sometimes', 'numeric', 'exists:payrate_frequency,id'],
-            'accountId' => ['sometimes', 'uuid', 'exists:accounts,id'],
+            'bankId' => ['sometimes', 'nullable', 'uuid', 'exists:bank,id'],
+            'accountNumber' => ['sometimes', 'nullable', 'string', 'max:255'],
+            ...PayrollItemOccurrence::assignmentRules(false),
+            'accountId' => ['sometimes', 'nullable', 'uuid', 'exists:accounts,id'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:255'],
             'allowPartialDeduction' => ['sometimes', 'boolean'],
@@ -115,6 +130,14 @@ class EmployeeDefaultDeductionController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = PayrollItemOccurrence::normalizeAssignment($validator->validated());
+        if (array_key_exists('accountNumber', $data) && $data['accountNumber'] === '') {
+            $data['accountNumber'] = null;
+        }
+        if (array_key_exists('bankId', $data) && $data['bankId'] === '') {
+            $data['bankId'] = null;
         }
 
         if ($request->has('employeeId') || $request->has('deductionTypeId')) {
@@ -133,7 +156,7 @@ class EmployeeDefaultDeductionController extends Controller
             }
         }
 
-        $defaultDeduction->update($validator->validated());
+        $defaultDeduction->update($data);
 
         return response()->json($defaultDeduction->load(self::RELATIONS));
     }

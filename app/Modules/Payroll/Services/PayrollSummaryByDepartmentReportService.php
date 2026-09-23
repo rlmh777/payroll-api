@@ -58,10 +58,40 @@ class PayrollSummaryByDepartmentReportService
             $frequencyId,
         );
 
+        $lineAggregates = PayrollEarningLine::query()
+            ->where('payroll_run_id', $payrollRun->id)
+            ->selectRaw('"employeeId", "departmentId", payroll_earning_code_id, SUM(amount) as total_amount, SUM(COALESCE(hours, 0)) as total_hours')
+            ->groupBy('employeeId', 'departmentId', 'payroll_earning_code_id')
+            ->get();
+
+        $usedCodeIds = $lineAggregates
+            ->pluck('payroll_earning_code_id')
+            ->unique()
+            ->values();
+
         $earningCodes = PayrollEarningCode::query()
-            ->whereIn('code', ['REGULAR', 'OVERTIME', 'ALLOWANCE'])
-            ->get(['id', 'code'])
-            ->pluck('code', 'id');
+            ->whereIn('id', $usedCodeIds)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'source', 'sort_order']);
+
+        $earningColumns = $earningCodes
+            ->map(fn (PayrollEarningCode $code) => [
+                'id' => $code->id,
+                'key' => (string) $code->id,
+                'name' => trim((string) $code->name) !== '' ? (string) $code->name : (string) $code->code,
+                'source' => $code->source,
+                'showHours' => in_array($code->source, [
+                    PayrollEarningCode::SOURCE_TIMESHEET_REGULAR,
+                    PayrollEarningCode::SOURCE_TIMESHEET_OVERTIME,
+                    PayrollEarningCode::SOURCE_TIMESHEET_HOLIDAY,
+                    PayrollEarningCode::SOURCE_VACATION,
+                ], true),
+            ])
+            ->values()
+            ->all();
+
+        $codesById = $earningCodes->keyBy('id');
 
         $departmentIds = $rows
             ->pluck('departmentId')
@@ -74,86 +104,79 @@ class PayrollSummaryByDepartmentReportService
             ? collect()
             : Department::query()->whereIn('id', $departmentIds)->get(['id', 'name'])->keyBy('id');
 
-        $lineAggregates = PayrollEarningLine::query()
-            ->where('payroll_run_id', $payrollRun->id)
-            ->selectRaw('"employeeId", "departmentId", payroll_earning_code_id, SUM(amount) as total_amount, SUM(COALESCE(hours, 0)) as total_hours')
-            ->groupBy('employeeId', 'departmentId', 'payroll_earning_code_id')
-            ->get()
-            ->groupBy(fn (PayrollEarningLine $line) => $this->lineKey(
-                (string) $line->employeeId,
-                $line->departmentId !== null ? (int) $line->departmentId : null,
-            ));
+        $linesByEmployee = $lineAggregates->groupBy(fn (PayrollEarningLine $line) => $this->lineKey(
+            (string) $line->employeeId,
+            $line->departmentId !== null ? (int) $line->departmentId : null,
+        ));
 
         $departmentRows = $rows
-            ->map(function (array $row) use ($timesheetEarnings, $lineAggregates, $earningCodes) {
+            ->map(function (array $row) use ($timesheetEarnings, $linesByEmployee, $codesById, $earningColumns) {
                 $employeeId = (string) ($row['employeeId'] ?? '');
                 $departmentId = isset($row['departmentId']) ? (int) $row['departmentId'] : null;
                 $key = $this->lineKey($employeeId, $departmentId);
-                $lines = $lineAggregates->get($key, collect());
+                $lines = $linesByEmployee->get($key, collect());
+                $timesheet = $timesheetEarnings[$employeeId] ?? [];
 
-                $regularAmount = 0.0;
-                $overtimeAmount = 0.0;
-                $allowances = 0.0;
-                $overtimeHoursFromLines = 0.0;
-
-                foreach ($lines as $line) {
-                    $code = (string) ($earningCodes->get((int) $line->payroll_earning_code_id) ?? '');
-                    $amount = round((float) ($line->total_amount ?? 0), 2);
-                    $hours = round((float) ($line->total_hours ?? 0), 2);
-
-                    if ($code === 'REGULAR') {
-                        $regularAmount = round($regularAmount + $amount, 2);
-                    } elseif ($code === 'OVERTIME') {
-                        $overtimeAmount = round($overtimeAmount + $amount, 2);
-                        $overtimeHoursFromLines = round($overtimeHoursFromLines + $hours, 2);
-                    } elseif ($code === 'ALLOWANCE') {
-                        $allowances = round($allowances + $amount, 2);
-                    }
+                $hours = [];
+                $amounts = [];
+                foreach ($earningColumns as $column) {
+                    $hours[$column['key']] = 0.0;
+                    $amounts[$column['key']] = 0.0;
                 }
 
-                $timesheet = $timesheetEarnings[$employeeId] ?? [];
-                $regularHours = round((float) ($timesheet['regularHours'] ?? 0), 2);
-                $overtimeHours = round((float) ($row['overtimeHours'] ?? $overtimeHoursFromLines), 2);
+                foreach ($lines as $line) {
+                    $codeKey = (string) $line->payroll_earning_code_id;
+                    $amounts[$codeKey] = round((float) ($amounts[$codeKey] ?? 0) + (float) ($line->total_amount ?? 0), 2);
+                    $hours[$codeKey] = round((float) ($hours[$codeKey] ?? 0) + (float) ($line->total_hours ?? 0), 2);
+                }
+
+                foreach ($codesById as $code) {
+                    $codeKey = (string) $code->id;
+                    if ($code->source === PayrollEarningCode::SOURCE_TIMESHEET_REGULAR && ($hours[$codeKey] ?? 0) <= 0) {
+                        $hours[$codeKey] = round((float) ($timesheet['regularHours'] ?? 0), 2);
+                    }
+                    if ($code->source === PayrollEarningCode::SOURCE_TIMESHEET_OVERTIME && ($hours[$codeKey] ?? 0) <= 0) {
+                        $hours[$codeKey] = round((float) ($row['overtimeHours'] ?? 0), 2);
+                    }
+                    if ($code->source === PayrollEarningCode::SOURCE_TIMESHEET_HOLIDAY && ($hours[$codeKey] ?? 0) <= 0) {
+                        $hours[$codeKey] = round((float) ($row['holidayHours'] ?? $timesheet['holidayHours'] ?? 0), 2);
+                    }
+                }
 
                 return [
                     'departmentId' => $departmentId,
                     'employeeId' => $employeeId,
                     'employeeCode' => (string) ($row['employeeCode'] ?? ''),
                     'employeeName' => (string) ($row['employeeName'] ?? 'Unknown employee'),
-                    'regularHours' => $regularHours,
-                    'regularAmount' => $regularAmount,
-                    'overtimeHours' => $overtimeHours,
-                    'overtimeAmount' => $overtimeAmount,
-                    'doubleTimeHours' => 0.0,
-                    'doubleTimeAmount' => 0.0,
-                    'allowances' => round((float) ($row['taxableAllowances'] ?? 0) + (float) ($row['nonTaxableAllowances'] ?? 0), 2),
+                    'hours' => $hours,
+                    'amounts' => $amounts,
                     'grossPay' => round((float) ($row['grossPay'] ?? 0), 2),
                 ];
             })
             ->groupBy(fn (array $row) => (string) ($row['departmentId'] ?? 'unassigned'))
-            ->map(function (Collection $group, string $key) use ($departments) {
+            ->map(function (Collection $group, string $key) use ($departments, $earningColumns) {
                 $departmentId = $key === 'unassigned' ? null : (int) $key;
                 $departmentName = $departmentId !== null
                     ? (string) ($departments->get($departmentId)?->name ?? 'Unassigned')
                     : 'Unassigned';
 
-                $rows = $group
-                    ->sortBy([['employeeCode', 'asc'], ['employeeName', 'asc']])
-                    ->values()
-                    ->all();
+                $hoursTotals = [];
+                $amountTotals = [];
+                foreach ($earningColumns as $column) {
+                    $hoursTotals[$column['key']] = round((float) $group->sum(fn (array $row) => (float) ($row['hours'][$column['key']] ?? 0)), 2);
+                    $amountTotals[$column['key']] = round((float) $group->sum(fn (array $row) => (float) ($row['amounts'][$column['key']] ?? 0)), 2);
+                }
 
                 return [
                     'departmentId' => $departmentId,
                     'departmentName' => $departmentName,
-                    'rows' => $rows,
+                    'rows' => $group
+                        ->sortBy([['employeeCode', 'asc'], ['employeeName', 'asc']])
+                        ->values()
+                        ->all(),
                     'totals' => [
-                        'regularHours' => round((float) $group->sum('regularHours'), 2),
-                        'regularAmount' => round((float) $group->sum('regularAmount'), 2),
-                        'overtimeHours' => round((float) $group->sum('overtimeHours'), 2),
-                        'overtimeAmount' => round((float) $group->sum('overtimeAmount'), 2),
-                        'doubleTimeHours' => round((float) $group->sum('doubleTimeHours'), 2),
-                        'doubleTimeAmount' => round((float) $group->sum('doubleTimeAmount'), 2),
-                        'allowances' => round((float) $group->sum('allowances'), 2),
+                        'hours' => $hoursTotals,
+                        'amounts' => $amountTotals,
                         'grossPay' => round((float) $group->sum('grossPay'), 2),
                     ],
                 ];
@@ -169,6 +192,7 @@ class PayrollSummaryByDepartmentReportService
             'payPeriodStartDate' => $schedule->start_date->toDateString(),
             'payPeriodEndDate' => $schedule->end_date->toDateString(),
             'payPeriodNumber' => $this->resolvePayPeriodNumber($schedule),
+            'earningColumns' => $earningColumns,
             'departments' => $departmentRows,
         ];
     }

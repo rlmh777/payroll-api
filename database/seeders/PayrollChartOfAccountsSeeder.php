@@ -47,8 +47,6 @@ class PayrollChartOfAccountsSeeder extends Seeder
 
         $subAccounts = [
             ['6100', '6101', 'Regular Wages', $payrollExpense->id],
-            ['6100', '6102', 'Overtime Wages', $payrollExpense->id],
-            ['6100', '6103', 'Holiday Pay', $payrollExpense->id],
             ['6100', '6104', 'Tips', $payrollExpense->id],
             ['6100', '6105', 'Bonuses', $payrollExpense->id],
             ['6100', '6106', 'Other Payments', $payrollExpense->id],

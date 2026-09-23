@@ -303,7 +303,7 @@ Rules:
    }
 
 4. Dates must be in YYYY-MM-DD format
-5. The pay_date should follow the same pattern as existing schedules (e.g., if pay dates are always 5 days after end_date, maintain that)
+5. The pay_date should follow the same pattern as existing schedules. It may fall inside the period (advance salary, e.g. paid on the 25th for the 1st–end of month) or on/after end_date (arrears). If pay dates are always 5 days after end_date, maintain that.
 6. Calculate the next period based on the most recent schedule
 
 Return ONLY the JSON object, no additional text.

@@ -6,7 +6,7 @@ Excel template for loading sample employees and related records to exercise the 
 
 | File | Purpose |
 |------|---------|
-| [`templates/employee-import-template.xlsx`](./templates/employee-import-template.xlsx) | Multi-sheet template with 6 sample employees |
+| [`templates/employee-import-template.xlsx`](./templates/employee-import-template.xlsx) | Multi-sheet template with 20 sample employees |
 | [`templates/generate-employee-import-template.mjs`](./templates/generate-employee-import-template.mjs) | Regenerates the `.xlsx` |
 
 ```bash
@@ -25,20 +25,24 @@ Use **Employees ▾ → Add Employee** for a single hire, or **Employees ▾ →
 
 **ClockingLogs** can also be uploaded via Attendance → Import (same columns as `sample_biometric_logs.csv`, plus optional `punchType`).
 
-v1 bulk import applies: **Employees**, **Employment**, **Compensation**, **ScheduledWork**, **ClockingLogs**. Banks / Contacts / Leave / SS sheets are ignored if present.
+Bulk import applies: **Employees** (including supervisor/lead), **Employment**, **Compensation**, **Banks**, **Contacts**, **LeaveEntitlements**, **SsBenefits**, **PoolPoints**, **Allowances**, **Deductions**, **DepartmentHeads**, **ScheduledWork**, **ClockingLogs**.
 
 ## Import order
 
-1. **Employees** → `POST /employees`
+1. **Employees** → create people, then assign `supervisorEmployeeCode` / `leadEmployeeCode`
 2. **Employment** → employment details (department, worksite, GL account, pay period group)
 3. **Compensation** → pay method / rates on the active employment detail
-4. **Banks** (optional) — create banks first; none are seeded
+4. **Banks** (optional) — bank records are created from `bankName` if missing
 5. **Contacts** (optional)
 6. **LeaveEntitlements** (optional)
 7. **SsBenefits** (optional)
-8. **ScheduledWork** → `POST /scheduled-work` (explicit shifts for the sample week)
-9. **ClockingLogs** → `POST /clocking-logs` or Attendance file import
-10. **Process** → `POST /clocking-logs/process` with the sample week dates (not a sheet)
+8. **PoolPoints** (optional) — share / tip pool points (`poolTypeName` = Shares or Tips)
+9. **Allowances** (optional) — default other payments (Commission, Web Assist, Trips, …)
+10. **Deductions** (optional) — default deductions (EDC, SMCU Loan, NBB Loan, Staff Charge, …)
+11. **DepartmentHeads** (optional) — appoint current department head
+12. **ScheduledWork** → `POST /scheduled-work` (explicit shifts for the sample week)
+13. **ClockingLogs** → `POST /clocking-logs` or Attendance file import
+14. **Process** → `POST /clocking-logs/process` with the sample week dates (not a sheet)
 
 Lookups are by **name/code**, not database IDs. Valid values are listed on the **Lookups** sheet and match a freshly seeded database.
 
@@ -52,9 +56,9 @@ Populate a fresh database with:
 ./vendor/bin/sail artisan migrate:fresh --seed
 ```
 
-## Sample attendance week
+## Sample attendance
 
-**ScheduledWork** and **ClockingLogs** cover weekdays **2026-05-25 … 2026-05-29** (Mon–Fri).
+**ClockingLogs** cover **2026-06-29 … 2026-07-12**. **ScheduledWork** is optional when the Default Template applies.
 
 | Sheet | Columns (key) |
 |-------|----------------|
@@ -62,19 +66,24 @@ Populate a fresh database with:
 | ClockingLogs | `biometricUserId`, `deviceId`, `punchDateTime`, `punchType` |
 
 - `biometricUserId` = `Employees.code` (processing also accepts `internalId1` / `internalId2`)
-- Devices: `DEV-01` (Head Office), `DEV-02` (Branch Office)
+- Devices: `DEV-01` (Business Office), `DEV-02` (Resort), `DEV-03` (Guava Limb Café)
 - All employees use timesheet template **Default Template**
+- **PoolPoints**: `Shares` uses the share count; `Tips` uses `points = 1` for participation (dollar tips are period earnings, not points)
+- **Allowances** / **Deductions**: one row per named amount (Commission, EDC, SMCU Loan, …)
+- **DepartmentHeads**: appoint the current head; mid-period department changes belong in `Employees.notes`
 
 ## Minimum paths
 
 **Payroll-ready employee:** Employees + Employment + Compensation  
 
-**Attendance processing:** above + ScheduledWork (or Default Template) + ClockingLogs → process  
+**Complete profile:** above + supervisor, banks, contacts, leave, SS, pool shares, allowances, deductions, department heads  
+
+**Attendance processing:** payroll-ready + ScheduledWork (or Default Template) + ClockingLogs → process  
 
 Align:
 
 - `payrateFrequencyName` ↔ `payPeriodGroupName` (`Monthly` ↔ `Monthly Payroll`, `Biweekly` ↔ `Biweekly Payroll`)
-- Hourly methods need `hourlyRate`; base methods need `yearlyRate`
+- Hourly methods need `hourlyRate`; base methods need `yearlyRate`; `DAILY_RATE` needs `dailyRate`
 
 ## Notes
 

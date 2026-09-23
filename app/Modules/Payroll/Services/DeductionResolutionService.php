@@ -8,6 +8,11 @@ use Illuminate\Support\Collection;
 
 class DeductionResolutionService
 {
+    public function __construct(
+        private readonly PayrollRunOccurrenceMatcher $occurrenceMatcher,
+    ) {
+    }
+
     /**
      * @return array{
      *     total: float,
@@ -17,23 +22,28 @@ class DeductionResolutionService
     public function forEmployee(
         string $employeeId,
         string $payrollRunId,
-        ?int $payrateFrequencyId,
         float $netBeforeDeductions,
+        ?PayrollRunOccurrenceContext $occurrenceContext = null,
     ): array {
         $lines = [];
+        $occurrenceContext ??= $this->occurrenceMatcher->contextForRunId($payrollRunId);
 
         $defaults = EmployeeDefaultDeduction::query()
+            ->with('deductionType')
             ->where('employeeId', $employeeId)
-            ->when($payrateFrequencyId, fn ($query) => $query->where('frequencyId', $payrateFrequencyId))
             ->orderBy('priority')
             ->orderBy('created_at')
             ->get();
 
         foreach ($defaults as $default) {
+            if (! $this->occurrenceMatcher->matchesAssignment($default, $occurrenceContext)) {
+                continue;
+            }
+
             $lines[] = [
                 'source' => 'default',
                 'sourceId' => (string) $default->id,
-                'accountId' => filled($default->accountId) ? (string) $default->accountId : null,
+                'accountId' => $this->resolveAccountId($default->accountId, $default->deductionType?->accountId),
                 'amount' => round((float) $default->amount, 2),
                 'allowPartialDeduction' => (bool) $default->allowPartialDeduction,
                 'priority' => (int) ($default->priority ?? 0),
@@ -41,6 +51,7 @@ class DeductionResolutionService
         }
 
         $imported = HistoricalEmployeeDeduction::query()
+            ->with('deductionType')
             ->where('payroll_run_id', $payrollRunId)
             ->where('employee_id', $employeeId)
             ->orderBy('priority')
@@ -51,7 +62,7 @@ class DeductionResolutionService
             $lines[] = [
                 'source' => 'import',
                 'sourceId' => (string) $record->id,
-                'accountId' => filled($record->accountId) ? (string) $record->accountId : null,
+                'accountId' => $this->resolveAccountId($record->accountId, $record->deductionType?->accountId),
                 'amount' => round((float) $record->amount, 2),
                 'allowPartialDeduction' => false,
                 'priority' => (int) ($record->priority ?? 0),
@@ -96,21 +107,30 @@ class DeductionResolutionService
     public function forEmployees(
         Collection $employeeIds,
         string $payrollRunId,
-        ?int $payrateFrequencyId,
         callable $netBeforeDeductionsResolver,
     ): array {
         $results = [];
+        $occurrenceContext = $this->occurrenceMatcher->contextForRunId($payrollRunId);
 
         foreach ($employeeIds as $employeeId) {
             $employeeKey = (string) $employeeId;
             $results[$employeeKey] = $this->forEmployee(
                 $employeeKey,
                 $payrollRunId,
-                $payrateFrequencyId,
                 (float) $netBeforeDeductionsResolver($employeeKey),
+                $occurrenceContext,
             );
         }
 
         return $results;
+    }
+
+    private function resolveAccountId(mixed $assignedAccountId, mixed $typeAccountId): ?string
+    {
+        if (filled($assignedAccountId)) {
+            return (string) $assignedAccountId;
+        }
+
+        return filled($typeAccountId) ? (string) $typeAccountId : null;
     }
 }

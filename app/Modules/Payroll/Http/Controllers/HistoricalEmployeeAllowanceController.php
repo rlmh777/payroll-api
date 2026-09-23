@@ -75,7 +75,7 @@ class HistoricalEmployeeAllowanceController extends Controller
         return response()->json([
             'draftRuns' => $draftRuns,
             'employees' => $employees,
-            'allowances' => Allowance::query()->orderBy('name')->get(),
+            'allowances' => Allowance::query()->with('account')->orderBy('name')->get(),
             'accounts' => Account::query()->orderBy('name')->limit(500)->get(),
         ]);
     }

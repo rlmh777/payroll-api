@@ -21,6 +21,7 @@ class MenuSeeder extends Seeder
         'payroll.settings' => 'payroll',
         'admin.modules' => 'admin',
         'admin.database_backup' => 'admin',
+        'admin.file_storage' => 'admin',
         'admin.menu' => 'admin',
         'admin.roles' => 'admin',
         'admin.organization' => 'admin',
@@ -172,6 +173,18 @@ class MenuSeeder extends Seeder
             'order' => 3,
             'type' => 'submenu',
             'system_key' => 'admin.database_backup',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'File Storage',
+            'route' => '/admin/settings/file-storage',
+            'icon' => 'cloud',
+            'permission' => 'view-file-storage',
+            'order' => 8,
+            'type' => 'submenu',
+            'system_key' => 'admin.file_storage',
             'module_code' => 'admin',
         ]);
 
@@ -463,6 +476,8 @@ class MenuSeeder extends Seeder
             'account-mapping-crud',
             'view-database-backup',
             'database-backup-crud',
+            'view-file-storage',
+            'file-storage-crud',
             'view-settings',
             'view-reports',
             'list-reports',

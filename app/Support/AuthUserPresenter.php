@@ -22,6 +22,7 @@ class AuthUserPresenter
             'preferences' => [
                 'defaultModule' => $user->defaultModule(),
             ],
+            'hasPasskeys' => $user->webAuthnCredentials()->exists(),
         ];
     }
 }

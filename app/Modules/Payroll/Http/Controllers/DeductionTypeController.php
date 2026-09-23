@@ -14,7 +14,7 @@ class DeductionTypeController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = DeductionType::query();
+        $query = DeductionType::query()->with('account');
 
         // Search by name
         if ($request->has('search')) {
@@ -57,12 +57,13 @@ class DeductionTypeController extends Controller
                 'name' => 'required|string|max:255',
                 'note' => 'nullable|string|max:1024',
                 'defaultAmount' => 'required|numeric|min:0|max:9999999999.99',
+                'accountId' => 'nullable|uuid|exists:accounts,id',
             ]);
 
             $deductionType = DeductionType::create($validatedData);
             return response()->json([
                 'message' => 'Deduction Type created successfully',
-                'data' => $deductionType
+                'data' => $deductionType->load('account'),
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -74,7 +75,7 @@ class DeductionTypeController extends Controller
      */
     public function show(DeductionType $deductionType): JsonResponse
     {
-        return response()->json($deductionType, 200);
+        return response()->json($deductionType->load('account'), 200);
     }
 
     /**
@@ -95,12 +96,13 @@ class DeductionTypeController extends Controller
                 'name' => 'sometimes|string|max:255',
                 'note' => 'sometimes|nullable|string|max:1024',
                 'defaultAmount' => 'sometimes|numeric|min:0|max:9999999999.99',
+                'accountId' => 'sometimes|nullable|uuid|exists:accounts,id',
             ]);
 
             $deductionType->update($validatedData);
             return response()->json([
                 'message' => 'Deduction Type updated successfully',
-                'data' => $deductionType
+                'data' => $deductionType->fresh()->load('account'),
             ], 200);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);

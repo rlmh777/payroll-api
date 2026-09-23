@@ -169,8 +169,8 @@ class ScheduledVsWorkedHoursReportService
     private function loadEarningAggregates(string $payrollRunId): Collection
     {
         $codesById = PayrollEarningCode::query()
-            ->get(['id', 'code'])
-            ->pluck('code', 'id');
+            ->get(['id', 'source'])
+            ->keyBy('id');
 
         $rows = PayrollEarningLine::query()
             ->where('payroll_run_id', $payrollRunId)
@@ -181,7 +181,7 @@ class ScheduledVsWorkedHoursReportService
         $byEmployee = [];
         foreach ($rows as $row) {
             $employeeId = (string) $row->employeeId;
-            $code = strtoupper((string) ($codesById->get((int) $row->payroll_earning_code_id) ?? ''));
+            $source = (string) ($codesById->get((int) $row->payroll_earning_code_id)?->source ?? '');
             $amount = round((float) ($row->total_amount ?? 0), 2);
             $sourceType = strtoupper((string) ($row->source_type ?? ''));
 
@@ -191,12 +191,15 @@ class ScheduledVsWorkedHoursReportService
                 'otherEarningsAmount' => 0.0,
             ];
 
-            if (in_array($code, ['REGULAR', 'HOLIDAY'], true)) {
+            if (in_array($source, [
+                PayrollEarningCode::SOURCE_TIMESHEET_REGULAR,
+                PayrollEarningCode::SOURCE_TIMESHEET_HOLIDAY,
+            ], true)) {
                 $byEmployee[$employeeId]['workedAmount'] = round($byEmployee[$employeeId]['workedAmount'] + $amount, 2);
                 continue;
             }
 
-            if ($code === 'OVERTIME') {
+            if ($source === PayrollEarningCode::SOURCE_TIMESHEET_OVERTIME) {
                 $byEmployee[$employeeId]['overtimeAmount'] = round($byEmployee[$employeeId]['overtimeAmount'] + $amount, 2);
                 continue;
             }

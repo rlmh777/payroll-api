@@ -3,9 +3,9 @@
 namespace App\Modules\Hr\Http\Controllers;
 
 use App\Models\EmploymentDetail;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 
@@ -153,13 +153,12 @@ class EmploymentDetailsController extends Controller
             return $data;
         }
 
-        if ($existingPath && Storage::disk('public')->exists($existingPath)) {
-            Storage::disk('public')->delete($existingPath);
-        }
+        $storage = app(ConfiguredStorage::class);
+        $storage->delete($existingPath);
 
         $file = $request->file('contractAgreement');
         $fileName = 'contract_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $data['contractAgreementPath'] = $file->storeAs('employment-contracts', $fileName, 'public');
+        $data['contractAgreementPath'] = $storage->store($file, 'employment-contracts', $fileName);
 
         return $data;
     }

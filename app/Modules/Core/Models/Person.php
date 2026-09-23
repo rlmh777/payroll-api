@@ -2,6 +2,7 @@
 
 namespace App\Modules\Core\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,7 @@ use App\Models\Country;
 use App\Models\Gender;
 use App\Models\Honorific;
 use App\Models\Locality;
+use App\Support\ConfiguredStorage;
 
 class Person extends Model
 {
@@ -52,6 +54,10 @@ class Person extends Model
 
     protected $fillable = self::ATTRIBUTE_KEYS;
 
+    protected $appends = [
+        'pictureUrl',
+    ];
+
     protected $casts = [
         'birthdate' => 'date:Y-m-d',
         'socialSecurityExpirationDate' => 'date:Y-m-d',
@@ -60,6 +66,13 @@ class Person extends Model
     public function locality(): BelongsTo
     {
         return $this->belongsTo(Locality::class, 'localityId');
+    }
+
+    protected function pictureUrl(): Attribute
+    {
+        return Attribute::get(
+            fn () => app(ConfiguredStorage::class)->urlOrNull($this->picturePath),
+        );
     }
 
     public function honorific(): BelongsTo

@@ -3,27 +3,20 @@
 namespace App\Modules\Payroll\Services;
 
 use App\Models\Account;
-use App\Models\Department;
-use App\Models\EmployeeDefaultAllowance;
 use App\Models\EmployeeDefaultDeduction;
-use App\Models\HistoricalEmployeeAllowance;
 use App\Models\HistoricalEmployeeDeduction;
 use App\Models\PayPeriodSchedule;
 use App\Models\PayrollAccountMapping;
-use App\Models\PayrollEarningCode;
 use App\Models\PayrollEarningLine;
 use App\Models\PayrollRun;
-use App\Models\Timesheet;
-use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 class PayrollRunJournalEntryReportService
 {
     public function __construct(
         private readonly PayrollRunCalculationService $payrollRunCalculationService,
-        private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
+        private readonly PayrollRunEarningLineBuilderService $payrollRunEarningLineBuilderService,
         private readonly PayrollAccountMappingService $payrollAccountMappingService,
     ) {
     }
@@ -47,8 +40,6 @@ class PayrollRunJournalEntryReportService
         $startDate = Carbon::parse($schedule->start_date)->startOfDay();
         $endDate = Carbon::parse($schedule->end_date)->startOfDay();
         $payPeriodGroupId = (string) $schedule->pay_period_group_id;
-        $frequencyId = $this->payrollRunFrequencyResolver->resolveForRun($payrollRun, $schedule);
-        $otMultiplier = (float) config('payroll.overtime_multiplier', 1.5);
 
         $summary = $this->payrollRunCalculationService->calculate($payrollRun, false, true);
         $rows = collect($summary['rows'] ?? []);
@@ -57,30 +48,16 @@ class PayrollRunJournalEntryReportService
             throw new InvalidArgumentException('No payroll data is available for this payroll run.');
         }
 
-        $earningAccounts = $this->earningAccountsByCode();
+        if (! $payrollRun->earningLines()->exists()) {
+            $this->payrollRunEarningLineBuilderService->syncForRun($payrollRun, $summary);
+        }
+
         $wagesPayableAccountId = $this->payrollAccountMappingService->journalAccountKey('WAGES_PAYABLE');
         $deductionsPayableAccountId = $this->payrollAccountMappingService->journalAccountKey('DEDUCTIONS_PAYABLE');
         $incomeTaxAccountId = $this->payrollAccountMappingService->journalAccountKey('INCOME_TAX_PAYABLE');
         $socialSecurityAccountId = $this->payrollAccountMappingService->journalAccountKey('EMPLOYEE_SOCIAL_SECURITY_PAYABLE');
         $employerSocialSecurityAccountId = $this->payrollAccountMappingService->journalAccountKey('EMPLOYER_SOCIAL_SECURITY_EXPENSE');
-        $departmentWagesFallback = $this->payrollAccountMappingService->journalAccountKey('DEPARTMENT_WAGES');
-        $allowancesFallback = $this->payrollAccountMappingService->journalAccountKey('ALLOWANCES');
-        $vacationPayAccountId = $this->payrollAccountMappingService->journalAccountKey('VACATION_PAY');
         $leaveAdvanceClearingAccountId = $this->payrollAccountMappingService->journalAccountKey('LEAVE_ADVANCE_CLEARING');
-        if (isset($earningAccounts['VACATION'])) {
-            $vacationPayAccountId = $earningAccounts['VACATION'];
-        }
-
-        $departmentIds = $rows
-            ->pluck('departmentId')
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values();
-
-        $departmentsById = $departmentIds->isEmpty()
-            ? collect()
-            : Department::query()->whereIn('id', $departmentIds)->get(['id', 'accountId'])->keyBy('id');
 
         /** @var array<string, array{accountId:string,accountNumber:string,accountDescription:string,debit:float,credit:float}> $lines */
         $lines = [];
@@ -90,85 +67,12 @@ class PayrollRunJournalEntryReportService
             ->whereNotNull('accountId')
             ->get(['accountId', 'amount']);
 
-        if ($existingEarningLines->isNotEmpty()) {
-            foreach ($existingEarningLines as $earningLine) {
-                $this->addDebit(
-                    $lines,
-                    (string) $earningLine->accountId,
-                    (float) $earningLine->amount,
-                );
-            }
-        } else {
-            foreach ($rows as $row) {
-                $employeeId = (string) ($row['employeeId'] ?? '');
-                $departmentId = isset($row['departmentId']) ? (int) $row['departmentId'] : null;
-                $baseEarnings = round((float) ($row['baseEarnings'] ?? 0), 2);
-                $overtimeHours = round((float) ($row['overtimeHours'] ?? 0), 2);
-                $holidayHours = round((float) ($row['holidayHours'] ?? 0), 2);
-                $hourlyRate = $this->resolveHourlyRate($employeeId, $startDate, $endDate, $payPeriodGroupId, $frequencyId);
-
-                $overtimeAmount = round($overtimeHours * $hourlyRate * $otMultiplier, 2);
-                $holidayAmount = round($holidayHours * $hourlyRate, 2);
-                $vacationPayAmount = round((float) ($row['_calculation']['vacationPay']['amount'] ?? 0), 2);
-                $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount - $vacationPayAmount), 2);
-
-                if ($regularAmount > 0) {
-                    $this->addDebit(
-                        $lines,
-                        $this->resolveDepartmentWageAccountId(
-                            $departmentId,
-                            $departmentsById,
-                            $earningAccounts['REGULAR'] ?? $departmentWagesFallback,
-                        ),
-                        $regularAmount,
-                    );
-                }
-
-                if ($overtimeAmount > 0) {
-                    $this->addDebit(
-                        $lines,
-                        $this->resolveDepartmentWageAccountId(
-                            $departmentId,
-                            $departmentsById,
-                            $earningAccounts['OVERTIME'] ?? $departmentWagesFallback,
-                        ),
-                        $overtimeAmount,
-                    );
-                }
-
-                if ($holidayAmount > 0) {
-                    $this->addDebit(
-                        $lines,
-                        $this->resolveDepartmentWageAccountId(
-                            $departmentId,
-                            $departmentsById,
-                            $earningAccounts['HOLIDAY'] ?? $departmentWagesFallback,
-                        ),
-                        $holidayAmount,
-                    );
-                }
-
-                $allowanceData = $row['_calculation']['allowances'] ?? [];
-                foreach ($allowanceData['lines'] ?? [] as $allowanceLine) {
-                    $amount = round((float) ($allowanceLine['amount'] ?? 0), 2);
-                    if ($amount <= 0) {
-                        continue;
-                    }
-
-                    $accountId = $this->resolveAllowanceAccountId(
-                        $allowanceLine,
-                        $earningAccounts['ALLOWANCE'] ?? $allowancesFallback,
-                    );
-                    $this->addDebit($lines, $accountId, $amount);
-                }
-
-                $alreadyPaidAmount = round((float) ($row['_calculation']['alreadyPaidLeave']['amount'] ?? 0), 2);
-                $vacationPayAmount = round((float) ($row['_calculation']['vacationPay']['amount'] ?? 0), 2);
-                $vacationExpenseAmount = round($alreadyPaidAmount + $vacationPayAmount, 2);
-                if ($vacationExpenseAmount > 0) {
-                    $this->addDebit($lines, $vacationPayAccountId, $vacationExpenseAmount);
-                }
-            }
+        foreach ($existingEarningLines as $earningLine) {
+            $this->addDebit(
+                $lines,
+                (string) $earningLine->accountId,
+                (float) $earningLine->amount,
+            );
         }
 
         foreach ($rows as $row) {
@@ -282,55 +186,6 @@ class PayrollRunJournalEntryReportService
             ->count();
     }
 
-    private function resolveHourlyRate(
-        string $employeeId,
-        Carbon $startDate,
-        Carbon $endDate,
-        string $payPeriodGroupId,
-        ?int $frequencyId,
-    ): float {
-        $timesheet = Timesheet::query()
-            ->where('employeeId', $employeeId)
-            ->whereRaw('UPPER("approvalStatus") = ?', ['APPROVED'])
-            ->whereBetween('date', [$startDate->toDateString(), $endDate->toDateString()])
-            ->when($payPeriodGroupId !== '', function ($query) use ($payPeriodGroupId) {
-                $query->whereHas('employmentDetail', fn ($detailQuery) => $detailQuery
-                    ->where('defaultPayPeriodGroupId', $payPeriodGroupId));
-            })
-            ->orderByDesc('hourlyRate')
-            ->first();
-
-        if (! $timesheet) {
-            return 0.0;
-        }
-
-        $hourlyRate = (float) ($timesheet->hourlyRate ?? 0);
-        if ($hourlyRate > 0) {
-            return $hourlyRate;
-        }
-
-        $baseSalary = (float) ($timesheet->baseSalary ?? 0);
-        if ($baseSalary > 0) {
-            return app(EmployeeCompensationResolver::class)->hourlyRateFromBaseSalary($baseSalary);
-        }
-
-        return 0.0;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function earningAccountsByCode(): array
-    {
-        return PayrollEarningCode::query()
-            ->whereNotNull('account_id')
-            ->get(['code', 'account_id'])
-            ->mapWithKeys(fn (PayrollEarningCode $code) => [
-                strtoupper((string) $code->code) => (string) $code->account_id,
-            ])
-            ->all();
-    }
-
     /**
      * @param  array<string, array{accountId:string,accountNumber:string,accountDescription:string,debit:float,credit:float}>  $lines
      */
@@ -370,44 +225,6 @@ class PayrollRunJournalEntryReportService
     }
 
     /**
-     * @param  Collection<int, Department>  $departmentsById
-     */
-    private function resolveDepartmentWageAccountId(
-        ?int $departmentId,
-        Collection $departmentsById,
-        string $fallbackAccountId,
-    ): string {
-        if ($departmentId !== null) {
-            $departmentAccountId = $departmentsById->get($departmentId)?->accountId;
-            if (filled($departmentAccountId)) {
-                return (string) $departmentAccountId;
-            }
-        }
-
-        return $fallbackAccountId;
-    }
-
-    /**
-     * @param  array<string, mixed>  $line
-     */
-    private function resolveAllowanceAccountId(array $line, string $fallbackAccountId): string
-    {
-        if (filled($line['accountId'] ?? null)) {
-            return (string) $line['accountId'];
-        }
-
-        if (($line['source'] ?? '') === 'default') {
-            $record = EmployeeDefaultAllowance::query()->find($line['sourceId'] ?? null);
-
-            return filled($record?->accountId) ? (string) $record->accountId : $fallbackAccountId;
-        }
-
-        $record = HistoricalEmployeeAllowance::query()->find($line['sourceId'] ?? null);
-
-        return filled($record?->accountId) ? (string) $record->accountId : $fallbackAccountId;
-    }
-
-    /**
      * @param  array<string, mixed>  $line
      */
     private function resolveDeductionAccountId(array $line, string $fallbackAccountId): string
@@ -417,14 +234,26 @@ class PayrollRunJournalEntryReportService
         }
 
         if (($line['source'] ?? '') === 'default') {
-            $record = EmployeeDefaultDeduction::query()->find($line['sourceId'] ?? null);
+            $record = EmployeeDefaultDeduction::query()->with('deductionType')->find($line['sourceId'] ?? null);
 
-            return filled($record?->accountId) ? (string) $record->accountId : $fallbackAccountId;
+            if (filled($record?->accountId)) {
+                return (string) $record->accountId;
+            }
+
+            return filled($record?->deductionType?->accountId)
+                ? (string) $record->deductionType->accountId
+                : $fallbackAccountId;
         }
 
-        $record = HistoricalEmployeeDeduction::query()->find($line['sourceId'] ?? null);
+        $record = HistoricalEmployeeDeduction::query()->with('deductionType')->find($line['sourceId'] ?? null);
 
-        return filled($record?->accountId) ? (string) $record->accountId : $fallbackAccountId;
+        if (filled($record?->accountId)) {
+            return (string) $record->accountId;
+        }
+
+        return filled($record?->deductionType?->accountId)
+            ? (string) $record->deductionType->accountId
+            : $fallbackAccountId;
     }
 
     private function formatAccountNumber(Account $account): string

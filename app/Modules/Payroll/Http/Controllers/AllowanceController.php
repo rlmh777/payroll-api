@@ -15,7 +15,7 @@ class AllowanceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Allowance::query();
+        $query = Allowance::query()->with(['payrollEarningCode', 'account']);
 
         // Search by name
         if ($request->has('search')) {
@@ -77,12 +77,14 @@ class AllowanceController extends Controller
                 'isSocialSecurityDeductable' => 'nullable|boolean',
                 'note' => 'nullable|string|max:1024',
                 'defaultAmount' => 'required|numeric|min:0|max:9999999999.99',
+                'payroll_earning_code_id' => 'nullable|integer|exists:payroll_earning_code,id',
+                'accountId' => 'nullable|uuid|exists:accounts,id',
             ]);
 
             $allowance = Allowance::create($validatedData);
             return response()->json([
                 'message' => 'Other Payment created successfully',
-                'data' => $allowance
+                'data' => $allowance->load(['payrollEarningCode', 'account'])
             ], 201);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -94,7 +96,7 @@ class AllowanceController extends Controller
      */
     public function show(Allowance $allowance): JsonResponse
     {
-        return response()->json($allowance, 200);
+        return response()->json($allowance->load(['payrollEarningCode', 'account']), 200);
     }
 
     /**
@@ -124,12 +126,14 @@ class AllowanceController extends Controller
                 'isSocialSecurityDeductable' => 'sometimes|nullable|boolean',
                 'note' => 'sometimes|nullable|string|max:1024',
                 'defaultAmount' => 'sometimes|numeric|min:0|max:9999999999.99',
+                'payroll_earning_code_id' => 'sometimes|nullable|integer|exists:payroll_earning_code,id',
+                'accountId' => 'sometimes|nullable|uuid|exists:accounts,id',
             ]);
 
             $allowance->update($validatedData);
             return response()->json([
                 'message' => 'Other Payment updated successfully',
-                'data' => $allowance
+                'data' => $allowance->fresh()->load(['payrollEarningCode', 'account'])
             ], 200);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);

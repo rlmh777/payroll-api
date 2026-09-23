@@ -264,12 +264,14 @@ class TwoFactorService
      */
     private function sessionPayload(User $user): array
     {
+        $userPayload = AuthUserPresenter::present($user);
         $token = $user->createToken($user->email)->plainTextToken;
 
         return [
             'message' => 'Login successful',
-            'user' => AuthUserPresenter::present($user),
+            'user' => $userPayload,
             'token' => $token,
+            'has_passkeys' => (bool) ($userPayload['hasPasskeys'] ?? false),
         ];
     }
 

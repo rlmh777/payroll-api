@@ -13,9 +13,9 @@ use App\Models\PaymentMethod;
 use App\Models\PayrollRun;
 use App\Models\Timesheet;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
+use App\Support\ConfiguredStorage;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -460,11 +460,7 @@ class PayrollRunPayslipService
             return $logoPath;
         }
 
-        if (Storage::disk('public')->exists($logoPath)) {
-            return Storage::disk('public')->url($logoPath);
-        }
-
-        return asset('storage/' . ltrim($logoPath, '/'));
+        return app(ConfiguredStorage::class)->url($logoPath);
     }
 
     private function resolveHourlyRate(

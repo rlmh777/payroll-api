@@ -18,6 +18,10 @@ class EmployeeDefaultAllowance extends Model
 
     public $incrementing = false;
 
+    protected $attributes = [
+        'occurrence' => 'every_payroll',
+    ];
+
     protected $fillable = [
         'employeeId',
         'allowanceId',
@@ -26,12 +30,17 @@ class EmployeeDefaultAllowance extends Model
         'quantity',
         'unitAmount',
         'amount',
+        'occurrence',
+        'occurrenceCycleLength',
+        'occurrenceCycleOffset',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'quantity' => 'decimal:4',
         'unitAmount' => 'decimal:2',
+        'occurrenceCycleLength' => 'integer',
+        'occurrenceCycleOffset' => 'integer',
     ];
 
     public function employee(): BelongsTo

@@ -5,10 +5,10 @@ namespace App\Modules\Hr\Http\Controllers;
 use App\Models\Employee;
 use App\Models\EmployeeIncident;
 use App\Models\EmployeeIncidentAttachment;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -277,7 +277,7 @@ class EmployeeIncidentController extends Controller
         foreach ($files as $file) {
             $extension = $file->getClientOriginalExtension() ?: 'bin';
             $storedName = 'incident_'.Str::uuid().'.'.$extension;
-            $filePath = $file->storeAs('incident-attachments', $storedName, 'public');
+            $filePath = app(ConfiguredStorage::class)->store($file, 'incident-attachments', $storedName);
 
             EmployeeIncidentAttachment::query()->create([
                 'employeeIncidentId' => $incident->id,
@@ -299,8 +299,8 @@ class EmployeeIncidentController extends Controller
                 ->where('filePath', $path)
                 ->exists();
 
-            if (!$stillReferenced && Storage::disk('public')->exists($path)) {
-                Storage::disk('public')->delete($path);
+            if (!$stillReferenced) {
+                app(ConfiguredStorage::class)->delete($path);
             }
         }
     }

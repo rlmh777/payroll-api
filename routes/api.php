@@ -1057,3 +1057,9 @@ Route::prefix('database-backups')->group(function () {
     Route::post('/{databaseBackup}/restore', [DatabaseBackupController::class, 'restore']);
     Route::delete('/{databaseBackup}', [DatabaseBackupController::class, 'destroy']);
 });
+
+Route::prefix('storage-settings')->group(function () {
+    Route::get('/', [\App\Http\Controllers\StorageSettingController::class, 'show']);
+    Route::put('/', [\App\Http\Controllers\StorageSettingController::class, 'update']);
+    Route::post('/test', [\App\Http\Controllers\StorageSettingController::class, 'test']);
+});

@@ -9,6 +9,11 @@ use Illuminate\Support\Collection;
 
 class AllowanceResolutionService
 {
+    public function __construct(
+        private readonly PayrollRunOccurrenceMatcher $occurrenceMatcher,
+    ) {
+    }
+
     /**
      * @return array{
      *     taxableTotal: float,
@@ -20,12 +25,13 @@ class AllowanceResolutionService
     public function forEmployee(
         string $employeeId,
         string $payrollRunId,
-        ?int $payrateFrequencyId,
+        ?PayrollRunOccurrenceContext $occurrenceContext = null,
     ): array {
         $lines = [];
         $taxableTotal = 0.0;
         $nonTaxableTotal = 0.0;
         $ssSubjectTotal = 0.0;
+        $occurrenceContext ??= $this->occurrenceMatcher->contextForRunId($payrollRunId);
 
         $defaults = EmployeeDefaultAllowance::query()
             ->with('allowance')
@@ -33,6 +39,10 @@ class AllowanceResolutionService
             ->get();
 
         foreach ($defaults as $default) {
+            if (! $this->occurrenceMatcher->matchesAssignment($default, $occurrenceContext)) {
+                continue;
+            }
+
             $amount = round((float) $default->amount, 2);
             $line = $this->classifyAllowanceAmount(
                 $amount,
@@ -40,8 +50,9 @@ class AllowanceResolutionService
                 (bool) ($default->allowance?->isSocialSecurityDeductable ?? false),
                 'default',
                 (string) $default->id,
-                filled($default->accountId) ? (string) $default->accountId : null,
+                $this->resolveAccountId($default->accountId, $default->allowance?->accountId),
             );
+            $line['payrollEarningCodeId'] = $default->allowance?->payroll_earning_code_id;
             $lines[] = $line;
             $taxableTotal = round($taxableTotal + $line['taxableAmount'], 2);
             $nonTaxableTotal = round($nonTaxableTotal + $line['nonTaxableAmount'], 2);
@@ -73,11 +84,12 @@ class AllowanceResolutionService
             $line = [
                 'source' => 'import',
                 'sourceId' => (string) $record->id,
-                'accountId' => filled($record->accountId) ? (string) $record->accountId : null,
+                'accountId' => $this->resolveAccountId($record->accountId, $record->allowance?->accountId),
                 'amount' => $amount,
                 'taxableAmount' => $taxableAmount,
                 'nonTaxableAmount' => round(max(0, $amount - $taxableAmount), 2),
                 'ssSubjectAmount' => $ssSubjectAmount,
+                'payrollEarningCodeId' => $record->allowance?->payroll_earning_code_id,
             ];
             $lines[] = $line;
             $taxableTotal = round($taxableTotal + $line['taxableAmount'], 2);
@@ -137,19 +149,28 @@ class AllowanceResolutionService
     public function forEmployees(
         Collection $employeeIds,
         string $payrollRunId,
-        ?int $payrateFrequencyId,
     ): array {
         $results = [];
+        $occurrenceContext = $this->occurrenceMatcher->contextForRunId($payrollRunId);
 
         foreach ($employeeIds as $employeeId) {
             $results[(string) $employeeId] = $this->forEmployee(
                 (string) $employeeId,
                 $payrollRunId,
-                $payrateFrequencyId,
+                $occurrenceContext,
             );
         }
 
         return $results;
+    }
+
+    private function resolveAccountId(mixed $assignedAccountId, mixed $typeAccountId): ?string
+    {
+        if (filled($assignedAccountId)) {
+            return (string) $assignedAccountId;
+        }
+
+        return filled($typeAccountId) ? (string) $typeAccountId : null;
     }
 
     /**

@@ -23,6 +23,11 @@ if [[ "${RUN_SEEDERS:-false}" == "true" ]]; then
   fi
 fi
 
+if [[ "${RUN_MIGRATIONS:-false}" == "true" && -n "${AZURE_STORAGE_ACCOUNT_NAME:-}" && -n "${AZURE_STORAGE_ACCOUNT_KEY:-}" ]]; then
+  php artisan storage:configure --force --no-interaction \
+    || echo "WARNING: storage:configure failed; File Storage settings were not updated."
+fi
+
 php artisan config:cache --no-interaction || true
 php artisan route:cache --no-interaction || true
 php artisan view:cache --no-interaction || true

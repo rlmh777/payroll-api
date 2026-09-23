@@ -10,9 +10,9 @@ use App\Modules\Hr\Services\EmployeePersonSync;
 use App\Modules\Hr\Services\Employee\EmployeeCodeGenerator;
 use App\Modules\Hr\Services\Activity\EmployeeTimeTravelService;
 use App\Services\EmployeeFormAccessService;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -323,20 +323,19 @@ class EmployeeController extends Controller
         try {
             $person = $employee->person;
 
-            if ($person?->picturePath && Storage::disk('public')->exists($person->picturePath)) {
-                Storage::disk('public')->delete($person->picturePath);
-            }
+            $storage = app(ConfiguredStorage::class);
+            $storage->delete($person?->picturePath);
 
             $file = $request->file('picture');
             $fileName = 'employee_'.$employee->id.'_'.time().'.'.$file->getClientOriginalExtension();
-            $path = $file->storeAs('employees/pictures', $fileName, 'public');
+            $path = $storage->store($file, 'employees/pictures', $fileName);
 
             $person?->update(['picturePath' => $path]);
 
             return response()->json([
                 'message' => 'Picture uploaded successfully',
                 'path' => $path,
-                'url' => asset('storage/'.$path),
+                'url' => $storage->url($path),
             ]);
         } catch (\Exception $e) {
             Log::error('Error uploading employee picture', [

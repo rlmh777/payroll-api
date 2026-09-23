@@ -58,4 +58,32 @@ class PayPeriodHelperTest extends TestCase
 
         $this->assertSame(['past', 'current', 'next'], array_column($kept, 'id'));
     }
+
+    public function test_timesheet_end_stops_at_pay_date_when_pay_date_is_inside_the_period(): void
+    {
+        $through = PayPeriodHelper::timesheetEndDate([
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'pay_date' => '2026-06-25',
+        ]);
+
+        $this->assertSame('2026-06-25', $through?->toDateString());
+    }
+
+    public function test_timesheet_end_uses_period_end_when_pay_date_is_on_or_after_end(): void
+    {
+        $onEnd = PayPeriodHelper::timesheetEndDate([
+            'start_date' => '2026-05-16',
+            'end_date' => '2026-05-31',
+            'pay_date' => '2026-05-31',
+        ]);
+        $afterEnd = PayPeriodHelper::timesheetEndDate([
+            'start_date' => '2026-05-16',
+            'end_date' => '2026-05-31',
+            'pay_date' => '2026-06-05',
+        ]);
+
+        $this->assertSame('2026-05-31', $onEnd?->toDateString());
+        $this->assertSame('2026-05-31', $afterEnd?->toDateString());
+    }
 }

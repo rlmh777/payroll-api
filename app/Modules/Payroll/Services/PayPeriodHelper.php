@@ -108,6 +108,27 @@ class PayPeriodHelper
         return $futureCount < 1;
     }
 
+    /**
+     * Last date whose timesheets belong to this paycheck.
+     * When pay date falls inside the period (advance salary, e.g. paid on the 25th
+     * for the whole month), days after payday stay attendance-only.
+     */
+    public static function timesheetEndDate(object|array $period): ?Carbon
+    {
+        $end = self::periodEndDate($period);
+        $pay = self::periodPayDate($period);
+
+        if ($end === null) {
+            return $pay;
+        }
+
+        if ($pay instanceof CarbonInterface && $pay->lt($end)) {
+            return $pay;
+        }
+
+        return $end;
+    }
+
     private static function periodStartDate(object|array $period): ?Carbon
     {
         $value = is_array($period)
@@ -122,6 +143,15 @@ class PayPeriodHelper
         $value = is_array($period)
             ? ($period['end_date'] ?? $period['endDate'] ?? null)
             : ($period->end_date ?? $period->endDate ?? null);
+
+        return $value ? Carbon::parse($value)->startOfDay() : null;
+    }
+
+    private static function periodPayDate(object|array $period): ?Carbon
+    {
+        $value = is_array($period)
+            ? ($period['pay_date'] ?? $period['payDate'] ?? null)
+            : ($period->pay_date ?? $period->payDate ?? null);
 
         return $value ? Carbon::parse($value)->startOfDay() : null;
     }

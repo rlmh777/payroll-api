@@ -38,6 +38,10 @@ const SHEET_TO_PAYLOAD_KEY = {
   Contacts: 'contacts',
   LeaveEntitlements: 'leaveEntitlements',
   SsBenefits: 'ssBenefits',
+  PoolPoints: 'poolPoints',
+  Allowances: 'allowances',
+  Deductions: 'deductions',
+  DepartmentHeads: 'departmentHeads',
   ScheduledWork: 'scheduledWork',
   ClockingLogs: 'clockingLogs',
 };

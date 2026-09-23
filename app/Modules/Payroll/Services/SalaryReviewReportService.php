@@ -2,6 +2,7 @@
 
 namespace App\Modules\Payroll\Services;
 
+use App\Models\PayrollEarningCode;
 use App\Models\PayrollEarningLine;
 use App\Models\PayrollRun;
 use Carbon\Carbon;
@@ -16,18 +17,6 @@ class SalaryReviewReportService
     private const CALCULATED_GRATUITY_COLUMN = '30% Gratuity';
 
     private const GROSS_COLUMN = 'Gross';
-
-    /**
-     * @var list<string>
-     */
-    private const PREFERRED_ACCOUNT_ORDER = [
-        'Monthly Other Payment',
-        'Total Base Wage',
-        'Gratuity',
-        'Total Other Payment',
-        'Regular Holiday Pay',
-        'Tips',
-    ];
 
     public function __construct(
         private readonly PayrollRunCalculationService $payrollRunCalculationService,
@@ -49,7 +38,7 @@ class SalaryReviewReportService
         $aggregates = PayrollEarningLine::query()
             ->join('payroll_runs', 'payroll_runs.id', '=', 'payroll_earning_line.payroll_run_id')
             ->join('pay_period_schedule', 'pay_period_schedule.id', '=', 'payroll_runs.pay_period_schedule_id')
-            ->leftJoin('accounts', 'accounts.id', '=', 'payroll_earning_line.accountId')
+            ->leftJoin('payroll_earning_code', 'payroll_earning_code.id', '=', 'payroll_earning_line.payroll_earning_code_id')
             ->leftJoin('department', 'department.id', '=', 'payroll_earning_line.departmentId')
             ->leftJoin('employee', 'employee.id', '=', 'payroll_earning_line.employeeId')
             ->leftJoin('person', 'person.id', '=', 'employee.person_id')
@@ -65,8 +54,8 @@ class SalaryReviewReportService
                 'employee.code as employee_code',
                 'person.lastName as employee_last_name',
                 'person.firstName as employee_first_name',
-                'payroll_earning_line.accountId',
-                DB::raw('COALESCE(NULLIF(TRIM(accounts.name), \'\'), NULLIF(TRIM(accounts.description), \'\'), \'Unassigned Account\') as account_name'),
+                'payroll_earning_line.payroll_earning_code_id',
+                DB::raw('COALESCE(NULLIF(TRIM(payroll_earning_code.name), \'\'), NULLIF(TRIM(payroll_earning_code.code), \'\'), \'Other Earnings\') as pay_type_name'),
                 DB::raw('SUM(payroll_earning_line.amount) as total_amount'),
             ])
             ->groupBy(
@@ -77,8 +66,8 @@ class SalaryReviewReportService
                 'employee.code',
                 'person.lastName',
                 'person.firstName',
-                'payroll_earning_line.accountId',
-                DB::raw('COALESCE(NULLIF(TRIM(accounts.name), \'\'), NULLIF(TRIM(accounts.description), \'\'), \'Unassigned Account\')'),
+                'payroll_earning_line.payroll_earning_code_id',
+                DB::raw('COALESCE(NULLIF(TRIM(payroll_earning_code.name), \'\'), NULLIF(TRIM(payroll_earning_code.code), \'\'), \'Other Earnings\')'),
             )
             ->get();
 
@@ -94,18 +83,18 @@ class SalaryReviewReportService
             ->groupBy(fn ($row) => (string) ($row->departmentId ?? 'unassigned'))
             ->map(function (Collection $departmentRows, string $departmentKey) {
                 $firstRow = $departmentRows->first();
-                $accountNames = $departmentRows
-                    ->pluck('account_name')
+                $payTypeNames = $departmentRows
+                    ->pluck('pay_type_name')
                     ->map(fn ($name) => (string) $name)
                     ->unique()
                     ->values();
 
-                $columns = $this->buildColumns($accountNames);
+                $columns = $this->buildColumns($payTypeNames);
 
                 $employeeRows = $departmentRows
                     ->groupBy('employeeId')
-                    ->map(function (Collection $employeeAccountRows) use ($columns) {
-                        $employeeRow = $employeeAccountRows->first();
+                    ->map(function (Collection $employeePayTypeRows) use ($columns) {
+                        $employeeRow = $employeePayTypeRows->first();
                         $employeeName = trim((string) ($employeeRow->employee_name ?? ''));
                         if ($employeeName === '') {
                             $employeeName = 'Unknown employee';
@@ -120,14 +109,14 @@ class SalaryReviewReportService
                             $values[$column] = 0.0;
                         }
 
-                        foreach ($employeeAccountRows as $accountRow) {
-                            $accountName = (string) $accountRow->account_name;
-                            if (!array_key_exists($accountName, $values)) {
-                                $values[$accountName] = 0.0;
+                        foreach ($employeePayTypeRows as $payTypeRow) {
+                            $payTypeName = (string) $payTypeRow->pay_type_name;
+                            if (!array_key_exists($payTypeName, $values)) {
+                                $values[$payTypeName] = 0.0;
                             }
 
-                            $values[$accountName] = round(
-                                $values[$accountName] + (float) $accountRow->total_amount,
+                            $values[$payTypeName] = round(
+                                $values[$payTypeName] + (float) $payTypeRow->total_amount,
                                 2,
                             );
                         }
@@ -174,22 +163,22 @@ class SalaryReviewReportService
     }
 
     /**
-     * @param Collection<int, string> $accountNames
+     * @param Collection<int, string> $payTypeNames
      * @return list<string>
      */
-    private function buildColumns(Collection $accountNames): array
+    private function buildColumns(Collection $payTypeNames): array
     {
-        $ordered = collect(self::PREFERRED_ACCOUNT_ORDER)
-            ->filter(fn (string $name) => $accountNames->contains($name))
-            ->values();
+        $sortByName = PayrollEarningCode::query()
+            ->get(['name', 'code', 'sort_order'])
+            ->mapWithKeys(function (PayrollEarningCode $code) {
+                $label = trim((string) $code->name) !== '' ? trim((string) $code->name) : (string) $code->code;
 
-        $remaining = $accountNames
-            ->diff($ordered)
-            ->sort()
-            ->values();
+                return [$label => (int) $code->sort_order];
+            });
 
-        $columns = $ordered
-            ->merge($remaining)
+        $columns = $payTypeNames
+            ->unique()
+            ->sortBy(fn (string $name) => [($sortByName[$name] ?? 9999), $name])
             ->values()
             ->all();
 

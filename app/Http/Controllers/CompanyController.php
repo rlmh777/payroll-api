@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -74,10 +74,11 @@ class CompanyController extends Controller
             unset($validated['logo'], $validated['removeLogo']);
 
             $oldLogoPath = $company->logoPath;
+            $storage = app(ConfiguredStorage::class);
             if ($request->hasFile('logo')) {
                 $logo = $request->file('logo');
                 $fileName = 'company_'.$company->id.'_'.Str::uuid().'.'.$logo->extension();
-                $validated['logoPath'] = $logo->storeAs('companies/logos', $fileName, 'public');
+                $validated['logoPath'] = $storage->store($logo, 'companies/logos', $fileName);
             } elseif ($request->boolean('removeLogo')) {
                 $validated['logoPath'] = null;
             }
@@ -88,9 +89,8 @@ class CompanyController extends Controller
                 array_key_exists('logoPath', $validated)
                 && $oldLogoPath
                 && $oldLogoPath !== $validated['logoPath']
-                && Storage::disk('public')->exists($oldLogoPath)
             ) {
-                Storage::disk('public')->delete($oldLogoPath);
+                $storage->delete($oldLogoPath);
             }
 
             return response()->json([

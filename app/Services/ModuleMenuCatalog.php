@@ -144,6 +144,17 @@ class ModuleMenuCatalog
                 'type' => 'submenu',
             ],
             [
+                'system_key' => 'admin.file_storage',
+                'module_code' => 'admin',
+                'parent_system_key' => 'admin.settings',
+                'title' => 'File Storage',
+                'route' => '/admin/settings/file-storage',
+                'icon' => 'cloud',
+                'permission' => 'view-file-storage',
+                'order' => 8,
+                'type' => 'submenu',
+            ],
+            [
                 'system_key' => 'admin.menu',
                 'module_code' => 'admin',
                 'parent_system_key' => 'admin.settings',

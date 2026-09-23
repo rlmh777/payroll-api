@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\JobTitle;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -157,16 +157,14 @@ class JobTitleController extends Controller
 
         $file = $request->file('jobDescription');
         $fileName = 'job_description_' . Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $data['jobDescriptionPath'] = $file->storeAs('job-descriptions', $fileName, 'public');
+        $data['jobDescriptionPath'] = app(ConfiguredStorage::class)->store($file, 'job-descriptions', $fileName);
 
         return $data;
     }
 
     private function deleteJobDescriptionFile(?string $path): void
     {
-        if ($path && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
-        }
+        app(ConfiguredStorage::class)->delete($path);
     }
 
     private function normalizeNotes(mixed $notes): ?string

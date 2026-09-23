@@ -57,4 +57,17 @@ class TimesheetPayrollLockServiceTest extends TestCase
 
         $this->assertSame('2026-06-02 17:00:00', $dueAt->format('Y-m-d H:i:s'));
     }
+
+    #[Test]
+    public function it_does_not_lock_days_after_an_in_period_pay_date(): void
+    {
+        $service = new TimesheetPayrollLockService();
+        $schedule = new PayPeriodSchedule([
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+            'pay_date' => '2026-06-25',
+        ]);
+
+        $this->assertSame('2026-06-26', $service->proposedLockBeforeDate($schedule));
+    }
 }

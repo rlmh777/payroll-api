@@ -4,7 +4,6 @@ namespace App\Support;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class PublicFileUpload
@@ -48,7 +47,7 @@ class PublicFileUpload
 
         $extension = $file->getClientOriginalExtension() ?: 'bin';
         $storedName = $filenamePrefix.Str::uuid().'.'.$extension;
-        $filePath = $file->storeAs($directory, $storedName, 'public');
+        $filePath = app(ConfiguredStorage::class)->store($file, $directory, $storedName);
 
         $data['filePath'] = $filePath;
         $data['fileName'] = $file->getClientOriginalName();
@@ -60,8 +59,6 @@ class PublicFileUpload
 
     public static function delete(?string $path): void
     {
-        if ($path && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
-        }
+        app(ConfiguredStorage::class)->delete($path);
     }
 }

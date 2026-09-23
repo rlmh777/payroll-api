@@ -31,7 +31,10 @@ class TimesheetPayrollLockService
 
     public function proposedLockBeforeDate(PayPeriodSchedule $schedule): string
     {
-        return Carbon::parse($schedule->end_date)->addDay()->toDateString();
+        $through = PayPeriodHelper::timesheetEndDate($schedule)
+            ?? Carbon::parse($schedule->end_date)->startOfDay();
+
+        return $through->copy()->addDay()->toDateString();
     }
 
     /**

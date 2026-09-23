@@ -16,10 +16,10 @@ use App\Modules\Hr\Services\Leave\LeaveWorkflowService;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use App\Modules\Payroll\Services\EmployeeHoursBankService;
 use App\Models\EmployeeCompensation;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -544,7 +544,7 @@ class EmployeeLeaveController extends Controller
         foreach ($files as $file) {
             $extension = $file->getClientOriginalExtension() ?: 'bin';
             $storedName = 'leave_'.Str::uuid().'.'.$extension;
-            $filePath = $file->storeAs('leave-attachments', $storedName, 'public');
+            $filePath = app(ConfiguredStorage::class)->store($file, 'leave-attachments', $storedName);
 
             $stored[] = [
                 'filePath' => $filePath,
@@ -595,8 +595,8 @@ class EmployeeLeaveController extends Controller
                 ->where('filePath', $path)
                 ->exists();
 
-            if (!$stillReferenced && Storage::disk('public')->exists($path)) {
-                Storage::disk('public')->delete($path);
+            if (!$stillReferenced) {
+                app(ConfiguredStorage::class)->delete($path);
             }
         }
     }

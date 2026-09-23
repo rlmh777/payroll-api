@@ -14,6 +14,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(\App\Support\TenantManager::class);
+        $this->app->singleton(\App\Support\ConfiguredStorage::class);
     }
 
     /**

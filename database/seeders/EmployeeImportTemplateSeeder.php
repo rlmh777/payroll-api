@@ -34,10 +34,19 @@ class EmployeeImportTemplateSeeder extends Seeder
         $result = app(EmployeeImportService::class)->import($payload);
 
         $this->command?->info(sprintf(
-            'Imported employees from template: created=%d employment=%d compensation=%d scheduled=%d clocking=%d timesheets=%d failed=%d',
+            'Imported employees from template: created=%d supervisors=%d employment=%d compensation=%d banks=%d contacts=%d leave=%d ss=%d pool=%d allowances=%d deductions=%d heads=%d scheduled=%d clocking=%d timesheets=%d failed=%d',
             $result['summary']['employeesCreated'] ?? 0,
+            $result['summary']['supervisorsAssigned'] ?? 0,
             $result['summary']['employmentCreated'] ?? 0,
             $result['summary']['compensationCreated'] ?? 0,
+            $result['summary']['banksCreated'] ?? 0,
+            $result['summary']['contactsCreated'] ?? 0,
+            $result['summary']['leaveEntitlementsCreated'] ?? 0,
+            $result['summary']['ssBenefitsCreated'] ?? 0,
+            $result['summary']['poolPointsCreated'] ?? 0,
+            $result['summary']['allowancesCreated'] ?? 0,
+            $result['summary']['deductionsCreated'] ?? 0,
+            $result['summary']['departmentHeadsCreated'] ?? 0,
             $result['summary']['scheduledWorkCreated'] ?? 0,
             $result['summary']['clockingLogsCreated'] ?? 0,
             $result['summary']['timesheetsCreated'] ?? 0,
@@ -68,6 +77,7 @@ class EmployeeImportTemplateSeeder extends Seeder
         $it = Department::firstOrCreate(['name' => 'IT'], ['parentId' => null]);
         $sales = Department::firstOrCreate(['name' => 'Sales'], ['parentId' => null]);
         Department::firstOrCreate(['name' => 'Marketing'], ['parentId' => null]);
+        Department::firstOrCreate(['name' => 'Administration'], ['parentId' => null]);
 
         foreach ([
             'Bar',

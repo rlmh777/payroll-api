@@ -15,13 +15,19 @@ class EmployeeDefaultDeduction extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected $attributes = [
+        'occurrence' => 'every_payroll',
+    ];
+
     protected $fillable = [
         'employeeId',
         'bankId',
         'accountNumber',
         'amount',
         'note',
-        'frequencyId',
+        'occurrence',
+        'occurrenceCycleLength',
+        'occurrenceCycleOffset',
         'accountId',
         'deductionTypeId',
         'allowPartialDeduction',
@@ -33,6 +39,8 @@ class EmployeeDefaultDeduction extends Model
         'allowPartialDeduction' => 'boolean',
         'priority' => 'integer',
         'amount' => 'decimal:2',
+        'occurrenceCycleLength' => 'integer',
+        'occurrenceCycleOffset' => 'integer',
     ];
 
     public function employee(): BelongsTo
@@ -43,11 +51,6 @@ class EmployeeDefaultDeduction extends Model
     public function bank(): BelongsTo
     {
         return $this->belongsTo(Bank::class, 'bankId');
-    }
-
-    public function payrateFrequency(): BelongsTo
-    {
-        return $this->belongsTo(PayrateFrequency::class, 'frequencyId');
     }
 
     public function chartOfAccount(): BelongsTo

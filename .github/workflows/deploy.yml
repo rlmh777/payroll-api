@@ -79,6 +79,42 @@ jobs:
               --output none
           done
 
+      - name: Configure Azure Blob Storage
+        run: |
+          set -euo pipefail
+          STORAGE_ACCOUNT="stpayrollshrdprodi7i0ek"
+          CONTAINER="chaacreek"
+
+          ACCOUNT_KEY=$(az storage account keys list \
+            --account-name "$STORAGE_ACCOUNT" \
+            --query "[0].value" -o tsv)
+
+          az storage container create \
+            --name "$CONTAINER" \
+            --account-name "$STORAGE_ACCOUNT" \
+            --account-key "$ACCOUNT_KEY" \
+            --auth-mode key \
+            --public-access off \
+            --output none
+
+          for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
+            az containerapp secret set \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --secrets azure-storage-account-key="$ACCOUNT_KEY" \
+              --output none
+            az containerapp update \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --set-env-vars \
+                "AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT" \
+                "AZURE_STORAGE_CONTAINER=$CONTAINER" \
+                "AZURE_STORAGE_ACCOUNT_KEY=secretref:azure-storage-account-key" \
+              --output none
+          done
+
+          unset ACCOUNT_KEY
+
       - name: Ensure API runs migrations on start
         run: |
           az containerapp update \
