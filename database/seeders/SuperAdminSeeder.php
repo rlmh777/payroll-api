@@ -29,6 +29,7 @@ class SuperAdminSeeder extends Seeder
             ['email' => 'support@dotdev.bz'],
             [
                 'name' => 'EZ Tech Support',
+                'username' => 'support',
                 'password' => Hash::make('Password123!'),
             ]
         );
@@ -81,6 +82,10 @@ class SuperAdminSeeder extends Seeder
             'database-backup-crud',
             'view-file-storage',
             'file-storage-crud',
+            'view-login-page',
+            'login-page-crud',
+            'view-vacancies',
+            'vacancies-crud',
             'view-settings',
             'view-reports',
             'list-reports',

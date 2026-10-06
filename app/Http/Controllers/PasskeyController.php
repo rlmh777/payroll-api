@@ -28,12 +28,14 @@ class PasskeyController extends Controller
 
         $validator = Validator::make($request->all(), [
             'email' => ['nullable', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255'],
         ]);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $payload = $this->passkeys->authenticationOptions($request->input('email'));
+        $identifier = trim((string) ($request->input('username') ?: $request->input('email')));
+        $payload = $this->passkeys->authenticationOptions($identifier !== '' ? $identifier : null);
 
         return response()->json($payload);
     }

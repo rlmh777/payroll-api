@@ -233,9 +233,8 @@ class EmployeeController extends Controller
         ];
 
         if ($employee->user) {
-            $loginUsername = Str::before($employee->user->email, '@');
             $response['login'] = [
-                'username' => $loginUsername,
+                'username' => $employee->user->username ?: Str::before($employee->user->email, '@'),
                 'email' => $employee->user->email,
             ];
         }
@@ -322,15 +321,21 @@ class EmployeeController extends Controller
 
         try {
             $person = $employee->person;
+            $employee->loadMissing('user');
 
             $storage = app(ConfiguredStorage::class);
             $storage->delete($person?->picturePath);
+            $userPicturePath = $employee->user?->picture_path;
+            if ($userPicturePath && $userPicturePath !== $person?->picturePath) {
+                $storage->delete($userPicturePath);
+            }
 
             $file = $request->file('picture');
             $fileName = 'employee_'.$employee->id.'_'.time().'.'.$file->getClientOriginalExtension();
             $path = $storage->store($file, 'employees/pictures', $fileName);
 
             $person?->update(['picturePath' => $path]);
+            $employee->user?->update(['picture_path' => $path]);
 
             return response()->json([
                 'message' => 'Picture uploaded successfully',

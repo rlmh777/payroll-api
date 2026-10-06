@@ -13,6 +13,10 @@ use App\Modules\Payroll\Http\Controllers\DeductionTypeController;
 use App\Http\Controllers\HonorificController;
 use App\Http\Controllers\CountryController;
 use App\Modules\Hr\Http\Controllers\DepartmentController;
+use App\Modules\Hr\Http\Controllers\VacancyController;
+use App\Modules\Hr\Http\Controllers\VacancyApplicationController;
+use App\Modules\Hr\Http\Controllers\VacancyStageController;
+use App\Modules\Hr\Http\Controllers\CandidateStageController;
 use App\Modules\Hr\Http\Controllers\EmployeeGroupController;
 use App\Modules\Workflow\Http\Controllers\PipelineTemplateController;
 use App\Modules\Hr\Http\Controllers\DepartmentHeadAssignmentController;
@@ -120,6 +124,10 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 Route::put('/user/preferences', [\App\Http\Controllers\UserPreferencesController::class, 'update'])
     ->middleware('auth:sanctum');
+Route::post('/user/picture', [\App\Http\Controllers\UserPictureController::class, 'update'])
+    ->middleware('auth:sanctum');
+Route::delete('/user/picture', [\App\Http\Controllers\UserPictureController::class, 'destroy'])
+    ->middleware('auth:sanctum');
 
 Route::post('/tokens/create', [AuthController::class, 'createToken'])->middleware('auth:sanctum');
 Route::post('/tokens/revoke', [AuthController::class, 'revokeToken'])->middleware('auth:sanctum');
@@ -132,6 +140,10 @@ Route::post('/login/passkey', [\App\Http\Controllers\PasskeyController::class, '
 Route::post('/login/two-factor/verify', [\App\Http\Controllers\TwoFactorController::class, 'verifyLogin']);
 Route::post('/login/two-factor/setup', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginOptions']);
 Route::post('/login/two-factor/setup/confirm', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginConfirm']);
+Route::get('/login-page', [\App\Http\Controllers\LoginPageSettingController::class, 'publicShow']);
+Route::get('/careers/vacancies', [VacancyController::class, 'publicIndex']);
+Route::get('/careers/vacancies/{vacancy}', [VacancyController::class, 'publicShow']);
+Route::post('/careers/vacancies/{vacancy}/applications', [VacancyApplicationController::class, 'publicStore']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -440,6 +452,43 @@ Route::prefix('countries')->group(function () {
 });
 
 // Department Routes
+Route::prefix('candidate-stages')->group(function () {
+    Route::get('/', [CandidateStageController::class, 'index']);
+    Route::post('/', [CandidateStageController::class, 'store']);
+    Route::put('/reorder', [CandidateStageController::class, 'reorder']);
+    Route::get('/{candidateStage}', [CandidateStageController::class, 'show']);
+    Route::put('/{candidateStage}', [CandidateStageController::class, 'update']);
+    Route::delete('/{candidateStage}', [CandidateStageController::class, 'destroy']);
+});
+
+Route::prefix('vacancy-stages')->group(function () {
+    Route::get('/', [VacancyStageController::class, 'index']);
+    Route::post('/', [VacancyStageController::class, 'store']);
+    Route::put('/reorder', [VacancyStageController::class, 'reorder']);
+    Route::get('/{vacancyStage}', [VacancyStageController::class, 'show']);
+    Route::put('/{vacancyStage}', [VacancyStageController::class, 'update']);
+    Route::delete('/{vacancyStage}', [VacancyStageController::class, 'destroy']);
+});
+
+Route::prefix('vacancy-applications')->group(function () {
+    Route::get('/board', [VacancyApplicationController::class, 'board']);
+    Route::post('/{application}/move', [VacancyApplicationController::class, 'move']);
+});
+
+Route::prefix('vacancies')->group(function () {
+    Route::get('/board', [VacancyController::class, 'board']);
+    Route::get('/', [VacancyController::class, 'index']);
+    Route::post('/', [VacancyController::class, 'store']);
+    Route::post('/{vacancy}/move', [VacancyController::class, 'move']);
+    Route::get('/{vacancy}/applications', [VacancyApplicationController::class, 'index']);
+    Route::post('/{vacancy}/applications', [VacancyApplicationController::class, 'store']);
+    Route::get('/{vacancy}/applications/{application}', [VacancyApplicationController::class, 'show']);
+    Route::post('/{vacancy}/applications/{application}/convert-to-employee', [VacancyApplicationController::class, 'convert']);
+    Route::get('/{vacancy}', [VacancyController::class, 'show']);
+    Route::put('/{vacancy}', [VacancyController::class, 'update']);
+    Route::delete('/{vacancy}', [VacancyController::class, 'destroy']);
+});
+
 Route::prefix('departments')->group(function () {
     Route::get('/', [DepartmentController::class, 'index']);
     Route::post('/', [DepartmentController::class, 'store']);
@@ -1056,6 +1105,13 @@ Route::prefix('database-backups')->group(function () {
     Route::get('/{databaseBackup}/download', [DatabaseBackupController::class, 'download']);
     Route::post('/{databaseBackup}/restore', [DatabaseBackupController::class, 'restore']);
     Route::delete('/{databaseBackup}', [DatabaseBackupController::class, 'destroy']);
+});
+
+Route::prefix('login-page-settings')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [\App\Http\Controllers\LoginPageSettingController::class, 'show']);
+    Route::put('/', [\App\Http\Controllers\LoginPageSettingController::class, 'update']);
+    Route::post('/images', [\App\Http\Controllers\LoginPageSettingController::class, 'uploadImage']);
+    Route::delete('/images/{imageId}', [\App\Http\Controllers\LoginPageSettingController::class, 'destroyImage']);
 });
 
 Route::prefix('storage-settings')->group(function () {

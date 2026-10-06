@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Services\TwoFactorService;
+use App\Support\LoginUserFinder;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -12,17 +12,20 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly TwoFactorService $twoFactor,
+        private readonly LoginUserFinder $loginUsers,
     ) {
     }
 
     public function authenticate(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => ['required', 'string', 'max:255'],
+            'email' => ['required_without:username', 'nullable', 'string', 'max:255'],
+            'username' => ['required_without:email', 'nullable', 'string', 'max:255'],
             'password' => ['required'],
         ]);
 
-        $user = $this->findUserByLoginIdentifier($request->email);
+        $identifier = trim((string) ($request->input('username') ?: $request->input('email')));
+        $user = $this->loginUsers->find($identifier);
 
         if (
             !$user ||
@@ -37,29 +40,6 @@ class AuthController extends Controller
         }
 
         return response()->json($this->twoFactor->completePasswordLogin($user));
-    }
-
-    private function findUserByLoginIdentifier(string $identifier): ?User
-    {
-        $identifier = trim($identifier);
-
-        if ($identifier === '') {
-            return null;
-        }
-
-        $user = User::query()->where('email', $identifier)->first();
-        if ($user) {
-            return $user;
-        }
-
-        if (!str_contains($identifier, '@')) {
-            return User::query()
-                ->where('email', 'like', $identifier.'@%')
-                ->orderBy('email')
-                ->first();
-        }
-
-        return null;
     }
 
     public function createToken(Request $request): JsonResponse

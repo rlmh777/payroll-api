@@ -14,15 +14,38 @@ class UserPreferencesController extends Controller
         $user = $request->user();
         $validated = $request->validate([
             'defaultModule' => [
-                'required',
+                'sometimes',
                 'string',
                 'max:64',
                 Rule::exists('modules', 'code')->where(fn ($query) => $query->where('is_active', true)),
             ],
+            'onboardingEnabled' => ['sometimes', 'boolean'],
+            'onboardingCompleted' => ['sometimes', 'boolean'],
+            'onboardingSeen' => ['sometimes', 'array'],
+            'onboardingSeen.*' => ['boolean'],
         ]);
 
+        if ($validated === []) {
+            return response()->json([
+                'message' => 'No preferences were provided.',
+            ], 422);
+        }
+
         $preferences = is_array($user->preferences) ? $user->preferences : [];
-        $preferences['default_module'] = $validated['defaultModule'];
+
+        if (array_key_exists('defaultModule', $validated)) {
+            $preferences['default_module'] = $validated['defaultModule'];
+        }
+        if (array_key_exists('onboardingEnabled', $validated)) {
+            $preferences['onboarding_enabled'] = (bool) $validated['onboardingEnabled'];
+        }
+        if (array_key_exists('onboardingCompleted', $validated)) {
+            $preferences['onboarding_completed'] = (bool) $validated['onboardingCompleted'];
+        }
+        if (array_key_exists('onboardingSeen', $validated)) {
+            $preferences['onboarding_seen'] = AuthUserPresenter::normalizeOnboardingSeen($validated['onboardingSeen']);
+        }
+
         $user->preferences = $preferences;
         $user->save();
 

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Menu;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Services\ModuleMenuCatalog;
 use Illuminate\Database\Seeder;
 
 class MenuSeeder extends Seeder
@@ -13,6 +14,21 @@ class MenuSeeder extends Seeder
         'core.dashboard' => 'payroll',
         'core.reports' => 'payroll',
         'hr.employees' => 'hr',
+        'hr.vacancies' => 'hr',
+        'hr.candidates' => 'hr',
+        'hr.settings' => 'hr',
+        'hr.settings.vacancy_stages' => 'hr',
+        'hr.settings.candidate_stages' => 'hr',
+        'hr.settings.job_titles' => 'hr',
+        'hr.settings.department' => 'hr',
+        'hr.settings.worksite' => 'hr',
+        'hr.settings.holidays' => 'hr',
+        'hr.settings.relationship' => 'hr',
+        'hr.settings.degree' => 'hr',
+        'hr.settings.country' => 'hr',
+        'hr.settings.district' => 'hr',
+        'hr.settings.locality' => 'hr',
+        'hr.settings.institution' => 'hr',
         'payroll.employees' => 'payroll',
         'hr.scheduler' => 'payroll',
         'hr.timesheet' => 'payroll',
@@ -22,6 +38,7 @@ class MenuSeeder extends Seeder
         'admin.modules' => 'admin',
         'admin.database_backup' => 'admin',
         'admin.file_storage' => 'admin',
+        'admin.login' => 'admin',
         'admin.menu' => 'admin',
         'admin.roles' => 'admin',
         'admin.organization' => 'admin',
@@ -82,6 +99,71 @@ class MenuSeeder extends Seeder
             'system_key' => 'hr.employees.import',
             'module_code' => 'hr',
         ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Vacancies',
+            'route' => '/hr/vacancies',
+            'icon' => 'work',
+            'permission' => 'view-vacancies',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'hr.vacancies',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Candidates',
+            'route' => '/hr/candidates',
+            'icon' => 'badge',
+            'permission' => 'view-vacancies',
+            'order' => 4,
+            'type' => 'menu',
+            'system_key' => 'hr.candidates',
+            'module_code' => 'hr',
+        ]);
+
+        $hrSettings = $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Settings',
+            'route' => '/hr/settings',
+            'icon' => 'settings',
+            'permission' => ModuleMenuCatalog::HR_SETTINGS_PERMISSION,
+            'order' => 5,
+            'type' => 'menu',
+            'system_key' => 'hr.settings',
+            'module_code' => 'hr',
+        ]);
+
+        $hrSettingsSubmenus = [
+            ['Vacancy pipeline', '/hr/settings/vacancy-stages', 'view_kanban', 'view-vacancies', 1, 'hr.settings.vacancy_stages'],
+            ['Candidate pipeline', '/hr/settings/candidate-stages', 'account_tree', 'view-vacancies', 2, 'hr.settings.candidate_stages'],
+            ['Job Titles', '/hr/settings/job-titles', 'work', 'view-job-title', 3, 'hr.settings.job_titles'],
+            ['Department', '/hr/settings/department', 'fas fa-sitemap', 'view-department', 4, 'hr.settings.department'],
+            ['Work Site', '/hr/settings/worksite', 'fas fa-map', 'view-worksite', 5, 'hr.settings.worksite'],
+            ['Public Holidays', '/hr/settings/holidays', 'event', 'view-holidays', 6, 'hr.settings.holidays'],
+            ['Relationship', '/hr/settings/relationship', 'fas fa-users', 'view-relationship', 7, 'hr.settings.relationship'],
+            ['Degree', '/hr/settings/degree', 'fas fa-graduation-cap', 'view-degree', 8, 'hr.settings.degree'],
+            ['Country', '/hr/settings/country', 'fas fa-globe', 'view-country', 9, 'hr.settings.country'],
+            ['District', '/hr/settings/district', 'fas fa-map-marker-alt', 'view-district', 10, 'hr.settings.district'],
+            ['Locality', '/hr/settings/locality', 'fas fa-map-pin', 'view-locality', 11, 'hr.settings.locality'],
+            ['Institution', '/hr/settings/institution', 'fas fa-university', 'view-institution', 12, 'hr.settings.institution'],
+        ];
+
+        foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {
+            $this->ensureMenu([
+                'parent_id' => $hrSettings->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'system_key' => $systemKey,
+                'module_code' => 'hr',
+            ]);
+        }
 
         $payrollEmployees = $this->ensureMenu([
             'title' => 'Employees',
@@ -185,6 +267,30 @@ class MenuSeeder extends Seeder
             'order' => 8,
             'type' => 'submenu',
             'system_key' => 'admin.file_storage',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Login',
+            'route' => '/admin/settings/login',
+            'icon' => 'lock',
+            'permission' => 'manager-users',
+            'order' => 9,
+            'type' => 'submenu',
+            'system_key' => 'admin.login',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Login Page',
+            'route' => '/admin/settings/login-page',
+            'icon' => 'view_quilt',
+            'permission' => 'view-login-page',
+            'order' => 10,
+            'type' => 'submenu',
+            'system_key' => 'admin.login_page',
             'module_code' => 'admin',
         ]);
 
@@ -327,20 +433,10 @@ class MenuSeeder extends Seeder
         }
 
         $generalSubmenus = [
-            ['Country', '/payroll/settings/country', 'fas fa-globe', 'view-country', 1],
-            ['District', '/payroll/settings/district', 'fas fa-map-marker-alt', 'view-district', 2],
-            ['Locality', '/payroll/settings/locality', 'fas fa-map-pin', 'view-locality', 3],
-            ['Institution', '/payroll/settings/institution', 'fas fa-university', 'view-institution', 4],
-            ['Relationship', '/payroll/settings/relationship', 'fas fa-users', 'view-relationship', 6],
             ['Bank Account Type', '/payroll/settings/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7],
             ['Payroll Earning Codes', '/payroll/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8],
             ['Pool Distribution', '/payroll/settings/pool-distribution-types', 'fas fa-chart-pie', 'view-pool-distribution-types', 9],
             ['Timesheet Templates', '/payroll/settings/timesheet-templates', 'fas fa-clock', 'view-timesheet-templates', 9],
-            ['Degree', '/payroll/settings/degree', 'fas fa-graduation-cap', 'view-degree', 10],
-            ['Job Titles', '/payroll/settings/job-titles', 'work', 'view-job-title', 16],
-            ['Department', '/payroll/settings/department', 'fas fa-sitemap', 'view-department', 11],
-            ['Work Site', '/payroll/settings/worksite', 'fas fa-map', 'view-worksite', 12],
-            ['Public Holidays', '/payroll/settings/holidays', 'event', 'view-holidays', 13],
             ['Attendance', '/payroll/settings/attendance', 'schedule', 'view-attendance-settings', 14],
             ['Employee Groups', '/payroll/settings/employee-groups', 'groups', 'view-employee-groups', 15],
             ['Department Heads', '/payroll/settings/department-heads', 'supervisor_account', 'view-department-heads', 16],
@@ -478,6 +574,10 @@ class MenuSeeder extends Seeder
             'database-backup-crud',
             'view-file-storage',
             'file-storage-crud',
+            'view-login-page',
+            'login-page-crud',
+            'view-vacancies',
+            'vacancies-crud',
             'view-settings',
             'view-reports',
             'list-reports',

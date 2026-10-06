@@ -3,8 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\ConfiguredStorage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -31,6 +33,8 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
+        'picture_path',
         'email',
         'password',
         'preferences',
@@ -38,6 +42,10 @@ class User extends Authenticatable
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
         'two_factor_required',
+    ];
+
+    protected $appends = [
+        'pictureUrl',
     ];
 
     /**
@@ -110,6 +118,64 @@ class User extends Authenticatable
         return $this->hasOne(Employee::class, 'user_id');
     }
 
+    public function storeProfilePicture(UploadedFile $file): string
+    {
+        $storage = app(ConfiguredStorage::class);
+        $this->deleteProfilePictureFiles();
+
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg'));
+        $fileName = 'user_'.$this->id.'_'.time().'.'.$extension;
+        $path = $storage->store($file, 'users/pictures', $fileName);
+
+        $this->picture_path = $path;
+        $this->save();
+        $this->syncPicturePathToPerson($path);
+
+        return $path;
+    }
+
+    public function clearProfilePicture(): void
+    {
+        $this->deleteProfilePictureFiles();
+        $this->picture_path = null;
+        $this->save();
+        $this->syncPicturePathToPerson(null);
+    }
+
+    public function getPictureUrlAttribute(): ?string
+    {
+        $path = $this->picture_path;
+        if (! filled($path)) {
+            $this->loadMissing('employee.person');
+            $path = $this->employee?->person?->picturePath;
+        }
+
+        return app(ConfiguredStorage::class)->urlOrNull($path);
+    }
+
+    private function deleteProfilePictureFiles(): void
+    {
+        $storage = app(ConfiguredStorage::class);
+        $this->loadMissing('employee.person');
+        $personPath = $this->employee?->person?->picturePath;
+
+        $storage->delete($this->picture_path);
+        if ($personPath && $personPath !== $this->picture_path) {
+            $storage->delete($personPath);
+        }
+    }
+
+    private function syncPicturePathToPerson(?string $path): void
+    {
+        $this->loadMissing('employee.person');
+        $person = $this->employee?->person;
+        if (! $person) {
+            return;
+        }
+
+        $person->update(['picturePath' => $path]);
+    }
+
     public function webAuthnCredentials(): HasMany
     {
         return $this->hasMany(WebAuthnCredential::class, 'user_id');
@@ -134,5 +200,19 @@ class User extends Authenticatable
         }
 
         return $settings->two_factor_policy === AuthSetting::POLICY_REQUIRED;
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (filled($user->username)) {
+                $user->username = \App\Services\UsernameGenerator::sanitize((string) $user->username);
+            }
+
+            if (blank($user->username) && filled($user->email)) {
+                $user->username = app(\App\Services\UsernameGenerator::class)
+                    ->uniqueFromEmailLocalPart((string) $user->email);
+            }
+        });
     }
 }

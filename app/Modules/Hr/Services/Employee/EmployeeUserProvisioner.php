@@ -2,32 +2,24 @@
 
 namespace App\Modules\Hr\Services\Employee;
 
-use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Modules\Hr\Models\Employee;
+use App\Services\UsernameGenerator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use RuntimeException;
 
 class EmployeeUserProvisioner
 {
+    public function __construct(
+        private readonly UsernameGenerator $usernames,
+    ) {
+    }
+
     public function buildUsername(string $firstName, string $lastName, ?string $middleName = null): string
     {
-        $first = $this->slugNamePart($firstName);
-        $last = $this->slugNamePart($lastName);
-
-        if ($first === '' || $last === '') {
-            throw new RuntimeException('First and last name are required to generate a username.');
-        }
-
-        $middleInitial = $this->middleInitial($middleName);
-        if ($middleInitial !== null) {
-            return "{$first}.{$middleInitial}.{$last}";
-        }
-
-        return "{$first}.{$last}";
+        return $this->usernames->buildUsername($firstName, $lastName, $middleName);
     }
 
     /**
@@ -38,26 +30,10 @@ class EmployeeUserProvisioner
         string $lastName,
         ?string $middleName = null,
     ): array {
-        $domain = $this->resolveEmailDomain();
-        $candidates = $this->usernameCandidates($firstName, $lastName, $middleName);
-
-        foreach ($candidates as $username) {
-            $email = "{$username}@{$domain}";
-
-            if (!$this->loginEmailExists($email)) {
-                return compact('username', 'email');
-            }
-        }
-
-        throw new RuntimeException('Unable to generate a unique employee login username.');
+        return $this->usernames->generateUniqueLoginCredentials($firstName, $lastName, $middleName);
     }
 
     /**
-     * Preferred order:
-     * 1. firstname.lastname
-     * 2. firstname.m.lastname (middle initial, when available)
-     * 3. firstname.lastname2, firstname.lastname3, ...
-     *
      * @return list<string>
      */
     public function usernameCandidates(
@@ -65,25 +41,7 @@ class EmployeeUserProvisioner
         string $lastName,
         ?string $middleName = null,
     ): array {
-        $first = $this->slugNamePart($firstName);
-        $last = $this->slugNamePart($lastName);
-
-        if ($first === '' || $last === '') {
-            throw new RuntimeException('First and last name are required to generate a username.');
-        }
-
-        $candidates = ["{$first}.{$last}"];
-
-        $middleInitial = $this->middleInitial($middleName);
-        if ($middleInitial !== null) {
-            $candidates[] = "{$first}.{$middleInitial}.{$last}";
-        }
-
-        for ($suffix = 2; $suffix <= 100; $suffix++) {
-            $candidates[] = "{$first}.{$last}{$suffix}";
-        }
-
-        return $candidates;
+        return $this->usernames->usernameCandidates($firstName, $lastName, $middleName);
     }
 
     public function provisionForEmployee(Employee $employee): ?User
@@ -95,7 +53,7 @@ class EmployeeUserProvisioner
         $employee->loadMissing('person');
         $person = $employee->person;
 
-        if (!$person) {
+        if (! $person) {
             return null;
         }
 
@@ -107,6 +65,7 @@ class EmployeeUserProvisioner
 
         $user = User::query()->create([
             'name' => trim("{$person->firstName} {$person->lastName}"),
+            'username' => $username,
             'email' => $email,
             'password' => Hash::make((string) config('payroll.employee_default_password')),
         ]);
@@ -135,42 +94,6 @@ class EmployeeUserProvisioner
 
     public function resolveEmailDomain(): string
     {
-        $configuredDomain = trim((string) config('payroll.employee_login_domain'));
-        if ($configuredDomain !== '') {
-            return $configuredDomain;
-        }
-
-        $companyEmail = Company::query()->value('email');
-        if (is_string($companyEmail) && str_contains($companyEmail, '@')) {
-            return Str::after($companyEmail, '@');
-        }
-
-        return 'payroll.local';
-    }
-
-    private function middleInitial(?string $middleName): ?string
-    {
-        if ($middleName === null) {
-            return null;
-        }
-
-        $slug = $this->slugNamePart($middleName);
-        if ($slug === '') {
-            return null;
-        }
-
-        return $slug[0];
-    }
-
-    private function slugNamePart(string $value): string
-    {
-        $normalized = Str::slug(strtolower(trim($value)), '');
-
-        return preg_replace('/[^a-z0-9]/', '', $normalized) ?? '';
-    }
-
-    private function loginEmailExists(string $email): bool
-    {
-        return User::query()->where('email', $email)->exists();
+        return $this->usernames->resolveEmailDomain();
     }
 }

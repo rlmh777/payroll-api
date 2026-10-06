@@ -15,11 +15,26 @@ class AuthSetting extends Model
     protected $fillable = [
         'two_factor_policy',
         'passkeys_enabled',
+        'username_pattern',
+        'username_patterns',
+        'username_separator',
+        'username_include_middle_initial',
+        'employee_login_domain',
     ];
 
     protected $casts = [
         'passkeys_enabled' => 'boolean',
+        'username_include_middle_initial' => 'boolean',
+        'username_patterns' => 'array',
     ];
+
+    public const USERNAME_PATTERN_FIRST_LAST = 'first_last';
+
+    public const USERNAME_PATTERN_LAST_FIRST = 'last_first';
+
+    public const USERNAME_PATTERN_FIRST_INITIAL_LAST = 'first_initial_last';
+
+    public const USERNAME_PATTERN_FIRSTLAST = 'firstlast';
 
     public const POLICY_OFF = 'off';
 
@@ -38,6 +53,11 @@ class AuthSetting extends Model
             'id' => (string) Str::uuid(),
             'two_factor_policy' => self::POLICY_OFF,
             'passkeys_enabled' => true,
+            'username_pattern' => self::USERNAME_PATTERN_FIRST_LAST,
+            'username_patterns' => [self::USERNAME_PATTERN_FIRST_LAST],
+            'username_separator' => '.',
+            'username_include_middle_initial' => true,
+            'employee_login_domain' => null,
         ]);
     }
 }

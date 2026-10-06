@@ -12,7 +12,13 @@ return [
         'trim',
         explode(',', (string) env(
             'WEBAUTHN_ORIGINS',
-            rtrim((string) env('FRONTEND_URL', 'http://localhost:9000'), '/')
+            implode(',', array_unique(array_filter([
+                rtrim((string) env('FRONTEND_URL', 'http://localhost:9000'), '/'),
+                'http://localhost:9000',
+                'http://localhost:9001',
+                'http://127.0.0.1:9000',
+                'http://127.0.0.1:9001',
+            ])))
         ))
     ))),
 

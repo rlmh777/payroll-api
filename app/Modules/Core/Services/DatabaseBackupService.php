@@ -2,23 +2,35 @@
 
 namespace App\Modules\Core\Services;
 
+use App\Enums\StorageDriver;
 use App\Models\DatabaseBackup;
+use App\Models\StorageSetting;
 use App\Models\User;
+use App\Support\ConfiguredStorage;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Process\Process;
 use Throwable;
 
 class DatabaseBackupService
 {
+    public function __construct(
+        private readonly ConfiguredStorage $configuredStorage,
+    ) {
+    }
+
     public function settings(): array
     {
         $scheduleTimes = config('database-backup.schedule_times', []);
         $retentionDays = (int) config('database-backup.retention_days', 30);
         $maxBackups = (int) config('database-backup.max_backups', 120);
+        $storage = StorageSetting::current();
+        $driver = $storage->driverEnum();
 
         return [
             'enabled' => (bool) config('database-backup.enabled', true),
@@ -28,6 +40,9 @@ class DatabaseBackupService
             'timezone' => config('app.timezone'),
             'backupCount' => DatabaseBackup::query()->where('status', 'completed')->count(),
             'totalSizeBytes' => (int) DatabaseBackup::query()->where('status', 'completed')->sum('size_bytes'),
+            'storageDriver' => $driver->value,
+            'storageContainer' => $driver === StorageDriver::Local ? null : ($storage->container ?: null),
+            'storageDirectory' => $this->backupDirectory(),
         ];
     }
 
@@ -50,15 +65,15 @@ class DatabaseBackupService
 
         $this->assertToolsAvailable();
 
-        $disk = (string) config('database-backup.disk', 'local');
-        $directory = trim((string) config('database-backup.directory', 'database-backups'), '/');
+        $directory = $this->backupDirectory();
         $timestamp = now()->format('Ymd_His');
         $filename = "payroll_{$timestamp}.dump";
         $relativePath = "{$directory}/{$filename}";
+        $diskName = $this->configuredStorage->driver()->value;
 
         $backup = DatabaseBackup::create([
             'filename' => $filename,
-            'disk' => $disk,
+            'disk' => $diskName,
             'path' => $relativePath,
             'type' => $type,
             'label' => $label,
@@ -67,31 +82,38 @@ class DatabaseBackupService
             'created_by' => $user?->id,
         ]);
 
-        $absolutePath = Storage::disk($disk)->path($relativePath);
-        Storage::disk($disk)->makeDirectory($directory);
+        $tempPath = $this->tempDumpPath($filename);
 
         try {
-            $this->runPgDump($absolutePath);
+            $this->runPgDump($tempPath);
 
-            if (! is_file($absolutePath) || filesize($absolutePath) === 0) {
+            if (! is_file($tempPath) || filesize($tempPath) === 0) {
                 throw new RuntimeException('Backup file was not created or is empty.');
             }
 
+            $this->configuredStorage->putFromLocal(
+                $relativePath,
+                $tempPath,
+                $this->configuredStorage->backupDisk(),
+            );
+
             $backup->update([
                 'status' => 'completed',
-                'size_bytes' => (int) filesize($absolutePath),
-                'checksum' => hash_file('sha256', $absolutePath) ?: null,
+                'size_bytes' => (int) filesize($tempPath),
+                'checksum' => hash_file('sha256', $tempPath) ?: null,
                 'completed_at' => now(),
                 'error_message' => null,
             ]);
         } catch (Throwable $exception) {
-            @unlink($absolutePath);
+            $this->configuredStorage->delete($relativePath, $this->configuredStorage->backupDisk());
             $backup->update([
                 'status' => 'failed',
                 'error_message' => $exception->getMessage(),
             ]);
 
             throw $exception;
+        } finally {
+            @unlink($tempPath);
         }
 
         $this->prune();
@@ -99,19 +121,23 @@ class DatabaseBackupService
         return $backup->fresh(['creator:id,name,email']);
     }
 
-    public function absolutePath(DatabaseBackup $backup): string
+    public function download(DatabaseBackup $backup): StreamedResponse
     {
-        $path = Storage::disk($backup->disk)->path($backup->path);
-        if (! is_file($path)) {
+        $disk = $this->resolveBackupFilesystem($backup);
+        if (! $disk->exists($backup->path)) {
             throw new RuntimeException('Backup file is missing from storage.');
         }
 
-        return $path;
+        return $disk->download(
+            $backup->path,
+            $backup->filename,
+            ['Content-Type' => 'application/octet-stream'],
+        );
     }
 
     public function delete(DatabaseBackup $backup): void
     {
-        $disk = Storage::disk($backup->disk);
+        $disk = $this->resolveBackupFilesystem($backup);
         if ($disk->exists($backup->path)) {
             $disk->delete($backup->path);
         }
@@ -125,7 +151,16 @@ class DatabaseBackupService
             throw new RuntimeException('Only completed backups can be restored.');
         }
 
-        $this->restoreFromPath($this->absolutePath($backup));
+        $tempPath = $this->configuredStorage->copyToLocal(
+            $backup->path,
+            $this->resolveBackupFilesystem($backup),
+        );
+
+        try {
+            $this->restoreFromPath($tempPath);
+        } finally {
+            @unlink($tempPath);
+        }
     }
 
     public function restoreUpload(UploadedFile $file): DatabaseBackup
@@ -136,35 +171,44 @@ class DatabaseBackupService
 
         $this->assertToolsAvailable();
 
-        $disk = (string) config('database-backup.disk', 'local');
-        $directory = trim((string) config('database-backup.directory', 'database-backups'), '/');
+        $directory = $this->backupDirectory();
         $timestamp = now()->format('Ymd_His');
         $original = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         $safeName = Str::slug($original) ?: 'uploaded';
         $filename = "{$safeName}_{$timestamp}.dump";
         $relativePath = "{$directory}/{$filename}";
+        $tempPath = $this->tempDumpPath($filename);
+        $source = $file->getRealPath();
 
-        $stored = $file->storeAs($directory, $filename, $disk);
-        if (! $stored) {
+        if ($source === false || ! copy($source, $tempPath)) {
             throw new RuntimeException('Failed to store uploaded backup.');
         }
 
-        $absolutePath = Storage::disk($disk)->path($relativePath);
+        $this->configuredStorage->putFromLocal(
+            $relativePath,
+            $tempPath,
+            $this->configuredStorage->backupDisk(),
+        );
+
         $backup = DatabaseBackup::create([
             'filename' => $filename,
-            'disk' => $disk,
+            'disk' => $this->configuredStorage->driver()->value,
             'path' => $relativePath,
             'type' => 'uploaded',
             'label' => 'Uploaded restore source',
-            'size_bytes' => is_file($absolutePath) ? (int) filesize($absolutePath) : 0,
-            'checksum' => is_file($absolutePath) ? (hash_file('sha256', $absolutePath) ?: null) : null,
+            'size_bytes' => (int) filesize($tempPath),
+            'checksum' => hash_file('sha256', $tempPath) ?: null,
             'status' => 'completed',
             'created_by' => auth()->id(),
             'completed_at' => now(),
         ]);
 
-        $this->restoreFromPath($absolutePath);
-        $this->prune();
+        try {
+            $this->restoreFromPath($tempPath);
+            $this->prune();
+        } finally {
+            @unlink($tempPath);
+        }
 
         return $backup->fresh(['creator:id,name,email']);
     }
@@ -356,5 +400,36 @@ class DatabaseBackupService
                 throw new RuntimeException("Required tool not found: {$binary}");
             }
         }
+    }
+
+    private function backupDirectory(): string
+    {
+        return trim((string) config('database-backup.directory', 'database-backups'), '/');
+    }
+
+    private function tempDumpPath(string $filename): string
+    {
+        return sys_get_temp_dir().'/payroll_'.uniqid('', true).'_'.preg_replace('/[^A-Za-z0-9._-]/', '_', $filename);
+    }
+
+    private function resolveBackupFilesystem(DatabaseBackup $backup): Filesystem
+    {
+        $configured = $this->configuredStorage->backupDisk();
+        if ($configured->exists($backup->path)) {
+            return $configured;
+        }
+
+        foreach (array_unique(array_filter([$backup->disk, 'local', 'public'])) as $name) {
+            try {
+                $disk = Storage::disk($name);
+                if ($disk->exists($backup->path)) {
+                    return $disk;
+                }
+            } catch (Throwable) {
+                continue;
+            }
+        }
+
+        return $configured;
     }
 }

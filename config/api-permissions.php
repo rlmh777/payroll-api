@@ -17,6 +17,10 @@ return [
         'POST login/two-factor/setup',
         'POST login/two-factor/setup/confirm',
         'POST users/reset-password',
+        'GET login-page',
+        'GET careers/vacancies',
+        'GET careers/vacancies/{vacancy}',
+        'POST careers/vacancies/{vacancy}/applications',
     ],
 
     /*
@@ -27,6 +31,8 @@ return [
     'auth_only' => [
         'GET user',
         'PUT user/preferences',
+        'POST user/picture',
+        'DELETE user/picture',
         'GET user/menu',
         'GET user/menus',
         'GET session/navigation',
@@ -74,6 +80,7 @@ return [
         'countries' => ['view' => 'view-country', 'write' => 'country-crud'],
         'database-backups' => ['view' => 'view-database-backup', 'write' => 'database-backup-crud'],
         'storage-settings' => ['view' => 'view-file-storage', 'write' => 'file-storage-crud'],
+        'login-page-settings' => ['view' => 'view-login-page', 'write' => 'login-page-crud'],
         'dashboard' => ['view' => 'view-dashboard', 'write' => 'view-dashboard'],
         'deduction-types' => ['view' => 'view-pay-items', 'write' => 'view-pay-items'],
         'degrees' => ['view' => 'view-degree', 'write' => 'degree-crud'],
@@ -157,6 +164,10 @@ return [
         'timesheet-template-departments' => ['view' => 'view-timesheet-templates', 'write' => 'view-timesheet-templates'],
         'timesheet-templates' => ['view' => 'view-timesheet-templates', 'write' => 'view-timesheet-templates'],
         'timesheets' => ['view' => 'view-timesheets', 'write' => 'timesheets-crud'],
+        'vacancies' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
+        'vacancy-stages' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
+        'candidate-stages' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
+        'vacancy-applications' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
         'users' => ['view' => 'manager-users', 'write' => 'manager-users'],
         'vendors' => ['view' => 'view-organization', 'write' => 'view-organization'],
         'worksites' => ['view' => 'view-worksite', 'write' => 'worksite-crud'],

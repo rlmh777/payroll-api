@@ -6,7 +6,6 @@ use App\Models\DatabaseBackup;
 use App\Modules\Core\Services\DatabaseBackupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -55,16 +54,10 @@ class DatabaseBackupController extends Controller
     public function download(DatabaseBackup $databaseBackup): StreamedResponse|JsonResponse
     {
         try {
-            $this->databaseBackupService->absolutePath($databaseBackup);
+            return $this->databaseBackupService->download($databaseBackup);
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 404);
         }
-
-        return Storage::disk($databaseBackup->disk)->download(
-            $databaseBackup->path,
-            $databaseBackup->filename,
-            ['Content-Type' => 'application/octet-stream'],
-        );
     }
 
     public function restore(Request $request, DatabaseBackup $databaseBackup): JsonResponse

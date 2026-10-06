@@ -6,13 +6,12 @@ return [
     | Database backups
     |--------------------------------------------------------------------------
     |
-    | Backups are stored on the private local disk and pruned by retention
-    | window and max count so scheduled copies cycle over ~one month.
+    | Backup files are stored on the Admin File Storage disk (Azure/S3 container
+    | from settings, or the private local disk when File Storage is local).
+    | They are pruned by retention window and max count.
     |
     */
     'enabled' => (bool) env('DB_BACKUP_ENABLED', true),
-
-    'disk' => env('DB_BACKUP_DISK', 'local'),
 
     'directory' => env('DB_BACKUP_DIRECTORY', 'database-backups'),
 

@@ -47,6 +47,24 @@ class ConfiguredStorageTest extends TestCase
         $this->assertFalse($storage->exists($path));
     }
 
+    public function test_backup_disk_is_private_local_when_file_storage_is_local(): void
+    {
+        Storage::fake('local');
+        $storage = app(ConfiguredStorage::class);
+        $local = tempnam(sys_get_temp_dir(), 'dump_');
+        file_put_contents($local, 'DUMP');
+
+        $storage->putFromLocal('database-backups/test.dump', $local, $storage->backupDisk());
+
+        $this->assertTrue(Storage::disk('local')->exists('database-backups/test.dump'));
+        $this->assertFalse(Storage::disk('public')->exists('database-backups/test.dump'));
+
+        $copied = $storage->copyToLocal('database-backups/test.dump', $storage->backupDisk());
+        $this->assertSame('DUMP', file_get_contents($copied));
+        @unlink($copied);
+        @unlink($local);
+    }
+
     public function test_public_file_upload_uses_configured_disk(): void
     {
         $file = UploadedFile::fake()->create('cert.pdf', 8, 'application/pdf');
@@ -82,6 +100,21 @@ class ConfiguredStorageTest extends TestCase
         $this->assertFalse($result['ok']);
         $this->assertSame('azure', $result['driver']);
         $this->assertStringContainsString('account', strtolower($result['message']));
+    }
+
+    public function test_azure_disk_uses_shared_key_credential(): void
+    {
+        $settings = StorageSetting::current();
+        $settings->driver = StorageDriver::Azure->value;
+        $settings->container = 'chaacreek';
+        $settings->account_name = 'stexample';
+        $settings->account_key = base64_encode('test-key');
+
+        $storage = app(ConfiguredStorage::class);
+        $method = new \ReflectionMethod(ConfiguredStorage::class, 'azureDisk');
+        $disk = $method->invoke($storage, $settings);
+
+        $this->assertInstanceOf(\Illuminate\Contracts\Filesystem\Filesystem::class, $disk);
     }
 
     public function test_account_key_is_hidden_on_the_model(): void

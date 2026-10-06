@@ -2,7 +2,6 @@
 
 namespace App\Modules\Core\Models;
 
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,11 +67,9 @@ class Person extends Model
         return $this->belongsTo(Locality::class, 'localityId');
     }
 
-    protected function pictureUrl(): Attribute
+    public function getPictureUrlAttribute(): ?string
     {
-        return Attribute::get(
-            fn () => app(ConfiguredStorage::class)->urlOrNull($this->picturePath),
-        );
+        return app(ConfiguredStorage::class)->urlOrNull($this->picturePath);
     }
 
     public function honorific(): BelongsTo

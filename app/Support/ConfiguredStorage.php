@@ -54,6 +54,19 @@ class ConfiguredStorage
         return $this->disk;
     }
 
+    /**
+     * Backups use the File Storage driver/container, but stay on the private local
+     * disk when the admin setting is "local" so dump files are not web-accessible.
+     */
+    public function backupDisk(): Filesystem
+    {
+        if ($this->driver() === StorageDriver::Local) {
+            return Storage::disk('local');
+        }
+
+        return $this->disk();
+    }
+
     public function store(UploadedFile $file, string $directory, string $name): string
     {
         $directory = trim($directory, '/');
@@ -64,16 +77,19 @@ class ConfiguredStorage
             : $directory.'/'.$name;
     }
 
-    public function delete(?string $path): void
+    public function delete(?string $path, ?Filesystem $disk = null): void
     {
-        if ($path && $this->disk()->exists($path)) {
-            $this->disk()->delete($path);
+        $disk ??= $this->disk();
+        if ($path && $disk->exists($path)) {
+            $disk->delete($path);
         }
     }
 
-    public function exists(?string $path): bool
+    public function exists(?string $path, ?Filesystem $disk = null): bool
     {
-        return filled($path) && $this->disk()->exists($path);
+        $disk ??= $this->disk();
+
+        return filled($path) && $disk->exists($path);
     }
 
     public function get(string $path): string
@@ -101,6 +117,62 @@ class ConfiguredStorage
         } catch (Throwable) {
             return $disk->url($path);
         }
+    }
+
+    public function putFromLocal(string $destination, string $localPath, ?Filesystem $disk = null): void
+    {
+        if (! is_file($localPath) || filesize($localPath) === 0) {
+            throw new \RuntimeException('Local file is missing or empty.');
+        }
+
+        $stream = fopen($localPath, 'rb');
+        if ($stream === false) {
+            throw new \RuntimeException('Unable to read local file.');
+        }
+
+        try {
+            $stored = ($disk ?? $this->disk())->put($destination, $stream);
+            if ($stored === false) {
+                throw new \RuntimeException('Failed to store file on the configured disk.');
+            }
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+    }
+
+    public function copyToLocal(string $path, ?Filesystem $disk = null): string
+    {
+        $disk ??= $this->disk();
+        if (! $disk->exists($path)) {
+            throw new \RuntimeException('File is missing from storage.');
+        }
+
+        $localPath = sys_get_temp_dir().'/payroll_storage_'.uniqid('', true);
+        $stream = $disk->readStream($path);
+        if ($stream === false || $stream === null) {
+            throw new \RuntimeException('Unable to read file from storage.');
+        }
+
+        $out = fopen($localPath, 'wb');
+        if ($out === false) {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+            throw new \RuntimeException('Unable to create a temporary file.');
+        }
+
+        try {
+            stream_copy_to_stream($stream, $out);
+        } finally {
+            fclose($out);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+
+        return $localPath;
     }
 
     /**
@@ -143,15 +215,21 @@ class ConfiguredStorage
             throw new \InvalidArgumentException('Azure Blob Storage needs account name, account key, and container.');
         }
 
-        return Storage::build([
+        $config = [
             'driver' => 'azure-storage-blob',
+            'credential' => 'shared_key',
             'account_name' => $settings->account_name,
             'account_key' => $settings->account_key,
             'container' => $settings->container,
             'prefix' => (string) ($settings->prefix ?? ''),
-            'endpoint' => $settings->endpoint ?: null,
             'throw' => true,
-        ]);
+        ];
+
+        if (filled($settings->endpoint)) {
+            $config['endpoint'] = rtrim((string) $settings->endpoint, '/');
+        }
+
+        return Storage::build($config);
     }
 
     private function s3Disk(StorageSetting $settings): Filesystem

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuthSetting;
 use App\Models\User;
 use App\Models\WebAuthnCredential;
+use App\Support\LoginUserFinder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
@@ -232,24 +233,7 @@ class PasskeyService
 
     public function findUserByLoginIdentifier(string $identifier): ?User
     {
-        $identifier = trim($identifier);
-        if ($identifier === '') {
-            return null;
-        }
-
-        $user = User::query()->where('email', $identifier)->first();
-        if ($user) {
-            return $user;
-        }
-
-        if (! str_contains($identifier, '@')) {
-            return User::query()
-                ->where('email', 'like', $identifier.'@%')
-                ->orderBy('email')
-                ->first();
-        }
-
-        return null;
+        return app(LoginUserFinder::class)->find($identifier);
     }
 
     /**
@@ -266,13 +250,69 @@ class PasskeyService
     private function ceremonyFactory(): CeremonyStepManagerFactory
     {
         $factory = new CeremonyStepManagerFactory();
-        $origins = config('webauthn.origins', []);
-        if (is_array($origins) && $origins !== []) {
+        $origins = $this->allowedOrigins();
+        if ($origins !== []) {
             $factory->setAllowedOrigins($origins, true);
         }
         $factory->setSecuredRelyingPartyId([(string) config('webauthn.rp_id')]);
 
         return $factory;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function allowedOrigins(): array
+    {
+        $configured = config('webauthn.origins', []);
+        $origins = is_array($configured) ? $configured : [];
+        $requestOrigin = $this->requestOrigin();
+        if ($requestOrigin !== null && $this->originHostMatchesRp($requestOrigin)) {
+            $origins[] = $requestOrigin;
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn (mixed $origin): string => rtrim((string) $origin, '/'),
+            $origins,
+        ))));
+    }
+
+    private function requestOrigin(): ?string
+    {
+        $origin = rtrim((string) request()->headers->get('Origin'), '/');
+        if ($origin !== '') {
+            return $origin;
+        }
+
+        $referer = (string) request()->headers->get('Referer');
+        if ($referer === '') {
+            return null;
+        }
+
+        $parsed = parse_url($referer);
+        if (! isset($parsed['scheme'], $parsed['host'])) {
+            return null;
+        }
+
+        $origin = $parsed['scheme'].'://'.$parsed['host'];
+        if (isset($parsed['port'])) {
+            $origin .= ':'.$parsed['port'];
+        }
+
+        return $origin;
+    }
+
+    private function originHostMatchesRp(string $origin): bool
+    {
+        $host = parse_url($origin, PHP_URL_HOST);
+        $rpId = strtolower((string) config('webauthn.rp_id'));
+        if (! is_string($host) || $host === '' || $rpId === '') {
+            return false;
+        }
+
+        $host = strtolower($host);
+
+        return $host === $rpId || str_ends_with($host, '.'.$rpId);
     }
 
     private function serializer(): \Symfony\Component\Serializer\SerializerInterface

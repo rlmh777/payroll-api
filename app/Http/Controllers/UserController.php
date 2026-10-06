@@ -3,16 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Role;
 use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Services\CompanyModuleService;
 use App\Services\MenuAuthorizationService;
 use App\Services\UserRoleAssignmentService;
-use App\Models\Role;
+use App\Services\UsernameGenerator;
 use App\Support\Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -41,11 +43,12 @@ class UserController extends Controller
             });
         }
 
-        // Search by name or email
+        // Search by name, username, or email
         if ($request->has('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', "%{$search}%")
+                  ->orWhere('username', 'ilike', "%{$search}%")
                   ->orWhere('email', 'ilike', "%{$search}%");
             });
         }
@@ -77,6 +80,7 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['sometimes', 'nullable', 'string', 'max:64', Rule::unique('users', 'username')],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'roles' => ['sometimes', 'array'],
@@ -87,8 +91,15 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $username = $this->resolveUsername(
+            $request->input('username'),
+            $request->input('name'),
+            $request->input('email'),
+        );
+
         $user = User::create([
             'name' => $request->input('name'),
+            'username' => $username,
             'email' => $request->input('email'),
             'password' => Hash::make($request->input('password')),
         ]);
@@ -135,6 +146,7 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => ['sometimes', 'string', 'max:255'],
+            'username' => ['sometimes', 'nullable', 'string', 'max:64', Rule::unique('users', 'username')->ignore($user->id)],
             'email' => ['sometimes', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'password' => ['sometimes', 'string', 'min:8', 'confirmed'],
             'roles' => ['sometimes', 'array'],
@@ -146,6 +158,13 @@ class UserController extends Controller
         }
 
         $updateData = $request->only(['name', 'email']);
+
+        if ($request->exists('username')) {
+            $username = trim((string) $request->input('username'));
+            $updateData['username'] = $username === ''
+                ? $this->resolveUsername(null, $request->input('name', $user->name), $request->input('email', $user->email), $user->id)
+                : UsernameGenerator::sanitize($username);
+        }
         
         if ($request->has('password')) {
             $updateData['password'] = Hash::make($request->input('password'));
@@ -513,5 +532,15 @@ class UserController extends Controller
         if ((string) $actor->id === (string) $target->id) {
             abort(403, 'You cannot reset your own password with this action.');
         }
+    }
+
+    private function resolveUsername(?string $username, string $name, string $email, ?string $ignoreUserId = null): string
+    {
+        $username = UsernameGenerator::sanitize((string) $username);
+        if ($username !== '') {
+            return $username;
+        }
+
+        return app(UsernameGenerator::class)->uniqueForNameOrEmail($name, $email, $ignoreUserId);
     }
 }

@@ -48,8 +48,10 @@ return [
     |--------------------------------------------------------------------------
     | Employee user accounts
     |--------------------------------------------------------------------------
-    | Login email is generated as {lastname}.{firstname}@{employee_login_domain}.
-    | Users can sign in with that username or the full email address.
+    | Login usernames are generated from Admin Settings → Login rules
+    | (pattern, separator, middle initial). Users sign in with that username
+    | or the full email address. Generated employee emails use
+    | {username}@{employee_login_domain} when the domain is set.
     */
     'employee_default_password' => env('EMPLOYEE_DEFAULT_PASSWORD', 'ChangeMe123!'),
     'employee_login_domain' => env('EMPLOYEE_LOGIN_DOMAIN', ''),
