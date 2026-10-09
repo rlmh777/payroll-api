@@ -45,9 +45,6 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Log in to ACR
         run: az acr login --name "$ACR_NAME"
 
@@ -57,13 +54,26 @@ jobs:
           IMAGE="${ACR_LOGIN_SERVER}/payroll-api:${IMAGE_TAG}"
           LATEST="${ACR_LOGIN_SERVER}/payroll-api:latest"
 
-          docker buildx build \
-            --platform linux/amd64 \
-            --file Dockerfile \
-            --tag "$IMAGE" \
-            --tag "$LATEST" \
-            --push \
-            .
+          # Use the runner's built-in BuildKit. setup-buildx-action pulls
+          # moby/buildkit from Docker Hub and often times out.
+          for attempt in 1 2 3; do
+            if docker build \
+              --platform linux/amd64 \
+              --file Dockerfile \
+              --tag "$IMAGE" \
+              --tag "$LATEST" \
+              .; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              exit 1
+            fi
+            echo "Docker build failed (attempt ${attempt}); retrying in 20s..."
+            sleep 20
+          done
+
+          docker push "$IMAGE"
+          docker push "$LATEST"
 
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
