@@ -93,6 +93,104 @@ class LoginPageSettingTest extends TestCase
         $this->assertSame('carousel', LoginPageSetting::current()->layout['backgroundMode']);
     }
 
+    public function test_admin_can_place_blocks_on_the_login_grid(): void
+    {
+        $admin = $this->loginPageAdmin();
+        Sanctum::actingAs($admin);
+
+        $this->putJson('/api/login-page-settings', [
+            'backgroundMode' => 'color',
+            'backgroundColor' => '#0f172a',
+            'gridColumns' => 12,
+            'gridRows' => 8,
+            'blocks' => [
+                [
+                    'id' => 'image-left',
+                    'type' => 'image',
+                    'x' => 0,
+                    'y' => 0,
+                    'width' => 50,
+                    'height' => 100,
+                    'col' => 0,
+                    'row' => 0,
+                    'colSpan' => 6,
+                    'rowSpan' => 8,
+                ],
+                [
+                    'id' => 'form-default',
+                    'type' => 'form',
+                    'x' => 50,
+                    'y' => 12.5,
+                    'width' => 50,
+                    'height' => 75,
+                    'col' => 6,
+                    'row' => 1,
+                    'colSpan' => 6,
+                    'rowSpan' => 6,
+                    'maxWidth' => 400,
+                    'align' => 'center',
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('gridColumns', 12)
+            ->assertJsonPath('gridRows', 8)
+            ->assertJsonPath('blocks.0.col', 0)
+            ->assertJsonPath('blocks.0.colSpan', 6)
+            ->assertJsonPath('blocks.0.width', 50)
+            ->assertJsonPath('blocks.1.col', 6)
+            ->assertJsonPath('blocks.1.row', 1);
+    }
+
+    public function test_admin_can_save_heading_levels_and_login_card_styles(): void
+    {
+        $admin = $this->loginPageAdmin();
+        Sanctum::actingAs($admin);
+
+        $this->putJson('/api/login-page-settings', [
+            'backgroundMode' => 'color',
+            'backgroundColor' => '#0f172a',
+            'blocks' => [
+                [
+                    'id' => 'heading-h3',
+                    'type' => 'heading',
+                    'x' => 10,
+                    'y' => 8,
+                    'width' => 40,
+                    'height' => 10,
+                    'headingLevel' => 3,
+                    'text' => 'Welcome team',
+                    'fontSize' => 26,
+                    'color' => '#ffffff',
+                    'align' => 'left',
+                ],
+                [
+                    'id' => 'form-default',
+                    'type' => 'form',
+                    'x' => 10,
+                    'y' => 20,
+                    'width' => 40,
+                    'height' => 50,
+                    'maxWidth' => 400,
+                    'color' => '#111827',
+                    'cardBackground' => '#f8fafc',
+                    'cardBorderColor' => '#94a3b8',
+                    'cardBorderWidth' => 2,
+                    'cardRadius' => 16,
+                    'cardShadow' => 3,
+                    'align' => 'center',
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('blocks.0.headingLevel', 3)
+            ->assertJsonPath('blocks.0.text', 'Welcome team')
+            ->assertJsonPath('blocks.1.cardBackground', '#f8fafc')
+            ->assertJsonPath('blocks.1.cardBorderWidth', 2)
+            ->assertJsonPath('blocks.1.cardShadow', 3)
+            ->assertJsonPath('blocks.1.color', '#111827');
+    }
+
     public function test_user_without_permission_cannot_update_login_page(): void
     {
         $user = User::query()->create([

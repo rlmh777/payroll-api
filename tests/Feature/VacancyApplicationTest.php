@@ -41,7 +41,7 @@ class VacancyApplicationTest extends TestCase
             'last_name' => 'Chan',
             'email' => 'maya@example.com',
             'phone' => '615-0099',
-            'cover_letter' => 'I would like to apply.',
+            'cover_letter' => UploadedFile::fake()->create('cover.pdf', 12, 'application/pdf'),
         ], ['Accept' => 'application/json'])
             ->assertCreated()
             ->assertJsonPath('data.applicant.email', 'maya@example.com');
@@ -74,8 +74,32 @@ class VacancyApplicationTest extends TestCase
             'first_name' => 'Maya',
             'last_name' => 'Chan',
             'email' => 'maya@example.com',
+            'cover_letter' => UploadedFile::fake()->create('cover.pdf', 12, 'application/pdf'),
             'resume' => $file,
         ], ['Accept' => 'application/json'])->assertCreated();
+    }
+
+    public function test_public_application_accepts_identity_document_uploads(): void
+    {
+        $vacancy = $this->publishedVacancy(requireResume: false);
+
+        $this->post('/api/careers/vacancies/'.$vacancy->id.'/applications', [
+            'first_name' => 'Maya',
+            'last_name' => 'Chan',
+            'email' => 'maya@example.com',
+            'cover_letter' => UploadedFile::fake()->create('cover.pdf', 12, 'application/pdf'),
+            'social_security' => UploadedFile::fake()->create('ssn.jpg', 20, 'image/jpeg'),
+            'passport' => UploadedFile::fake()->create('passport.pdf', 20, 'application/pdf'),
+            'police_record' => UploadedFile::fake()->create('police.png', 20, 'image/png'),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.cover_letter_name', 'cover.pdf')
+            ->assertJsonPath('data.social_security_name', 'ssn.jpg')
+            ->assertJsonPath('data.passport_name', 'passport.pdf')
+            ->assertJsonPath('data.police_record_name', 'police.png');
+
+        $this->assertNotNull(VacancyApplication::query()->first()?->cover_letter_path);
+        $this->assertNotNull(VacancyApplication::query()->first()?->passport_path);
     }
 
     public function test_converting_applicant_updates_existing_employee(): void
@@ -96,12 +120,13 @@ class VacancyApplicationTest extends TestCase
         ]);
 
         $vacancy = $this->publishedVacancy(requireResume: false);
-        $this->postJson("/api/careers/vacancies/{$vacancy->id}/applications", [
+        $this->post('/api/careers/vacancies/'.$vacancy->id.'/applications', [
             'first_name' => 'Maya',
             'last_name' => 'Chan',
             'email' => 'maya@example.com',
             'phone' => '615-0099',
-        ])->assertCreated();
+            'cover_letter' => UploadedFile::fake()->create('cover.pdf', 12, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated();
 
         $application = VacancyApplication::query()->firstOrFail();
         $admin = $this->vacancyAdmin(withEmployeeCrud: true);
@@ -123,11 +148,12 @@ class VacancyApplicationTest extends TestCase
     {
         $lookups = $this->employeeLookups();
         $vacancy = $this->publishedVacancy(requireResume: false);
-        $this->postJson("/api/careers/vacancies/{$vacancy->id}/applications", [
+        $this->post('/api/careers/vacancies/'.$vacancy->id.'/applications', [
             'first_name' => 'Luis',
             'last_name' => 'Herrera',
             'email' => 'luis@example.com',
-        ])->assertCreated();
+            'cover_letter' => UploadedFile::fake()->create('cover.pdf', 12, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated();
 
         $application = VacancyApplication::query()->firstOrFail();
         $admin = $this->vacancyAdmin(withEmployeeCrud: true);
@@ -167,11 +193,12 @@ class VacancyApplicationTest extends TestCase
         );
 
         $vacancy = $this->publishedVacancy(requireResume: false);
-        $this->postJson("/api/careers/vacancies/{$vacancy->id}/applications", [
+        $this->post('/api/careers/vacancies/'.$vacancy->id.'/applications', [
             'first_name' => 'Maya',
             'last_name' => 'Chan',
             'email' => 'maya@example.com',
-        ])->assertCreated();
+            'cover_letter' => UploadedFile::fake()->create('cover.pdf', 12, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated();
 
         $application = VacancyApplication::query()->firstOrFail();
         $received = CandidateStage::query()->where('is_default', true)->firstOrFail();

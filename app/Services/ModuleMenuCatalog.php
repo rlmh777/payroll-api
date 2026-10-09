@@ -7,13 +7,13 @@ namespace App\Services;
  */
 class ModuleMenuCatalog
 {
-    public const HR_SETTINGS_PERMISSION = 'view-vacancies|view-job-title|view-department|view-worksite|view-holidays|view-relationship|view-degree|view-country|view-district|view-locality|view-institution';
+    public const HR_SETTINGS_PERMISSION = 'view-hr-settings|view-vacancies|view-job-title|view-department|view-worksite|view-holidays|view-relationship|view-degree|view-country|view-district|view-locality|view-institution';
 
     public static function definitions(): array
     {
         return [
             [
-                'system_key' => 'core.dashboard',
+                'system_key' => 'payroll.dashboard',
                 'module_code' => 'payroll',
                 'title' => 'Dashboard',
                 'route' => '/',
@@ -23,13 +23,33 @@ class ModuleMenuCatalog
                 'type' => 'menu',
             ],
             [
-                'system_key' => 'core.reports',
+                'system_key' => 'payroll.reports',
                 'module_code' => 'payroll',
                 'title' => 'Reports',
                 'route' => '/payroll/reports',
                 'icon' => 'assessment',
                 'permission' => 'view-reports',
                 'order' => 8,
+                'type' => 'menu',
+            ],
+            [
+                'system_key' => 'employee.dashboard',
+                'module_code' => 'employee',
+                'title' => 'Dashboard',
+                'route' => '/employee',
+                'icon' => 'dashboard',
+                'permission' => null,
+                'order' => 1,
+                'type' => 'menu',
+            ],
+            [
+                'system_key' => 'employee.scheduler',
+                'module_code' => 'employee',
+                'title' => 'Scheduler',
+                'route' => '/payroll/scheduler',
+                'icon' => 'calendar_month',
+                'permission' => 'view-calendars',
+                'order' => 2,
                 'type' => 'menu',
             ],
             [
@@ -205,6 +225,39 @@ class ModuleMenuCatalog
                 'type' => 'submenu',
             ],
             [
+                'system_key' => 'hr.settings.birthdays',
+                'module_code' => 'hr',
+                'parent_system_key' => 'hr.settings',
+                'title' => 'Birthdays',
+                'route' => '/hr/settings/birthdays',
+                'icon' => 'cake',
+                'permission' => self::HR_SETTINGS_PERMISSION,
+                'order' => 13,
+                'type' => 'submenu',
+            ],
+            [
+                'system_key' => 'hr.settings.letter_templates',
+                'module_code' => 'hr',
+                'parent_system_key' => 'hr.settings',
+                'title' => 'Letter templates',
+                'route' => '/hr/settings/letter-templates',
+                'icon' => 'description',
+                'permission' => self::HR_SETTINGS_PERMISSION,
+                'order' => 14,
+                'type' => 'submenu',
+            ],
+            [
+                'system_key' => 'hr.settings.email_templates',
+                'module_code' => 'hr',
+                'parent_system_key' => 'hr.settings',
+                'title' => 'Email templates',
+                'route' => '/hr/settings/email-templates',
+                'icon' => 'email',
+                'permission' => self::HR_SETTINGS_PERMISSION,
+                'order' => 15,
+                'type' => 'submenu',
+            ],
+            [
                 'system_key' => 'payroll.employees',
                 'module_code' => 'payroll',
                 'title' => 'Employees',
@@ -316,6 +369,17 @@ class ModuleMenuCatalog
                 'icon' => 'cloud',
                 'permission' => 'view-file-storage',
                 'order' => 8,
+                'type' => 'submenu',
+            ],
+            [
+                'system_key' => 'admin.email',
+                'module_code' => 'admin',
+                'parent_system_key' => 'admin.settings',
+                'title' => 'Email',
+                'route' => '/admin/settings/email',
+                'icon' => 'email',
+                'permission' => 'view-email-settings',
+                'order' => 11,
                 'type' => 'submenu',
             ],
             [

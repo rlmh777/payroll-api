@@ -11,9 +11,14 @@ use Illuminate\Database\Seeder;
 class MenuSeeder extends Seeder
 {
     private const ROOT_MODULE_BY_SYSTEM_KEY = [
-        'core.dashboard' => 'payroll',
-        'core.reports' => 'payroll',
+        'payroll.dashboard' => 'payroll',
+        'payroll.reports' => 'payroll',
+        'employee.dashboard' => 'employee',
+        'employee.scheduler' => 'employee',
         'hr.employees' => 'hr',
+        'hr.settings.birthdays' => 'hr',
+        'hr.settings.letter_templates' => 'hr',
+        'hr.settings.email_templates' => 'hr',
         'hr.vacancies' => 'hr',
         'hr.candidates' => 'hr',
         'hr.settings' => 'hr',
@@ -38,7 +43,9 @@ class MenuSeeder extends Seeder
         'admin.modules' => 'admin',
         'admin.database_backup' => 'admin',
         'admin.file_storage' => 'admin',
+        'admin.email' => 'admin',
         'admin.login' => 'admin',
+        'admin.login_page' => 'admin',
         'admin.menu' => 'admin',
         'admin.roles' => 'admin',
         'admin.organization' => 'admin',
@@ -56,12 +63,34 @@ class MenuSeeder extends Seeder
 
         $this->ensureMenu([
             'title' => 'Dashboard',
+            'route' => '/employee',
+            'icon' => 'dashboard',
+            'permission' => null,
+            'order' => 1,
+            'type' => 'menu',
+            'system_key' => 'employee.dashboard',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Scheduler',
+            'route' => '/payroll/scheduler',
+            'icon' => 'calendar_month',
+            'permission' => 'view-calendars',
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'employee.scheduler',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Dashboard',
             'route' => '/',
             'icon' => 'fas fa-tachometer-alt',
             'permission' => 'view-dashboard',
             'order' => 1,
             'type' => 'menu',
-            'system_key' => 'core.dashboard',
+            'system_key' => 'payroll.dashboard',
             'module_code' => 'payroll',
         ]);
 
@@ -149,6 +178,9 @@ class MenuSeeder extends Seeder
             ['District', '/hr/settings/district', 'fas fa-map-marker-alt', 'view-district', 10, 'hr.settings.district'],
             ['Locality', '/hr/settings/locality', 'fas fa-map-pin', 'view-locality', 11, 'hr.settings.locality'],
             ['Institution', '/hr/settings/institution', 'fas fa-university', 'view-institution', 12, 'hr.settings.institution'],
+            ['Birthdays', '/hr/settings/birthdays', 'cake', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 13, 'hr.settings.birthdays'],
+            ['Letter templates', '/hr/settings/letter-templates', 'description', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 14, 'hr.settings.letter_templates'],
+            ['Email templates', '/hr/settings/email-templates', 'email', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 15, 'hr.settings.email_templates'],
         ];
 
         foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {
@@ -267,6 +299,18 @@ class MenuSeeder extends Seeder
             'order' => 8,
             'type' => 'submenu',
             'system_key' => 'admin.file_storage',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Email',
+            'route' => '/admin/settings/email',
+            'icon' => 'email',
+            'permission' => 'view-email-settings',
+            'order' => 11,
+            'type' => 'submenu',
+            'system_key' => 'admin.email',
             'module_code' => 'admin',
         ]);
 
@@ -497,7 +541,7 @@ class MenuSeeder extends Seeder
             'permission' => 'view-reports',
             'order' => 8,
             'type' => 'menu',
-            'system_key' => 'core.reports',
+            'system_key' => 'payroll.reports',
             'module_code' => 'payroll',
         ]);
     }
@@ -523,6 +567,13 @@ class MenuSeeder extends Seeder
                     $query->where('parent_id', $attributes['parent_id']);
                 }
             }
+            // Shared routes (scheduler on payroll and employee) must not steal
+            // an existing system menu that already has a different system_key.
+            if ($systemKey) {
+                $query->where(function ($legacy) {
+                    $legacy->whereNull('system_key')->orWhere('system_key', '');
+                });
+            }
             $existing = $query->first();
         }
 
@@ -536,9 +587,18 @@ class MenuSeeder extends Seeder
         ], $attributes);
 
         if ($existing) {
-            $existing->update($payload);
+            $fill = [];
+            if (blank($existing->system_key) && filled($systemKey)) {
+                $fill['system_key'] = $systemKey;
+            }
+            if (blank($existing->module_code) && filled($payload['module_code'] ?? null)) {
+                $fill['module_code'] = $payload['module_code'];
+            }
+            if ($fill !== []) {
+                $existing->update($fill);
+            }
 
-            return $existing->fresh();
+            return $existing->fresh() ?? $existing;
         }
 
         return Menu::create($payload);
@@ -574,6 +634,8 @@ class MenuSeeder extends Seeder
             'database-backup-crud',
             'view-file-storage',
             'file-storage-crud',
+            'view-email-settings',
+            'email-settings-crud',
             'view-login-page',
             'login-page-crud',
             'view-vacancies',
@@ -588,6 +650,7 @@ class MenuSeeder extends Seeder
             'view-general',
             'view-calendars',
             'view-holidays',
+            'view-hr-settings',
             'view-roles-menus',
             'view-roles',
             'view-menu',

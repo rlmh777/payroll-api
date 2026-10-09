@@ -115,12 +115,12 @@ jobs:
 
           unset ACCOUNT_KEY
 
-      - name: Ensure API runs migrations on start
+      - name: Ensure API runs migrations and insert-only catalog seed
         run: |
           az containerapp update \
             --name "$CONTAINER_APP_API" \
             --resource-group "$RESOURCE_GROUP" \
-            --set-env-vars "RUN_MIGRATIONS=true" "RUN_SEEDERS=false" \
+            --set-env-vars "RUN_MIGRATIONS=true" "RUN_SEEDERS=true" \
             --output none
 
       - name: Summary

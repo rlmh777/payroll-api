@@ -18,6 +18,11 @@ Schedule::command('timesheets:apply-payroll-locks')
     ->withoutOverlapping()
     ->onOneServer();
 
+Schedule::command('hr:send-contract-expiry-reminders')
+    ->dailyAt('07:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 foreach (config('database-backup.schedule_times', []) as $time) {
     if (! is_string($time) || $time === '') {
         continue;

@@ -38,6 +38,8 @@ class LoginPageSettingController extends Controller
             'backgroundMode' => ['required', 'in:color,image,carousel'],
             'backgroundColor' => ['required', 'string', 'max:16'],
             'carouselIntervalMs' => ['sometimes', 'integer', 'min:2000', 'max:30000'],
+            'gridColumns' => ['sometimes', 'integer', 'min:2', 'max:24'],
+            'gridRows' => ['sometimes', 'integer', 'min:2', 'max:24'],
             'images' => ['sometimes', 'array'],
             'images.*.id' => ['required', 'string', 'max:64'],
             'images.*.path' => ['required', 'string', 'max:500'],
@@ -50,6 +52,10 @@ class LoginPageSettingController extends Controller
             'blocks.*.y' => ['required', 'numeric'],
             'blocks.*.width' => ['required', 'numeric'],
             'blocks.*.height' => ['required', 'numeric'],
+            'blocks.*.col' => ['sometimes', 'integer', 'min:0', 'max:24'],
+            'blocks.*.row' => ['sometimes', 'integer', 'min:0', 'max:24'],
+            'blocks.*.colSpan' => ['sometimes', 'integer', 'min:1', 'max:24'],
+            'blocks.*.rowSpan' => ['sometimes', 'integer', 'min:1', 'max:24'],
             'blocks.*.zIndex' => ['sometimes', 'integer'],
             'blocks.*.text' => ['sometimes', 'nullable', 'string', 'max:500'],
             'blocks.*.fontSize' => ['sometimes', 'numeric'],
@@ -57,6 +63,12 @@ class LoginPageSettingController extends Controller
             'blocks.*.align' => ['sometimes', 'in:left,center,right'],
             'blocks.*.imageId' => ['sometimes', 'nullable', 'string', 'max:64'],
             'blocks.*.maxWidth' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:960'],
+            'blocks.*.headingLevel' => ['sometimes', 'integer', 'min:1', 'max:6'],
+            'blocks.*.cardBackground' => ['sometimes', 'string', 'max:16'],
+            'blocks.*.cardBorderColor' => ['sometimes', 'string', 'max:16'],
+            'blocks.*.cardBorderWidth' => ['sometimes', 'numeric', 'min:0', 'max:12'],
+            'blocks.*.cardRadius' => ['sometimes', 'numeric', 'min:0', 'max:48'],
+            'blocks.*.cardShadow' => ['sometimes', 'integer', 'min:0', 'max:3'],
         ]);
 
         $settings = LoginPageSetting::current();

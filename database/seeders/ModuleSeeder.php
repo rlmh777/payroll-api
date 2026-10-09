@@ -19,26 +19,26 @@ class ModuleSeeder extends Seeder
         $now = now();
         $modules = [
             [
-                'code' => 'core',
-                'title' => 'Core',
-                'icon' => 'home',
+                'code' => 'payroll',
+                'title' => 'Payroll',
+                'icon' => 'payments',
                 'default_route' => '/',
                 'is_core' => false,
                 'sort_order' => 1,
+            ],
+            [
+                'code' => 'employee',
+                'title' => 'Employee',
+                'icon' => 'person',
+                'default_route' => '/employee',
+                'is_core' => false,
+                'sort_order' => 2,
             ],
             [
                 'code' => 'hr',
                 'title' => 'HR',
                 'icon' => 'groups',
                 'default_route' => '/hr/employees',
-                'is_core' => false,
-                'sort_order' => 2,
-            ],
-            [
-                'code' => 'payroll',
-                'title' => 'Payroll',
-                'icon' => 'payments',
-                'default_route' => '/payroll/overview',
                 'is_core' => false,
                 'sort_order' => 3,
             ],
@@ -87,13 +87,13 @@ class ModuleSeeder extends Seeder
             ];
 
             if ($exists) {
-                DB::table('modules')->where('code', $module['code'])->update($payload);
-            } else {
-                DB::table('modules')->insert([
-                    ...$payload,
-                    'created_at' => $now,
-                ]);
+                continue;
             }
+
+            DB::table('modules')->insert([
+                ...$payload,
+                'created_at' => $now,
+            ]);
         }
 
         $this->seedCompanyModules();
@@ -111,13 +111,13 @@ class ModuleSeeder extends Seeder
         }
 
         $now = now();
-        $enabledByDefault = ['core', 'hr', 'payroll', 'admin'];
+        $enabledByDefault = ['employee', 'hr', 'payroll', 'admin'];
         $moduleCodes = DB::table('modules')->pluck('code');
 
         foreach ($moduleCodes as $code) {
             $enabled = in_array($code, $enabledByDefault, true);
 
-            CompanyModule::query()->updateOrCreate(
+            CompanyModule::query()->firstOrCreate(
                 [
                     'company_id' => $companyId,
                     'module_code' => $code,

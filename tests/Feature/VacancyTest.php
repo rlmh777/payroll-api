@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Modules\Hr\Models\Vacancy;
 use App\Modules\Hr\Models\VacancyStage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -206,6 +208,104 @@ class VacancyTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['title' => 'Line cook'])
             ->assertJsonMissing(['title' => 'Night auditor']);
+    }
+
+    public function test_vacancy_board_filters_by_published_date_range(): void
+    {
+        $admin = $this->vacancyAdmin();
+        Sanctum::actingAs($admin);
+
+        $published = VacancyStage::query()->where('name', 'Published')->firstOrFail();
+        $draft = VacancyStage::query()->where('name', 'Draft')->firstOrFail();
+
+        $inRange = Vacancy::query()->create([
+            'title' => 'Published last week',
+            'positions' => 1,
+            'require_resume' => false,
+            'advertise_internal' => true,
+            'advertise_public' => true,
+            'vacancy_stage_id' => $published->id,
+            'sort_order' => 1,
+            'published_at' => '2026-09-20 10:00:00',
+        ]);
+        Vacancy::query()->create([
+            'title' => 'Published last year',
+            'positions' => 1,
+            'require_resume' => false,
+            'advertise_internal' => true,
+            'advertise_public' => true,
+            'vacancy_stage_id' => $published->id,
+            'sort_order' => 2,
+            'published_at' => '2025-01-15 10:00:00',
+        ]);
+        Vacancy::query()->create([
+            'title' => 'Still a draft',
+            'positions' => 1,
+            'require_resume' => false,
+            'advertise_internal' => true,
+            'advertise_public' => false,
+            'vacancy_stage_id' => $draft->id,
+            'sort_order' => 1,
+        ]);
+
+        $this->getJson('/api/vacancies/board?published_from=2026-09-01&published_to=2026-09-30')
+            ->assertOk()
+            ->assertJsonFragment(['title' => $inRange->title])
+            ->assertJsonMissing(['title' => 'Published last year'])
+            ->assertJsonMissing(['title' => 'Still a draft']);
+    }
+
+    public function test_admin_can_save_html_description_and_document_attachments(): void
+    {
+        Storage::fake('public');
+        $admin = $this->vacancyAdmin();
+        Sanctum::actingAs($admin);
+        $new = VacancyStage::query()->where('name', 'New')->firstOrFail();
+        $html = '<p>Guest <strong>check-in</strong> and reservations.</p>';
+        $file = UploadedFile::fake()->create(
+            'brief.docx',
+            20,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+
+        $created = $this->post('/api/vacancies', [
+            'title' => 'Night auditor',
+            'positions' => 1,
+            'require_resume' => true,
+            'advertise_internal' => true,
+            'advertise_public' => false,
+            'vacancy_stage_id' => $new->id,
+            'description' => $html,
+            'attachments' => [$file],
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.description', $html)
+            ->assertJsonPath('data.attachments.0.file_name', 'brief.docx');
+
+        $id = $created->json('data.id');
+        $attachmentId = $created->json('data.attachments.0.id');
+
+        $this->post("/api/vacancies/{$id}", [
+            'title' => 'Night auditor',
+            'remove_attachment_ids' => [$attachmentId],
+            'attachments' => [UploadedFile::fake()->create('policy.pdf', 12, 'application/pdf')],
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.attachments')
+            ->assertJsonPath('data.attachments.0.file_name', 'policy.pdf');
+    }
+
+    public function test_vacancy_attachments_must_be_documents(): void
+    {
+        Storage::fake('public');
+        $admin = $this->vacancyAdmin();
+        Sanctum::actingAs($admin);
+
+        $this->post('/api/vacancies', [
+            'title' => 'Cook',
+            'positions' => 1,
+            'attachments' => [UploadedFile::fake()->image('photo.jpg')],
+        ], ['Accept' => 'application/json'])->assertStatus(422);
     }
 
     private function vacancyAdmin(): User

@@ -5,6 +5,7 @@ namespace App\Modules\Hr\Models;
 use App\Models\Department;
 use App\Models\JobTitle;
 use App\Models\Worksite;
+use App\Support\ConfiguredStorage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,7 @@ class Vacancy extends Model
         'advertise_public',
         'vacancy_stage_id',
         'sort_order',
+        'published_at',
     ];
 
     protected $casts = [
@@ -47,6 +49,7 @@ class Vacancy extends Model
         'advertise_public' => 'boolean',
         'vacancy_stage_id' => 'integer',
         'sort_order' => 'integer',
+        'published_at' => 'datetime',
     ];
 
     public function stage(): BelongsTo
@@ -77,6 +80,21 @@ class Vacancy extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(VacancyApplication::class, 'vacancy_id');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(VacancyAttachment::class, 'vacancy_id');
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Vacancy $vacancy) {
+            $vacancy->loadMissing('attachments');
+            foreach ($vacancy->attachments as $attachment) {
+                app(ConfiguredStorage::class)->delete($attachment->file_path);
+            }
+        });
     }
 
     public function scopeApplyFilters(Builder $query, Request $request): Builder
@@ -117,7 +135,31 @@ class Vacancy extends Model
             $query->where('advertise_public', true);
         }
 
+        if ($request->filled('published_from')) {
+            $query->whereDate('published_at', '>=', (string) $request->input('published_from'));
+        }
+
+        if ($request->filled('published_to')) {
+            $query->whereDate('published_at', '<=', (string) $request->input('published_to'));
+        }
+
         return $query;
+    }
+
+    public function touchPublishedAt(?int $stageId = null): void
+    {
+        if ($this->published_at) {
+            return;
+        }
+
+        $id = $stageId ?? $this->vacancy_stage_id;
+        if (! $id) {
+            return;
+        }
+
+        if (VacancyStage::query()->whereKey($id)->value('lists_public')) {
+            $this->forceFill(['published_at' => now()])->save();
+        }
     }
 
     public function isListedPublicly(): bool
@@ -138,6 +180,7 @@ class Vacancy extends Model
             'worksite',
             'department',
             'hiringManager.person',
+            'attachments',
         ];
     }
 
@@ -173,12 +216,16 @@ class Vacancy extends Model
             'positions' => $this->positions,
             'require_resume' => $this->require_resume,
             'description' => $this->description,
+            'attachments' => $this->attachments
+                ->map(fn (VacancyAttachment $attachment) => $attachment->present())
+                ->values(),
             'advertise_internal' => $this->advertise_internal,
             'advertise_public' => $this->advertise_public,
             'vacancy_stage_id' => $this->vacancy_stage_id,
             'stage' => $stage?->present(),
             'sort_order' => $this->sort_order,
             'applications_count' => (int) ($this->applications_count ?? 0),
+            'published_at' => $this->published_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

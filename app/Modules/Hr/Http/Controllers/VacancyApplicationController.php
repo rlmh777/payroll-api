@@ -131,9 +131,20 @@ class VacancyApplicationController extends Controller
 
     private function storeApplication(Request $request, Vacancy $vacancy, string $source): JsonResponse
     {
+        $letterRules = ['pdf', 'doc', 'docx'];
+        $idDocRules = ['pdf', 'jpg', 'jpeg', 'png'];
         $resumeRules = $vacancy->require_resume
-            ? ['required', 'file', 'mimes:pdf,doc,docx', 'max:10240']
-            : ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:10240'];
+            ? ['required', 'file', 'mimes:'.implode(',', $letterRules), 'max:10240']
+            : ['nullable', 'file', 'mimes:'.implode(',', $letterRules), 'max:10240'];
+        $coverLetterIsFile = $request->hasFile('cover_letter');
+        $coverLetterRules = $coverLetterIsFile || $source === VacancyApplication::SOURCE_PUBLIC
+            ? [
+                $source === VacancyApplication::SOURCE_PUBLIC ? 'required' : 'nullable',
+                'file',
+                'mimes:'.implode(',', $letterRules),
+                'max:10240',
+            ]
+            : ['nullable', 'string'];
 
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
@@ -147,9 +158,12 @@ class VacancyApplicationController extends Controller
             'birthdate' => ['nullable', 'date'],
             'gender_id' => ['nullable', 'integer', 'exists:gender,id'],
             'social_security_number' => ['nullable', 'string', 'max:255'],
-            'cover_letter' => ['nullable', 'string'],
+            'cover_letter' => $coverLetterRules,
             'notes' => ['nullable', 'string'],
             'resume' => $resumeRules,
+            'social_security' => ['nullable', 'file', 'mimes:'.implode(',', $idDocRules), 'max:10240'],
+            'passport' => ['nullable', 'file', 'mimes:'.implode(',', $idDocRules), 'max:10240'],
+            'police_record' => ['nullable', 'file', 'mimes:'.implode(',', $idDocRules), 'max:10240'],
         ]);
 
         $application = DB::transaction(function () use ($validated, $vacancy, $source, $request) {
@@ -159,16 +173,17 @@ class VacancyApplicationController extends Controller
                 ->where('applicant_id', $applicant->id)
                 ->first();
 
-            $resume = $this->storeResume($request->file('resume'), $existing?->resume_path);
-
             $payload = [
-                'cover_letter' => $validated['cover_letter'] ?? $existing?->cover_letter,
+                'cover_letter' => is_string($validated['cover_letter'] ?? null)
+                    ? $validated['cover_letter']
+                    : $existing?->cover_letter,
                 'source' => $source,
             ];
-            if ($resume !== null) {
-                $payload['resume_path'] = $resume['path'];
-                $payload['resume_name'] = $resume['name'];
-            }
+            $this->mergeStoredFile($payload, $request->file('cover_letter'), $existing?->cover_letter_path, 'cover', 'cover_letter_path', 'cover_letter_name');
+            $this->mergeStoredFile($payload, $request->file('resume'), $existing?->resume_path, 'resume', 'resume_path', 'resume_name');
+            $this->mergeStoredFile($payload, $request->file('social_security'), $existing?->social_security_path, 'ssn', 'social_security_path', 'social_security_name');
+            $this->mergeStoredFile($payload, $request->file('passport'), $existing?->passport_path, 'passport', 'passport_path', 'passport_name');
+            $this->mergeStoredFile($payload, $request->file('police_record'), $existing?->police_record_path, 'police', 'police_record_path', 'police_record_name');
 
             if ($existing) {
                 $existing->update($payload);
@@ -187,17 +202,13 @@ class VacancyApplicationController extends Controller
                 ->where('candidate_stage_id', $stageId)
                 ->max('sort_order');
 
-            return VacancyApplication::query()->create([
+            return VacancyApplication::query()->create(array_merge($payload, [
                 'vacancy_id' => $vacancy->id,
                 'applicant_id' => $applicant->id,
                 'candidate_stage_id' => $stageId,
-                'cover_letter' => $payload['cover_letter'] ?? null,
-                'resume_path' => $payload['resume_path'] ?? null,
-                'resume_name' => $payload['resume_name'] ?? null,
-                'source' => $source,
                 'status' => VacancyApplication::STATUS_RECEIVED,
                 'sort_order' => $sortOrder + 1,
-            ])->load(VacancyApplication::defaultRelations());
+            ]))->load(VacancyApplication::defaultRelations());
         });
 
         return response()->json(['data' => $application->present()], 201);
@@ -247,9 +258,29 @@ class VacancyApplicationController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function mergeStoredFile(
+        array &$payload,
+        mixed $file,
+        ?string $existingPath,
+        string $prefix,
+        string $pathKey,
+        string $nameKey,
+    ): void {
+        $stored = $this->storeDocument($file, $existingPath, $prefix);
+        if ($stored === null) {
+            return;
+        }
+
+        $payload[$pathKey] = $stored['path'];
+        $payload[$nameKey] = $stored['name'];
+    }
+
+    /**
      * @return array{path: string, name: string}|null
      */
-    private function storeResume(mixed $file, ?string $existingPath): ?array
+    private function storeDocument(mixed $file, ?string $existingPath, string $prefix): ?array
     {
         if (! $file instanceof UploadedFile) {
             return null;
@@ -260,10 +291,11 @@ class VacancyApplicationController extends Controller
         }
 
         $extension = $file->getClientOriginalExtension() ?: 'pdf';
-        $storedName = 'resume_'.Str::uuid().'.'.$extension;
+        $directory = $prefix === 'resume' ? 'applicant-resumes' : 'applicant-documents';
+        $storedName = $prefix.'_'.Str::uuid().'.'.$extension;
 
         return [
-            'path' => app(ConfiguredStorage::class)->store($file, 'applicant-resumes', $storedName),
+            'path' => app(ConfiguredStorage::class)->store($file, $directory, $storedName),
             'name' => $file->getClientOriginalName(),
         ];
     }

@@ -54,46 +54,47 @@ class LoginPageSetting extends Model
             'backgroundMode' => 'color',
             'backgroundColor' => '#0f172a',
             'carouselIntervalMs' => 7000,
+            'gridColumns' => 24,
+            'gridRows' => 24,
             'images' => [],
             'backgroundImageIds' => [],
             'blocks' => [
                 [
                     'id' => 'heading-default',
                     'type' => 'heading',
-                    'x' => 32,
-                    'y' => 8,
-                    'width' => 36,
-                    'height' => 10,
+                    'x' => 25.0,
+                    'y' => 0.0,
+                    'width' => 50.0,
+                    'height' => 12.5,
+                    'col' => 6,
+                    'row' => 0,
+                    'colSpan' => 12,
+                    'rowSpan' => 3,
                     'zIndex' => 2,
                     'text' => 'Sign in',
-                    'fontSize' => 32,
+                    'fontSize' => 40,
                     'color' => '#ffffff',
                     'align' => 'center',
                     'imageId' => null,
                     'maxWidth' => 0,
-                ],
-                [
-                    'id' => 'message-default',
-                    'type' => 'message',
-                    'x' => 32,
-                    'y' => 18,
-                    'width' => 36,
-                    'height' => 8,
-                    'zIndex' => 2,
-                    'text' => 'Use your username or email to continue.',
-                    'fontSize' => 14,
-                    'color' => '#cbd5e1',
-                    'align' => 'center',
-                    'imageId' => null,
-                    'maxWidth' => 0,
+                    'headingLevel' => 1,
+                    'cardBackground' => '#ffffff',
+                    'cardBorderColor' => '#e2e8f0',
+                    'cardBorderWidth' => 0,
+                    'cardRadius' => 12,
+                    'cardShadow' => 2,
                 ],
                 [
                     'id' => 'form-default',
                     'type' => 'form',
-                    'x' => 5,
-                    'y' => 28,
-                    'width' => 90,
-                    'height' => 62,
+                    'x' => 25.0,
+                    'y' => 25.0,
+                    'width' => 50.0,
+                    'height' => 62.5,
+                    'col' => 6,
+                    'row' => 6,
+                    'colSpan' => 12,
+                    'rowSpan' => 15,
                     'zIndex' => 3,
                     'text' => '',
                     'fontSize' => 16,
@@ -101,6 +102,12 @@ class LoginPageSetting extends Model
                     'align' => 'center',
                     'imageId' => null,
                     'maxWidth' => 400,
+                    'headingLevel' => 1,
+                    'cardBackground' => '#ffffff',
+                    'cardBorderColor' => '#e2e8f0',
+                    'cardBorderWidth' => 0,
+                    'cardRadius' => 12,
+                    'cardShadow' => 2,
                 ],
             ],
         ];
@@ -140,6 +147,9 @@ class LoginPageSetting extends Model
             }
         }
 
+        $gridColumns = (int) self::clamp((float) ($layout['gridColumns'] ?? $defaults['gridColumns']), 2, 24);
+        $gridRows = (int) self::clamp((float) ($layout['gridRows'] ?? $defaults['gridRows']), 2, 24);
+
         $blocks = [];
         $hasForm = false;
         foreach ($layout['blocks'] ?? [] as $block) {
@@ -168,29 +178,47 @@ class LoginPageSetting extends Model
             }
 
             $maxWidth = 0;
+            $x = self::clamp((float) ($block['x'] ?? 10), 0, 99);
+            $width = self::clamp((float) ($block['width'] ?? 30), 1, 100);
+            $y = self::clamp((float) ($block['y'] ?? 10), 0, 99);
+            $height = self::clamp((float) ($block['height'] ?? 12), 1, 100);
             if ($type === 'form') {
                 $hasExplicitMax = array_key_exists('maxWidth', $block) && is_numeric($block['maxWidth']);
                 $maxWidth = self::clamp((float) ($block['maxWidth'] ?? 400), 240, 960);
-                $x = self::clamp((float) ($block['x'] ?? 10), 0, 95);
-                $width = self::clamp((float) ($block['width'] ?? 30), 8, 100);
                 if (! $hasExplicitMax && abs($x - 32.0) < 0.01 && abs($width - 36.0) < 0.01) {
                     $x = 5;
                     $width = 90;
                 }
-            } else {
-                $x = self::clamp((float) ($block['x'] ?? 10), 0, 95);
-                $width = self::clamp((float) ($block['width'] ?? 30), 8, 100);
             }
+
+            $hasGrid = array_key_exists('col', $block)
+                || array_key_exists('row', $block)
+                || array_key_exists('colSpan', $block)
+                || array_key_exists('rowSpan', $block);
+            $placement = $hasGrid
+                ? self::placementFromGrid(
+                    (int) ($block['col'] ?? 0),
+                    (int) ($block['row'] ?? 0),
+                    (int) ($block['colSpan'] ?? 1),
+                    (int) ($block['rowSpan'] ?? 1),
+                    $gridColumns,
+                    $gridRows,
+                )
+                : self::snapRectToGrid($x, $y, $width, $height, $gridColumns, $gridRows);
 
             $blocks[] = [
                 'id' => is_string($block['id'] ?? null) && $block['id'] !== ''
                     ? $block['id']
                     : (string) Str::uuid(),
                 'type' => $type,
-                'x' => $x,
-                'y' => self::clamp((float) ($block['y'] ?? 10), 0, 95),
-                'width' => $width,
-                'height' => self::clamp((float) ($block['height'] ?? 12), 6, 100),
+                'x' => $placement['x'],
+                'y' => $placement['y'],
+                'width' => $placement['width'],
+                'height' => $placement['height'],
+                'col' => $placement['col'],
+                'row' => $placement['row'],
+                'colSpan' => $placement['colSpan'],
+                'rowSpan' => $placement['rowSpan'],
                 'zIndex' => max(1, (int) ($block['zIndex'] ?? 1)),
                 'text' => mb_substr(trim((string) ($block['text'] ?? '')), 0, 500),
                 'fontSize' => self::clamp((float) ($block['fontSize'] ?? 16), 10, 72),
@@ -198,6 +226,14 @@ class LoginPageSetting extends Model
                 'align' => $align,
                 'imageId' => $type === 'image' ? $imageId : null,
                 'maxWidth' => $maxWidth,
+                'headingLevel' => $type === 'heading'
+                    ? (int) self::clamp((float) ($block['headingLevel'] ?? 1), 1, 6)
+                    : 1,
+                'cardBackground' => self::color((string) ($block['cardBackground'] ?? '#ffffff')),
+                'cardBorderColor' => self::color((string) ($block['cardBorderColor'] ?? '#e2e8f0')),
+                'cardBorderWidth' => (int) self::clamp((float) ($block['cardBorderWidth'] ?? 0), 0, 12),
+                'cardRadius' => (int) self::clamp((float) ($block['cardRadius'] ?? 12), 0, 48),
+                'cardShadow' => (int) self::clamp((float) ($block['cardShadow'] ?? 2), 0, 3),
             ];
         }
 
@@ -216,10 +252,61 @@ class LoginPageSetting extends Model
             'backgroundMode' => $mode,
             'backgroundColor' => self::color((string) ($layout['backgroundColor'] ?? $defaults['backgroundColor'])),
             'carouselIntervalMs' => self::clamp($interval, 2000, 30000),
+            'gridColumns' => $gridColumns,
+            'gridRows' => $gridRows,
             'images' => $images,
             'backgroundImageIds' => $backgroundImageIds,
             'blocks' => $blocks,
         ];
+    }
+
+    /**
+     * @return array{col: int, row: int, colSpan: int, rowSpan: int, x: float, y: float, width: float, height: float}
+     */
+    private static function placementFromGrid(
+        int $col,
+        int $row,
+        int $colSpan,
+        int $rowSpan,
+        int $columns,
+        int $rows,
+    ): array {
+        $colSpan = (int) self::clamp($colSpan, 1, $columns);
+        $rowSpan = (int) self::clamp($rowSpan, 1, $rows);
+        $col = (int) self::clamp($col, 0, $columns - $colSpan);
+        $row = (int) self::clamp($row, 0, $rows - $rowSpan);
+        $colSpan = (int) self::clamp($colSpan, 1, $columns - $col);
+        $rowSpan = (int) self::clamp($rowSpan, 1, $rows - $row);
+
+        return [
+            'col' => $col,
+            'row' => $row,
+            'colSpan' => $colSpan,
+            'rowSpan' => $rowSpan,
+            'x' => $col / $columns * 100,
+            'y' => $row / $rows * 100,
+            'width' => $colSpan / $columns * 100,
+            'height' => $rowSpan / $rows * 100,
+        ];
+    }
+
+    /**
+     * @return array{col: int, row: int, colSpan: int, rowSpan: int, x: float, y: float, width: float, height: float}
+     */
+    private static function snapRectToGrid(
+        float $x,
+        float $y,
+        float $width,
+        float $height,
+        int $columns,
+        int $rows,
+    ): array {
+        $colSpan = (int) self::clamp((int) round($width / 100 * $columns) ?: 1, 1, $columns);
+        $rowSpan = (int) self::clamp((int) round($height / 100 * $rows) ?: 1, 1, $rows);
+        $col = (int) self::clamp((int) round($x / 100 * $columns), 0, $columns - $colSpan);
+        $row = (int) self::clamp((int) round($y / 100 * $rows), 0, $rows - $rowSpan);
+
+        return self::placementFromGrid($col, $row, $colSpan, $rowSpan, $columns, $rows);
     }
 
     /**

@@ -17,9 +17,11 @@ fi
 
 if [[ "${RUN_SEEDERS:-false}" == "true" ]]; then
   if [[ "${TENANCY_ENABLED:-false}" == "true" ]]; then
-    php artisan tenants:migrate --seed --force --no-interaction || echo "WARNING: tenant seed failed (data may already exist); continuing."
+    php artisan tenants:seed --force --no-interaction \
+      || echo "WARNING: tenant catalog seed failed (data may already exist); continuing."
   else
-    php artisan db:seed --force --no-interaction || echo "WARNING: db:seed failed (data may already exist); continuing."
+    php artisan db:seed --class=Database\\Seeders\\SafeCatalogSeeder --force --no-interaction \
+      || echo "WARNING: catalog seed failed (data may already exist); continuing."
   fi
 fi
 

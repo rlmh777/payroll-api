@@ -15,6 +15,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(\App\Support\TenantManager::class);
         $this->app->singleton(\App\Support\ConfiguredStorage::class);
+        $this->app->singleton(\App\Support\ConfiguredMail::class);
     }
 
     /**

@@ -17,11 +17,6 @@ class NavigationService
         $modules = $this->companyModuleService->modulesForCompany();
         $menuTree = $this->menuAuthorizationService->menuTreeForUser($user, $enabledCodes);
 
-        $launcher = $modules
-            ->filter(fn (array $module) => $module['enabled'])
-            ->values()
-            ->all();
-
         $moduleCodes = $enabledCodes?->values()->all()
             ?? $modules->pluck('code')->filter()->values()->all();
 
@@ -29,6 +24,12 @@ class NavigationService
         foreach ($moduleCodes as $code) {
             $moduleMenus[$code] = $this->filterTreeByModule($menuTree, (string) $code);
         }
+
+        $launcher = $modules
+            ->filter(fn (array $module) => $module['enabled'])
+            ->filter(fn (array $module) => ! empty($moduleMenus[$module['code']] ?? []))
+            ->values()
+            ->all();
 
         return [
             'modules' => $modules->values()->all(),

@@ -4,13 +4,19 @@ namespace App\Modules\Hr\Http\Controllers;
 
 use App\Models\JobTitle;
 use App\Modules\Hr\Models\Vacancy;
+use App\Modules\Hr\Models\VacancyAttachment;
 use App\Modules\Hr\Models\VacancyStage;
+use App\Support\ConfiguredStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class VacancyController extends Controller
 {
+    private const ATTACHMENT_MIMES = 'pdf,doc,docx,odt,rtf,txt';
+
     public function board(Request $request): JsonResponse
     {
         $stages = VacancyStage::query()
@@ -52,7 +58,7 @@ class VacancyController extends Controller
             return response()->json(['message' => 'Create a vacancy stage before posting a vacancy.'], 422);
         }
 
-        $vacancy = DB::transaction(function () use ($validated, $stageId) {
+        $vacancy = DB::transaction(function () use ($request, $validated, $stageId) {
             $sortOrder = (int) Vacancy::query()->where('vacancy_stage_id', $stageId)->max('sort_order');
 
             $vacancy = Vacancy::create([
@@ -61,6 +67,8 @@ class VacancyController extends Controller
                 'vacancy_stage_id' => $stageId,
                 'sort_order' => $sortOrder + 1,
             ]);
+            $this->attachUploadedFiles($vacancy, $this->uploadedAttachmentFiles($request));
+            $vacancy->touchPublishedAt($stageId);
 
             return $vacancy->load(Vacancy::defaultRelations());
         });
@@ -86,13 +94,16 @@ class VacancyController extends Controller
 
         $targetStageId = $attributes['vacancy_stage_id'] ?? $vacancy->vacancy_stage_id;
 
-        DB::transaction(function () use ($vacancy, $attributes, $targetStageId) {
+        DB::transaction(function () use ($request, $vacancy, $attributes, $targetStageId, $validated) {
             if ($targetStageId !== $vacancy->vacancy_stage_id) {
                 $sortOrder = (int) Vacancy::query()->where('vacancy_stage_id', $targetStageId)->max('sort_order');
                 $attributes['sort_order'] = $sortOrder + 1;
             }
 
             $vacancy->update($attributes);
+            $this->removeAttachments($vacancy, $validated['remove_attachment_ids'] ?? []);
+            $this->attachUploadedFiles($vacancy, $this->uploadedAttachmentFiles($request));
+            $vacancy->touchPublishedAt($targetStageId);
         });
 
         return response()->json([
@@ -102,6 +113,7 @@ class VacancyController extends Controller
 
     public function destroy(Vacancy $vacancy): JsonResponse
     {
+        $vacancy->loadMissing('attachments');
         $vacancy->delete();
 
         return response()->json(['message' => 'Vacancy deleted.']);
@@ -123,6 +135,7 @@ class VacancyController extends Controller
                 'vacancy_stage_id' => $stageId,
                 'sort_order' => $validated['sort_order'] ?? $vacancy->sort_order,
             ]);
+            $vacancy->touchPublishedAt($stageId);
 
             $orderedIds = $validated['ordered_ids'] ?? null;
             if (is_array($orderedIds) && $orderedIds !== []) {
@@ -183,9 +196,10 @@ class VacancyController extends Controller
      */
     private function validateVacancy(Request $request, bool $updating = false): array
     {
+        $this->normalizeIncomingVacancy($request);
         $required = $updating ? 'sometimes' : 'required';
 
-        return $request->validate([
+        $validated = $request->validate([
             'title' => [$required, 'string', 'max:255'],
             'job_title_id' => ['nullable', 'integer', 'exists:job_title,id'],
             'worksite_id' => ['nullable', 'integer', 'exists:worksite,id'],
@@ -197,7 +211,38 @@ class VacancyController extends Controller
             'advertise_internal' => ['sometimes', 'boolean'],
             'advertise_public' => ['sometimes', 'boolean'],
             'vacancy_stage_id' => ['nullable', 'integer', 'exists:vacancy_stages,id'],
+            'attachments' => ['nullable', 'array', 'max:10'],
+            'attachments.*' => ['file', 'mimes:'.self::ATTACHMENT_MIMES, 'max:10240'],
+            'remove_attachment_ids' => ['sometimes', 'array'],
+            'remove_attachment_ids.*' => ['uuid', 'exists:vacancy_attachments,id'],
         ]);
+
+        if (array_key_exists('description', $validated)) {
+            $validated['description'] = $this->normalizeDescription($validated['description']);
+        }
+
+        return $validated;
+    }
+
+    private function normalizeIncomingVacancy(Request $request): void
+    {
+        $merge = [];
+
+        foreach (['job_title_id', 'worksite_id', 'department_id', 'hiring_manager_id', 'vacancy_stage_id'] as $key) {
+            if ($request->has($key) && $request->input($key) === '') {
+                $merge[$key] = null;
+            }
+        }
+
+        foreach (['require_resume', 'advertise_internal', 'advertise_public'] as $key) {
+            if ($request->has($key) && is_string($request->input($key))) {
+                $merge[$key] = $request->boolean($key);
+            }
+        }
+
+        if ($merge !== []) {
+            $request->merge($merge);
+        }
     }
 
     /**
@@ -246,9 +291,73 @@ class VacancyController extends Controller
             return $validated['description'] ?? null;
         }
 
-        $notes = JobTitle::query()->whereKey($jobTitleId)->value('notes');
+        $notes = $this->normalizeDescription(JobTitle::query()->whereKey($jobTitleId)->value('notes'));
 
-        return filled($notes) ? (string) $notes : ($validated['description'] ?? null);
+        return $notes ?? ($validated['description'] ?? null);
+    }
+
+    private function normalizeDescription(mixed $description): ?string
+    {
+        if ($description === null) {
+            return null;
+        }
+
+        $value = trim((string) $description);
+        $plain = trim(html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5));
+
+        return $plain === '' ? null : $value;
+    }
+
+    /**
+     * @return list<UploadedFile>
+     */
+    private function uploadedAttachmentFiles(Request $request): array
+    {
+        $files = $request->file('attachments', []);
+        if ($files instanceof UploadedFile) {
+            return [$files];
+        }
+
+        return array_values(array_filter(
+            is_array($files) ? $files : [],
+            fn ($file) => $file instanceof UploadedFile,
+        ));
+    }
+
+    /**
+     * @param  list<UploadedFile>  $files
+     */
+    private function attachUploadedFiles(Vacancy $vacancy, array $files): void
+    {
+        foreach ($files as $file) {
+            $extension = $file->getClientOriginalExtension() ?: 'bin';
+            $storedName = 'vacancy_'.Str::uuid().'.'.$extension;
+            $filePath = app(ConfiguredStorage::class)->store($file, 'vacancy-attachments', $storedName);
+
+            VacancyAttachment::query()->create([
+                'vacancy_id' => $vacancy->id,
+                'file_path' => $filePath,
+                'file_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getClientMimeType(),
+                'file_size' => $file->getSize(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  list<string>|mixed  $ids
+     */
+    private function removeAttachments(Vacancy $vacancy, mixed $ids): void
+    {
+        if (! is_array($ids) || $ids === []) {
+            return;
+        }
+
+        $attachments = $vacancy->attachments()->whereIn('id', $ids)->get();
+        foreach ($attachments as $attachment) {
+            app(ConfiguredStorage::class)->delete($attachment->file_path);
+            $attachment->delete();
+        }
     }
 
     private function reindexStage(int $stageId): void

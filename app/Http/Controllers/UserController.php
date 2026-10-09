@@ -11,6 +11,7 @@ use App\Services\UserRoleAssignmentService;
 use App\Services\UsernameGenerator;
 use App\Support\Access;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -324,30 +325,19 @@ class UserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Check if employee is already linked to another user
-        if ($request->has('employee_id') && $request->input('employee_id')) {
-            $employeeId = $request->input('employee_id');
-            $existingUser = \App\Models\Employee::where('id', $employeeId)
-                ->whereNotNull('user_id')
-                ->where('user_id', '!=', $user->id)
-                ->first();
-            
-            if ($existingUser) {
-                return response()->json([
-                    'errors' => ['employee_id' => ['This employee is already linked to another user']]
-                ], 422);
-            }
-        }
+        $employeeId = $request->input('employee_id');
 
-        // Update employee's user_id
-        if ($request->has('employee_id') && $request->input('employee_id')) {
-            \App\Models\Employee::where('id', $request->input('employee_id'))
-                ->update(['user_id' => $user->id]);
-        } else {
-            // Unlink: set employee's user_id to null
-            \App\Models\Employee::where('user_id', $user->id)
+        DB::transaction(function () use ($user, $employeeId) {
+            \App\Models\Employee::query()
+                ->where('user_id', $user->id)
                 ->update(['user_id' => null]);
-        }
+
+            if ($employeeId) {
+                \App\Models\Employee::query()
+                    ->where('id', $employeeId)
+                    ->update(['user_id' => $user->id]);
+            }
+        });
 
         return response()->json([
             'message' => 'Employee link updated successfully',

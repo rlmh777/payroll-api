@@ -44,12 +44,17 @@ class CompanyModuleService
         return CompanyModule::query()
             ->where('company_id', $companyId)
             ->where('enabled', true)
+            ->where('module_code', '!=', 'core')
             ->pluck('module_code')
             ->values();
     }
 
     public function isModuleEnabled(string $code): bool
     {
+        if ($code === 'core') {
+            return false;
+        }
+
         if (! $this->isAvailable()) {
             return true;
         }
@@ -76,6 +81,7 @@ class CompanyModuleService
 
         $modules = Module::query()
             ->where('is_active', true)
+            ->where('code', '!=', 'core')
             ->orderBy('sort_order')
             ->get();
 
@@ -103,6 +109,10 @@ class CompanyModuleService
 
     public function setEnabled(string $code, bool $enabled, ?User $user = null): CompanyModule
     {
+        if ($code === 'core') {
+            throw new \InvalidArgumentException('Core is not an application module.');
+        }
+
         if (! $this->isAvailable()) {
             throw new \RuntimeException('Module system is not installed. Run database migrations first.');
         }

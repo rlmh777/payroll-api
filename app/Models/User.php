@@ -81,7 +81,7 @@ class User extends Authenticatable
     public function defaultModule(): string
     {
         $preferred = $this->preferences['default_module'] ?? null;
-        if (is_string($preferred) && $preferred !== '') {
+        if (is_string($preferred) && $preferred !== '' && $preferred !== 'core') {
             return $preferred;
         }
 

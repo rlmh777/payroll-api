@@ -17,15 +17,7 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        // Migrate legacy seed admin if present.
-        User::query()
-            ->where('email', 'johndoe@gmail.com')
-            ->update([
-                'email' => 'support@dotdev.bz',
-                'name' => 'EZ Tech Support',
-            ]);
-
-        $adminUser = User::query()->updateOrCreate(
+        $adminUser = User::query()->firstOrCreate(
             ['email' => 'support@dotdev.bz'],
             [
                 'name' => 'EZ Tech Support',
@@ -42,16 +34,11 @@ class SuperAdminSeeder extends Seeder
 
         $adminRole->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
 
-        $adminUser->syncRoles([$adminRole]);
+        if (! $adminUser->hasRole($adminRole)) {
+            $adminUser->assignRole($adminRole);
+        }
 
-        // Belt-and-suspenders: also assign every permission directly on the user,
-        // so access works even if Spatie role cache is stale after seed.
-        $adminUser->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
-
-        UserRole::query()
-            ->where('user_id', $adminUser->id)
-            ->where('role_id', '!=', $adminRole->id)
-            ->delete();
+        $adminUser->givePermissionTo(Permission::query()->where('guard_name', 'web')->get());
 
         UserRole::firstOrCreate(
             [
@@ -82,6 +69,8 @@ class SuperAdminSeeder extends Seeder
             'database-backup-crud',
             'view-file-storage',
             'file-storage-crud',
+            'view-email-settings',
+            'email-settings-crud',
             'view-login-page',
             'login-page-crud',
             'view-vacancies',
@@ -101,6 +90,7 @@ class SuperAdminSeeder extends Seeder
             'view-general',
             'view-calendars',
             'view-holidays',
+            'view-hr-settings',
             'view-roles-menus',
             'view-roles',
             'view-menu',

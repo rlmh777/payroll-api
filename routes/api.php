@@ -117,6 +117,9 @@ use App\Modules\Hr\Http\Controllers\Attendance\EmployeeDayWorkController;
 use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
 use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
 use App\Modules\Hr\Http\Controllers\Attendance\TimesheetController;
+use App\Modules\Hr\Http\Controllers\EmployeeDashboardController;
+use App\Modules\Hr\Http\Controllers\HrSettingController;
+use App\Modules\Hr\Http\Controllers\HrTemplateController;
 use App\Support\AuthUserPresenter;
 
 Route::get('/user', function (Request $request) {
@@ -312,6 +315,21 @@ Route::prefix('employee-day-works')->group(function () {
 });
 
 Route::get('dashboard', [DashboardController::class, 'show']);
+Route::get('employee-dashboard', [EmployeeDashboardController::class, 'show']);
+Route::get('employee-dashboard/payslips/{payrollRun}', [EmployeeDashboardController::class, 'payslip']);
+
+Route::prefix('hr-settings')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [HrSettingController::class, 'show']);
+    Route::put('/', [HrSettingController::class, 'update']);
+});
+
+Route::prefix('hr-templates')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [HrTemplateController::class, 'index']);
+    Route::post('/', [HrTemplateController::class, 'store']);
+    Route::get('/{hrTemplate}', [HrTemplateController::class, 'show']);
+    Route::put('/{hrTemplate}', [HrTemplateController::class, 'update']);
+    Route::delete('/{hrTemplate}', [HrTemplateController::class, 'destroy']);
+});
 
 Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [NotificationController::class, 'index']);
@@ -485,7 +503,7 @@ Route::prefix('vacancies')->group(function () {
     Route::get('/{vacancy}/applications/{application}', [VacancyApplicationController::class, 'show']);
     Route::post('/{vacancy}/applications/{application}/convert-to-employee', [VacancyApplicationController::class, 'convert']);
     Route::get('/{vacancy}', [VacancyController::class, 'show']);
-    Route::put('/{vacancy}', [VacancyController::class, 'update']);
+    Route::match(['put', 'post'], '/{vacancy}', [VacancyController::class, 'update']);
     Route::delete('/{vacancy}', [VacancyController::class, 'destroy']);
 });
 
@@ -1118,4 +1136,10 @@ Route::prefix('storage-settings')->group(function () {
     Route::get('/', [\App\Http\Controllers\StorageSettingController::class, 'show']);
     Route::put('/', [\App\Http\Controllers\StorageSettingController::class, 'update']);
     Route::post('/test', [\App\Http\Controllers\StorageSettingController::class, 'test']);
+});
+
+Route::prefix('mail-settings')->group(function () {
+    Route::get('/', [\App\Http\Controllers\MailSettingController::class, 'show']);
+    Route::put('/', [\App\Http\Controllers\MailSettingController::class, 'update']);
+    Route::post('/test', [\App\Http\Controllers\MailSettingController::class, 'test']);
 });
