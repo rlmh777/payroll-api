@@ -1,4 +1,9 @@
-FROM dunglas/frankenphp:1-php8.4-bookworm
+ARG FRANKENPHP_IMAGE=dunglas/frankenphp:1-php8.4-bookworm
+ARG COMPOSER_IMAGE=composer:2
+
+FROM ${COMPOSER_IMAGE} AS composer
+
+FROM ${FRANKENPHP_IMAGE}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git unzip libpq-dev libzip-dev libpng-dev libicu-dev \
@@ -7,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       pdo_pgsql pgsql zip intl bcmath pcntl redis opcache \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
