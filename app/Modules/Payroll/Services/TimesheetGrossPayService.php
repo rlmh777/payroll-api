@@ -87,6 +87,18 @@ class TimesheetGrossPayService
             $employeeCompensationId,
         );
         $flatPeriodBasePay = $this->compensationResolver->flatPeriodBasePay($compensation, $payrateFrequencyId);
+        $leaveDailyRate = $this->compensationResolver->leaveDailyRate(
+            $compensation,
+            $payrateFrequencyId,
+            $startDate,
+            $endDate,
+        );
+        $alreadyPaidLeave = $this->payrollFlatBaseScopeService->alreadyPaidLeaveAttribution(
+            $employeeId,
+            $startDate,
+            $endDate,
+            $leaveDailyRate,
+        );
         $dayWorkEarnings = $this->dayWorkEarningsForEmployee(
             $employeeId,
             $startDate,
@@ -107,13 +119,6 @@ class TimesheetGrossPayService
             $adjustedFlatPay = $nonPayableLeaveDays > 0
                 ? round($flatPeriodBasePay * ($payableDays / $periodDays), 2)
                 : $flatPeriodBasePay;
-
-            $alreadyPaidLeave = $this->payrollFlatBaseScopeService->alreadyPaidLeaveAttribution(
-                $employeeId,
-                $startDate,
-                $endDate,
-                $flatPeriodBasePay,
-            );
 
             $vacationPay = [
                 'amount' => 0.0,
@@ -177,12 +182,7 @@ class TimesheetGrossPayService
             'employmentDetailId' => $employmentDetailId ?? $dayWorkEarnings['employmentDetailId'],
             'employeeCompensationId' => $employeeCompensationId ?? $dayWorkEarnings['employeeCompensationId'],
             'departmentId' => $departmentId ?? $dayWorkEarnings['departmentId'],
-            'alreadyPaidLeave' => [
-                'amount' => 0.0,
-                'days' => 0,
-                'periodDays' => max(1, $startDate->diffInDays($endDate) + 1),
-                'lines' => [],
-            ],
+            'alreadyPaidLeave' => $alreadyPaidLeave,
             'vacationPay' => [
                 'amount' => 0.0,
                 'days' => 0,

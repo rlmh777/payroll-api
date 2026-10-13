@@ -17,8 +17,7 @@ class PipelineTemplateController extends Controller
 {
     public function __construct(
         private readonly PipelineEngine $pipelineEngine,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -109,11 +108,15 @@ class PipelineTemplateController extends Controller
             'subjectTypes' => [
                 ['value' => PipelineEngine::SUBJECT_LEAVE, 'label' => 'Leave request'],
                 ['value' => PipelineEngine::SUBJECT_TIMESHEET, 'label' => 'Timesheet'],
+                ['value' => PipelineEngine::SUBJECT_FORM_RESPONSE, 'label' => 'Form response'],
+                ['value' => PipelineEngine::SUBJECT_APPRAISAL, 'label' => 'Employee appraisal'],
+                ['value' => PipelineEngine::SUBJECT_PROFILE_CHANGE, 'label' => 'Employee profile change'],
             ],
             'assigneeTypes' => [
                 ['value' => PipelineAssigneeType::Supervisor->value, 'label' => 'Supervisor'],
                 ['value' => PipelineAssigneeType::DepartmentHead->value, 'label' => 'Department head'],
-                ['value' => PipelineAssigneeType::Admin->value, 'label' => 'Administrator'],
+                ['value' => PipelineAssigneeType::SkipLevel->value, 'label' => 'Skip-level supervisor'],
+                ['value' => PipelineAssigneeType::Admin->value, 'label' => 'Administrator / HR'],
                 ['value' => PipelineAssigneeType::Role->value, 'label' => 'Role'],
                 ['value' => PipelineAssigneeType::SubjectOwner->value, 'label' => 'Subject owner'],
             ],
@@ -161,7 +164,7 @@ class PipelineTemplateController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $steps
+     * @param  array<int, array<string, mixed>>  $steps
      */
     private function syncSteps(PipelineTemplate $template, array $steps): void
     {
@@ -188,6 +191,7 @@ class PipelineTemplateController extends Controller
                 if ($step) {
                     $step->update($payload);
                     $keepIds[] = $step->id;
+
                     continue;
                 }
             }

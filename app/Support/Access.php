@@ -41,6 +41,25 @@ class Access
     }
 
     /**
+     * HR directory visibility for employee records and profile-change reviews.
+     */
+    public static function canViewEmployeeDirectory(?User $user): bool
+    {
+        return self::canAny($user, ['view-employees', 'employees-crud']);
+    }
+
+    public static function canActAsHrForProfileChange(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return self::canViewEmployeeDirectory($user)
+            || self::can($user, 'view-hr-settings')
+            || $user->hasAnyRole(['admin', 'hr']);
+    }
+
+    /**
      * Unrestricted leave administration (typically HR/admin via employees-crud).
      */
     public static function canManageAllLeave(?User $user): bool
@@ -51,6 +70,27 @@ class Access
     /**
      * Accounts / payroll confirmation of leave payment treatment.
      */
+    public static function canManageAppraisals(?User $user): bool
+    {
+        return self::canAny($user, ['appraisals-crud', 'employees-crud']);
+    }
+
+    public static function canViewAppraisals(?User $user): bool
+    {
+        return self::canManageAppraisals($user) || self::can($user, 'view-appraisals');
+    }
+
+    public static function canActAsHrForAppraisal(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return self::canManageAppraisals($user)
+            || self::can($user, 'view-hr-settings')
+            || $user->hasAnyRole(['admin', 'hr']);
+    }
+
     public static function canConfirmLeavePayment(?User $user): bool
     {
         if (! $user) {

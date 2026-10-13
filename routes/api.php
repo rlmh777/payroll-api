@@ -1,131 +1,144 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Modules\Payroll\Http\Controllers\EmployeeCompensationController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\RoleController;
-use App\Modules\Payroll\Http\Controllers\AllowanceController;
-use App\Http\Controllers\ContactTypeController;
-use App\Modules\Payroll\Http\Controllers\AccountController;
-use App\Modules\Payroll\Http\Controllers\AccountTypeController;
-use App\Modules\Payroll\Http\Controllers\DeductionTypeController;
-use App\Http\Controllers\HonorificController;
-use App\Http\Controllers\CountryController;
-use App\Modules\Hr\Http\Controllers\DepartmentController;
-use App\Modules\Hr\Http\Controllers\VacancyController;
-use App\Modules\Hr\Http\Controllers\VacancyApplicationController;
-use App\Modules\Hr\Http\Controllers\VacancyStageController;
-use App\Modules\Hr\Http\Controllers\CandidateStageController;
-use App\Modules\Hr\Http\Controllers\EmployeeGroupController;
-use App\Modules\Workflow\Http\Controllers\PipelineTemplateController;
-use App\Modules\Hr\Http\Controllers\DepartmentHeadAssignmentController;
-use App\Modules\Hr\Http\Controllers\WorksiteController;
-use App\Http\Controllers\DegreeController;
-use App\Http\Controllers\JobTitleController;
-use App\Http\Controllers\LocalityController;
-use App\Http\Controllers\DistrictController;
-use App\Http\Controllers\GenderController;
-use App\Http\Controllers\CitizenshipStatusController;
-use App\Modules\Hr\Http\Controllers\EmployeeStatusController;
-use App\Http\Controllers\InstitutionController;
-use App\Modules\Hr\Http\Controllers\QualificationController;
-use App\Http\Controllers\RelationshipController;
-use App\Modules\Hr\Http\Controllers\EmployeeContactController;
-use App\Modules\Hr\Http\Controllers\EmployeeCertificationController;
-use App\Modules\Hr\Http\Controllers\EmployeeSkillController;
-use App\Modules\Hr\Http\Controllers\DocumentTagController;
-use App\Modules\Hr\Http\Controllers\EmployeeDocumentController;
-use App\Modules\Hr\Http\Controllers\EmployeeIncidentController;
-use App\Modules\Payroll\Http\Controllers\EmployeeDefaultAllowanceController;
-use App\Modules\Payroll\Http\Controllers\EmployeeBankController;
-use App\Http\Controllers\EmployeeController;
-use App\Modules\Hr\Http\Controllers\EmployeeImportController;
-use App\Modules\Payroll\Http\Controllers\EmployeeDefaultDeductionController;
-use App\Modules\Hr\Http\Controllers\EmploymentDetailsController;
-use App\Modules\Hr\Http\Controllers\ContractTypeController;
-use App\Modules\Hr\Http\Controllers\EmploymentStatusController;
-use App\Modules\Payroll\Http\Controllers\EmployeeHoursWorkedController;
-use App\Modules\Hr\Http\Controllers\EmploymentHistoryController;
-use App\Modules\Payroll\Http\Controllers\LoanTypeController;
-use App\Http\Controllers\PermissionController;
-use App\Modules\Payroll\Http\Controllers\HistoricalEmployeeDeductionController;
-use App\Modules\Payroll\Http\Controllers\HistoricalEmployeeAllowanceController;
-use App\Modules\Hr\Http\Controllers\LeaveStatusController;
-use App\Modules\Hr\Http\Controllers\LeaveTypeController;
-use App\Modules\Payroll\Http\Controllers\LoanController;
-use App\Modules\Payroll\Http\Controllers\PaymentMethodController;
-use App\Modules\Payroll\Http\Controllers\PayrateFrequencyController;
-use App\Modules\Hr\Http\Controllers\EmployeeWorkPermitController;
 use App\Http\Controllers\BankAccountTypeController;
 use App\Http\Controllers\BankController;
+use App\Http\Controllers\BiometricDeviceController;
+use App\Http\Controllers\BiometricPushController;
+use App\Http\Controllers\CitizenshipStatusController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\ContactTypeController;
+use App\Http\Controllers\CountryController;
+use App\Http\Controllers\DegreeController;
+use App\Http\Controllers\DistrictController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\GenderController;
+use App\Http\Controllers\HonorificController;
+use App\Http\Controllers\InstitutionController;
+use App\Http\Controllers\InviteCodeLoginController;
+use App\Http\Controllers\JobTitleController;
+use App\Http\Controllers\LocalityController;
+use App\Http\Controllers\MenuController;
 use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\NavigationController;
-use App\Http\Controllers\MenuController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\RelationshipController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
-use App\Modules\Payroll\Http\Controllers\PayPeriodController;
-use App\Modules\Payroll\Http\Controllers\PayPeriodGroupController;
-use App\Modules\Payroll\Http\Controllers\PayPeriodScheduleAiController;
-use App\Modules\Payroll\Http\Controllers\PayrollController;
-use App\Modules\Payroll\Http\Controllers\PayrollEarningCodeController;
-use App\Modules\Payroll\Http\Controllers\PayrollAccountMappingController;
-use App\Modules\Payroll\Http\Controllers\TaxCalculatorAccountController;
-use App\Modules\Payroll\Http\Controllers\TaxCalculatorRateController;
-use App\Modules\Payroll\Http\Controllers\TaxCalculatorRunController;
-use App\Modules\Payroll\Http\Controllers\TaxCalculatorPurchaseLedgerController;
+use App\Http\Controllers\UserTokenController;
 use App\Modules\Core\Http\Controllers\DatabaseBackupController;
-use App\Modules\Payroll\Http\Controllers\DashboardController;
-use App\Modules\Payroll\Http\Controllers\PayrollEarningLineController;
-use App\Modules\Payroll\Http\Controllers\PayrollRunAllowanceDeductionImportController;
-use App\Modules\Payroll\Http\Controllers\PayrollRunController;
-use App\Modules\Payroll\Http\Controllers\PayrollRunPayslipController;
-use App\Modules\Payroll\Http\Controllers\PayrollRunPoolController;
-use App\Modules\Payroll\Http\Controllers\PoolDistributionTypeController;
-use App\Modules\Payroll\Http\Controllers\EmployeePoolPointController;
-use App\Modules\Payroll\Http\Controllers\EmployeeHoursBankController;
-use App\Modules\Payroll\Http\Controllers\ReportController;
-use App\Modules\Payroll\Http\Controllers\PayrollContributionController;
-use App\Modules\Payroll\Http\Controllers\JournalEntryController;
-use App\Modules\Payroll\Http\Controllers\JournalLineController;
-use App\Modules\Payroll\Http\Controllers\SocialSecurityController;
-use App\Modules\Payroll\Http\Controllers\SocialSecurityContributionController;
-use App\Modules\Payroll\Http\Controllers\SocialSecurityContributionRuleController;
-use App\Modules\Payroll\Http\Controllers\SsBenefitTypeController;
-use App\Modules\Payroll\Http\Controllers\EmployeeSsBenefitStatusController;
-use App\Modules\Payroll\Http\Controllers\PayrollSettingController;
-use App\Modules\Payroll\Http\Controllers\PersonalReliefController;
-use App\Modules\Payroll\Http\Controllers\VendorController;
-use App\Http\Controllers\CompanyController;
+use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
+use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
+use App\Modules\Hr\Http\Controllers\Attendance\EmployeeDayWorkController;
+use App\Modules\Hr\Http\Controllers\Attendance\TimesheetController;
 use App\Modules\Hr\Http\Controllers\CalendarGroupController;
+use App\Modules\Hr\Http\Controllers\CandidateStageController;
+use App\Modules\Hr\Http\Controllers\ContractTypeController;
+use App\Modules\Hr\Http\Controllers\DepartmentController;
+use App\Modules\Hr\Http\Controllers\DepartmentHeadAssignmentController;
+use App\Modules\Hr\Http\Controllers\DocumentTagController;
+use App\Modules\Hr\Http\Controllers\EmployeeAppraisalController;
+use App\Modules\Hr\Http\Controllers\EmployeeCertificationController;
+use App\Modules\Hr\Http\Controllers\EmployeeContactController;
+use App\Modules\Hr\Http\Controllers\EmployeeDashboardController;
+use App\Modules\Hr\Http\Controllers\EmployeeDocumentController;
+use App\Modules\Hr\Http\Controllers\EmployeeGroupController;
+use App\Modules\Hr\Http\Controllers\EmployeeImportController;
+use App\Modules\Hr\Http\Controllers\EmployeeIncidentController;
+use App\Modules\Hr\Http\Controllers\EmployeeLeaveBalanceController;
+use App\Modules\Hr\Http\Controllers\EmployeeLeaveController;
+use App\Modules\Hr\Http\Controllers\EmployeeProfileChangeController;
+use App\Modules\Hr\Http\Controllers\EmployeeReportingController;
+use App\Modules\Hr\Http\Controllers\EmployeeSkillController;
+use App\Modules\Hr\Http\Controllers\EmployeeStatusController;
+use App\Modules\Hr\Http\Controllers\EmployeeWorkPermitController;
+use App\Modules\Hr\Http\Controllers\EmploymentDetailsController;
+use App\Modules\Hr\Http\Controllers\EmploymentHistoryController;
+use App\Modules\Hr\Http\Controllers\EmploymentLeaveEntitlementController;
+use App\Modules\Hr\Http\Controllers\EmploymentStatusController;
+use App\Modules\Hr\Http\Controllers\FormAssignmentController;
+use App\Modules\Hr\Http\Controllers\FormTemplateController;
+use App\Modules\Hr\Http\Controllers\HrSettingController;
+use App\Modules\Hr\Http\Controllers\HrTemplateController;
+use App\Modules\Hr\Http\Controllers\InterviewPanelController;
+use App\Modules\Hr\Http\Controllers\LeaveStatusController;
+use App\Modules\Hr\Http\Controllers\LeaveTypeController;
+use App\Modules\Hr\Http\Controllers\MyFormsController;
 use App\Modules\Hr\Http\Controllers\PublicHolidayController;
+use App\Modules\Hr\Http\Controllers\QualificationController;
 use App\Modules\Hr\Http\Controllers\ScheduledWorkController;
 use App\Modules\Hr\Http\Controllers\ScheduledWorkImportController;
+use App\Modules\Hr\Http\Controllers\ScheduleEmployeeTimesheetController;
 use App\Modules\Hr\Http\Controllers\SchedulerDailyMetricController;
 use App\Modules\Hr\Http\Controllers\SchedulerEventController;
 use App\Modules\Hr\Http\Controllers\SchedulerMetricDefinitionController;
 use App\Modules\Hr\Http\Controllers\SchedulerNoticeController;
 use App\Modules\Hr\Http\Controllers\ShiftTemplateController;
-use App\Modules\Hr\Http\Controllers\ScheduleEmployeeTimesheetController;
 use App\Modules\Hr\Http\Controllers\TimesheetTemplateController;
 use App\Modules\Hr\Http\Controllers\TimesheetTemplateDepartmentController;
-use App\Modules\Hr\Http\Controllers\EmployeeLeaveBalanceController;
-use App\Modules\Hr\Http\Controllers\EmployeeLeaveController;
-use App\Modules\Hr\Http\Controllers\EmploymentLeaveEntitlementController;
-use App\Modules\Hr\Http\Controllers\EmployeeReportingController;
-use App\Modules\Hr\Http\Controllers\Attendance\EmployeeDayWorkController;
-use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
-use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
-use App\Modules\Hr\Http\Controllers\Attendance\TimesheetController;
-use App\Modules\Hr\Http\Controllers\EmployeeDashboardController;
-use App\Modules\Hr\Http\Controllers\HrSettingController;
-use App\Modules\Hr\Http\Controllers\HrTemplateController;
+use App\Modules\Hr\Http\Controllers\VacancyApplicationController;
+use App\Modules\Hr\Http\Controllers\VacancyController;
+use App\Modules\Hr\Http\Controllers\VacancyPanelController;
+use App\Modules\Hr\Http\Controllers\VacancyStageController;
+use App\Modules\Hr\Http\Controllers\WorksiteController;
+use App\Modules\Payroll\Http\Controllers\AccountController;
+use App\Modules\Payroll\Http\Controllers\AccountTypeController;
+use App\Modules\Payroll\Http\Controllers\AllowanceController;
+use App\Modules\Payroll\Http\Controllers\DashboardController;
+use App\Modules\Payroll\Http\Controllers\DeductionTypeController;
+use App\Modules\Payroll\Http\Controllers\EmployeeBankController;
+use App\Modules\Payroll\Http\Controllers\EmployeeCompensationController;
+use App\Modules\Payroll\Http\Controllers\EmployeeDefaultAllowanceController;
+use App\Modules\Payroll\Http\Controllers\EmployeeDefaultDeductionController;
+use App\Modules\Payroll\Http\Controllers\EmployeeHoursBankController;
+use App\Modules\Payroll\Http\Controllers\EmployeeHoursWorkedController;
+use App\Modules\Payroll\Http\Controllers\EmployeePoolPointController;
+use App\Modules\Payroll\Http\Controllers\EmployeeSsBenefitStatusController;
+use App\Modules\Payroll\Http\Controllers\HistoricalEmployeeAllowanceController;
+use App\Modules\Payroll\Http\Controllers\HistoricalEmployeeDeductionController;
+use App\Modules\Payroll\Http\Controllers\JournalEntryController;
+use App\Modules\Payroll\Http\Controllers\JournalLineController;
+use App\Modules\Payroll\Http\Controllers\LoanController;
+use App\Modules\Payroll\Http\Controllers\LoanTypeController;
+use App\Modules\Payroll\Http\Controllers\PaymentMethodController;
+use App\Modules\Payroll\Http\Controllers\PayPeriodController;
+use App\Modules\Payroll\Http\Controllers\PayPeriodGroupController;
+use App\Modules\Payroll\Http\Controllers\PayPeriodScheduleAiController;
+use App\Modules\Payroll\Http\Controllers\PayrateFrequencyController;
+use App\Modules\Payroll\Http\Controllers\PayrollAccountMappingController;
+use App\Modules\Payroll\Http\Controllers\PayrollContributionController;
+use App\Modules\Payroll\Http\Controllers\PayrollController;
+use App\Modules\Payroll\Http\Controllers\PayrollEarningCodeController;
+use App\Modules\Payroll\Http\Controllers\PayrollEarningLineController;
+use App\Modules\Payroll\Http\Controllers\PayrollRunAllowanceDeductionImportController;
+use App\Modules\Payroll\Http\Controllers\PayrollRunController;
+use App\Modules\Payroll\Http\Controllers\PayrollRunPayslipController;
+use App\Modules\Payroll\Http\Controllers\PayrollRunPoolController;
+use App\Modules\Payroll\Http\Controllers\PayrollSettingController;
+use App\Modules\Payroll\Http\Controllers\PersonalReliefController;
+use App\Modules\Payroll\Http\Controllers\PoolDistributionTypeController;
+use App\Modules\Payroll\Http\Controllers\ReportController;
+use App\Modules\Payroll\Http\Controllers\SocialSecurityContributionController;
+use App\Modules\Payroll\Http\Controllers\SocialSecurityContributionRuleController;
+use App\Modules\Payroll\Http\Controllers\SocialSecurityController;
+use App\Modules\Payroll\Http\Controllers\SsBenefitTypeController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorAccountController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorPurchaseLedgerController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorRateController;
+use App\Modules\Payroll\Http\Controllers\TaxCalculatorRunController;
+use App\Modules\Payroll\Http\Controllers\VendorController;
+use App\Modules\Workflow\Http\Controllers\PipelineTemplateController;
 use App\Support\AuthUserPresenter;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return AuthUserPresenter::present($request->user());
 })->middleware('auth:sanctum');
 Route::put('/user/preferences', [\App\Http\Controllers\UserPreferencesController::class, 'update'])
+    ->middleware('auth:sanctum');
+Route::post('/user/motd', [\App\Http\Controllers\UserMotdController::class, 'claim'])
     ->middleware('auth:sanctum');
 Route::post('/user/picture', [\App\Http\Controllers\UserPictureController::class, 'update'])
     ->middleware('auth:sanctum');
@@ -138,6 +151,7 @@ Route::post('/tokens/revoke-all', [AuthController::class, 'revokeAllTokens'])->m
 Route::delete('/tokens/{tokenId}', [AuthController::class, 'revokeSpecificToken'])->middleware('auth:sanctum');
 Route::get('/tokens', [AuthController::class, 'listTokens'])->middleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'authenticate']);
+Route::post('/login/invite-code', [InviteCodeLoginController::class, 'store']);
 Route::post('/login/passkey/options', [\App\Http\Controllers\PasskeyController::class, 'loginOptions']);
 Route::post('/login/passkey', [\App\Http\Controllers\PasskeyController::class, 'login']);
 Route::post('/login/two-factor/verify', [\App\Http\Controllers\TwoFactorController::class, 'verifyLogin']);
@@ -387,15 +401,15 @@ Route::prefix('scheduler-approvals')->group(function () {
     Route::patch('/{type}/{id}', [SchedulerEventController::class, 'updateApproval']);
 });
 
-//Allowance
+// Allowance
 Route::get('allowances', [AllowanceController::class, 'index']);
 Route::get('allowances/{allowance}', [AllowanceController::class, 'show']);
 Route::post('allowances', [AllowanceController::class, 'store']);
 Route::put('allowances/{allowance}', [AllowanceController::class, 'update']);
 Route::delete('allowances/{allowance}', [AllowanceController::class, 'destroy']);
-//End Allowance
+// End Allowance
 
-//Contact Type
+// Contact Type
 Route::prefix('contact-type')->group(function () {
     Route::get('/', [ContactTypeController::class, 'index']);
     Route::post('/', [ContactTypeController::class, 'store']);
@@ -403,7 +417,7 @@ Route::prefix('contact-type')->group(function () {
     Route::put('/{contactType}', [ContactTypeController::class, 'update']);
     Route::delete('/{contactType}', [ContactTypeController::class, 'destroy']);
 });
-//End Contact Type
+// End Contact Type
 
 // Company Routes (single record — update only, no create)
 Route::prefix('company')->group(function () {
@@ -502,9 +516,61 @@ Route::prefix('vacancies')->group(function () {
     Route::post('/{vacancy}/applications', [VacancyApplicationController::class, 'store']);
     Route::get('/{vacancy}/applications/{application}', [VacancyApplicationController::class, 'show']);
     Route::post('/{vacancy}/applications/{application}/convert-to-employee', [VacancyApplicationController::class, 'convert']);
+    Route::get('/{vacancy}/applications/{application}/scores', [VacancyPanelController::class, 'scores']);
+    Route::match(['put', 'post'], '/{vacancy}/applications/{application}/scores', [VacancyPanelController::class, 'upsertScore']);
+    Route::get('/{vacancy}/panel-members', [VacancyPanelController::class, 'index']);
+    Route::post('/{vacancy}/panel-members', [VacancyPanelController::class, 'store']);
+    Route::post('/{vacancy}/panel-members/{panelMember}/resend', [VacancyPanelController::class, 'resend']);
+    Route::delete('/{vacancy}/panel-members/{panelMember}', [VacancyPanelController::class, 'destroy']);
     Route::get('/{vacancy}', [VacancyController::class, 'show']);
     Route::match(['put', 'post'], '/{vacancy}', [VacancyController::class, 'update']);
     Route::delete('/{vacancy}', [VacancyController::class, 'destroy']);
+});
+
+Route::prefix('form-templates')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [FormTemplateController::class, 'index']);
+    Route::post('/', [FormTemplateController::class, 'store']);
+    Route::get('/{formTemplate}/assignments', [FormAssignmentController::class, 'index']);
+    Route::post('/{formTemplate}/assignments', [FormAssignmentController::class, 'store']);
+    Route::get('/{formTemplate}', [FormTemplateController::class, 'show']);
+    Route::put('/{formTemplate}', [FormTemplateController::class, 'update']);
+    Route::delete('/{formTemplate}', [FormTemplateController::class, 'destroy']);
+});
+
+Route::prefix('form-assignments')->middleware('auth:sanctum')->group(function () {
+    Route::put('/{formAssignment}', [FormAssignmentController::class, 'update']);
+    Route::delete('/{formAssignment}', [FormAssignmentController::class, 'destroy']);
+    Route::get('/{formAssignment}/responses', [FormAssignmentController::class, 'responses']);
+});
+
+Route::prefix('my-forms')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [MyFormsController::class, 'index']);
+    Route::get('/{formAssignment}', [MyFormsController::class, 'show']);
+    Route::match(['put', 'post'], '/{formAssignment}', [MyFormsController::class, 'save']);
+});
+
+Route::prefix('appraisals')->middleware('auth:sanctum')->group(function () {
+    Route::get('/options', [EmployeeAppraisalController::class, 'options']);
+    Route::get('/inbox', [EmployeeAppraisalController::class, 'inbox']);
+    Route::get('/', [EmployeeAppraisalController::class, 'index']);
+    Route::post('/', [EmployeeAppraisalController::class, 'store']);
+    Route::get('/{appraisal}', [EmployeeAppraisalController::class, 'show']);
+    Route::match(['put', 'post'], '/{appraisal}/form', [EmployeeAppraisalController::class, 'saveForm']);
+    Route::post('/{appraisal}/actions', [EmployeeAppraisalController::class, 'act']);
+});
+
+Route::prefix('employee-profile-changes')->middleware('auth:sanctum')->group(function () {
+    Route::get('/inbox', [EmployeeProfileChangeController::class, 'inbox']);
+    Route::get('/', [EmployeeProfileChangeController::class, 'index']);
+    Route::post('/', [EmployeeProfileChangeController::class, 'store']);
+    Route::get('/{profileChange}', [EmployeeProfileChangeController::class, 'show']);
+    Route::post('/{profileChange}/actions', [EmployeeProfileChangeController::class, 'act']);
+});
+
+Route::prefix('panel')->middleware('auth:sanctum')->group(function () {
+    Route::get('/assignments', [InterviewPanelController::class, 'assignments']);
+    Route::get('/vacancies/{vacancy}/applications/{application}/score', [InterviewPanelController::class, 'showScore']);
+    Route::match(['put', 'post'], '/vacancies/{vacancy}/applications/{application}/score', [InterviewPanelController::class, 'saveScore']);
 });
 
 Route::prefix('departments')->group(function () {
@@ -692,6 +758,7 @@ Route::prefix('employees')->group(function () {
     });
     Route::get('/', [EmployeeController::class, 'index']);
     Route::post('/', [EmployeeController::class, 'store']);
+    Route::get('/me', [EmployeeController::class, 'me']);
     Route::get('/{employee}', [EmployeeController::class, 'show']);
     Route::get('/{employee}/time-travel', [EmployeeController::class, 'timeTravel']);
     Route::put('/{employee}', [EmployeeController::class, 'update']);
@@ -962,6 +1029,10 @@ Route::prefix('users')->group(function () {
     // User employee linking
     Route::put('/{user}/employee', [UserController::class, 'linkEmployee']);
 
+    Route::get('/{user}/tokens', [UserTokenController::class, 'index']);
+    Route::post('/{user}/tokens', [UserTokenController::class, 'store']);
+    Route::delete('/{user}/tokens/{tokenId}', [UserTokenController::class, 'destroy']);
+
     // User role management
     Route::post('/{user}/roles', [UserController::class, 'assignRoles']);
     Route::put('/{user}/roles', [UserController::class, 'addRoles']);
@@ -986,7 +1057,7 @@ Route::prefix('pay-period-schedules')->group(function () {
     Route::get('/{payPeriodSchedule}', [PayPeriodController::class, 'show']);
     Route::put('/{payPeriodSchedule}', [PayPeriodController::class, 'update']);
     Route::delete('/{payPeriodSchedule}', [PayPeriodController::class, 'destroy']);
-    
+
     // AI-powered SQL generation endpoints
     Route::post('/ai/generate', [PayPeriodScheduleAiController::class, 'generateSql']);
     Route::post('/ai/confirm', [PayPeriodScheduleAiController::class, 'confirmAndExecute']);
@@ -1142,4 +1213,20 @@ Route::prefix('mail-settings')->group(function () {
     Route::get('/', [\App\Http\Controllers\MailSettingController::class, 'show']);
     Route::put('/', [\App\Http\Controllers\MailSettingController::class, 'update']);
     Route::post('/test', [\App\Http\Controllers\MailSettingController::class, 'test']);
+});
+
+Route::prefix('biometric-devices')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [BiometricDeviceController::class, 'index']);
+    Route::post('/', [BiometricDeviceController::class, 'store']);
+    Route::get('/{biometricDevice}', [BiometricDeviceController::class, 'show']);
+    Route::put('/{biometricDevice}', [BiometricDeviceController::class, 'update']);
+    Route::delete('/{biometricDevice}', [BiometricDeviceController::class, 'destroy']);
+    Route::post('/{biometricDevice}/rotate-token', [BiometricDeviceController::class, 'rotateToken']);
+});
+
+Route::prefix('integrations')->group(function () {
+    Route::post('biometric/register', [BiometricPushController::class, 'register']);
+    Route::post('biometric/heartbeat', [BiometricPushController::class, 'heartbeat']);
+    Route::post('biometric/push', [BiometricPushController::class, 'push']);
+    Route::post('attendance/events', [BiometricPushController::class, 'push']);
 });

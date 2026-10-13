@@ -11,6 +11,7 @@ return [
     */
     'public' => [
         'POST login',
+        'POST login/invite-code',
         'POST login/passkey/options',
         'POST login/passkey',
         'POST login/two-factor/verify',
@@ -21,6 +22,10 @@ return [
         'GET careers/vacancies',
         'GET careers/vacancies/{vacancy}',
         'POST careers/vacancies/{vacancy}/applications',
+        'POST integrations/biometric/push',
+        'POST integrations/biometric/heartbeat',
+        'POST integrations/biometric/register',
+        'POST integrations/attendance/events',
     ],
 
     /*
@@ -31,6 +36,7 @@ return [
     'auth_only' => [
         'GET user',
         'PUT user/preferences',
+        'POST user/motd',
         'POST user/picture',
         'DELETE user/picture',
         'GET user/menu',
@@ -53,6 +59,20 @@ return [
         'DELETE two-factor',
         'GET employee-dashboard',
         'GET employee-dashboard/payslips/{payrollRun}',
+        'GET employees/me',
+        'GET my-forms',
+        'GET my-forms/{formAssignment}',
+        'PUT my-forms/{formAssignment}',
+        'POST my-forms/{formAssignment}',
+        'GET appraisals/inbox',
+        'GET appraisals/{appraisal}',
+        'PUT appraisals/{appraisal}/form',
+        'POST appraisals/{appraisal}/form',
+        'POST appraisals/{appraisal}/actions',
+        'GET employee-profile-changes/inbox',
+        'GET employee-profile-changes/{profileChange}',
+        'POST employee-profile-changes',
+        'POST employee-profile-changes/{profileChange}/actions',
     ],
 
     /*
@@ -73,6 +93,7 @@ return [
         'attendance-settings' => ['view' => 'view-attendance-settings', 'write' => 'attendance-settings-crud'],
         'bank-account-types' => ['view' => 'view-bank-account-type', 'write' => 'bank-account-type-crud'],
         'banks' => ['view' => 'view-organization', 'write' => 'bank-account-type-crud'],
+        'biometric-devices' => ['view' => 'view-biometric-devices', 'write' => 'biometric-devices-crud'],
         'calendar-groups' => ['view' => 'view-calendars', 'write' => 'calendar-crud'],
         'citizenship-statuses' => ['view' => 'view-employees', 'write' => 'employees-crud'],
         'clocking-logs' => ['view' => 'view-clocking-logs', 'write' => 'import-clocking-logs'],
@@ -197,6 +218,32 @@ return [
                 'view-institution',
             ],
         ],
+        'form-templates' => [
+            'view' => [
+                'view-vacancies',
+                'form-templates-crud',
+                'score-vacancies',
+                'view-appraisals',
+                'appraisals-crud',
+            ],
+            'write' => ['vacancies-crud', 'form-templates-crud', 'appraisals-crud'],
+        ],
+        'form-assignments' => [
+            'view' => ['view-vacancies', 'form-templates-crud', 'score-vacancies'],
+            'write' => ['vacancies-crud', 'form-templates-crud'],
+        ],
+        'appraisals' => [
+            'view' => ['view-appraisals', 'appraisals-crud', 'employees-crud'],
+            'write' => ['appraisals-crud', 'employees-crud'],
+        ],
+        'employee-profile-changes' => [
+            'view' => ['view-employees', 'employees-crud'],
+            'write' => ['employees-crud'],
+        ],
+        'panel' => [
+            'view' => ['score-vacancies', 'view-vacancies'],
+            'write' => ['score-vacancies', 'vacancies-crud'],
+        ],
         'vacancies' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
         'vacancy-stages' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
         'candidate-stages' => ['view' => 'view-vacancies', 'write' => 'vacancies-crud'],
@@ -231,6 +278,9 @@ return [
         'GET users/{user}' => ['manager-users', 'reset-subordinate-passwords'],
         'PUT users/{user}/password' => ['manager-users', 'reset-subordinate-passwords'],
         'POST users/{user}/send-password-reset' => ['manager-users', 'reset-subordinate-passwords'],
+        'GET users/{user}/tokens' => 'manager-users',
+        'POST users/{user}/tokens' => 'manager-users',
+        'DELETE users/{user}/tokens/{tokenId}' => 'manager-users',
         'POST shift-templates/{shiftTemplate}/assign' => 'calendar-crud',
         'GET scheduler-daily-metrics' => ['view-calendars', 'view-scheduler-metrics'],
         'GET public-holidays' => ['view-holidays', 'view-calendars'],
@@ -265,5 +315,49 @@ return [
         'GET auth-settings' => 'manager-users',
         'PUT auth-settings' => 'manager-users',
         'PUT users/{user}/security' => 'manager-users',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET catalogs an employee may load while viewing their own profile
+    |--------------------------------------------------------------------------
+    */
+    'self_employee_catalogs' => [
+        'genders',
+        'honorifics',
+        'citizenship-statuses',
+        'localities',
+        'countries',
+        'employee-statuses',
+        'employment-statuses',
+        'departments',
+        'worksites',
+        'job-titles',
+        'contract-types',
+        'timesheet-templates',
+        'contact-type',
+        'document-tags',
+        'degrees',
+        'institutions',
+        'relationships',
+        'payment-methods',
+        'payrate-frequencies',
+        'banks',
+        'bank-account-types',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET resources scoped to the caller's own employee id (query employeeId)
+    |--------------------------------------------------------------------------
+    */
+    'self_employee_resources' => [
+        'employee-contacts',
+        'employee-documents',
+        'employee-certifications',
+        'employee-skills',
+        'qualifications',
+        'employment-details',
+        'employee-banks',
     ],
 ];

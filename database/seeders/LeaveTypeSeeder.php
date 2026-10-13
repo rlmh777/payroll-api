@@ -11,13 +11,13 @@ class LeaveTypeSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            ['code' => 'VACATION', 'name' => 'Vacation', 'sortOrder' => 10, 'annual' => 20, 'accrual' => 'MONTHLY', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false],
-            ['code' => 'SICK', 'name' => 'Sick', 'sortOrder' => 20, 'annual' => 14, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => true],
-            ['code' => 'SICK_UNCERTIFIED', 'name' => 'Sick (uncertified)', 'sortOrder' => 30, 'annual' => 2, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false],
-            ['code' => 'PTO', 'name' => 'Paid time off', 'sortOrder' => 40, 'annual' => 5, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false],
-            ['code' => 'PATERNITY', 'name' => 'Paternity', 'sortOrder' => 50, 'annual' => 5, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false],
-            ['code' => 'PROFESSIONAL', 'name' => 'Professional', 'sortOrder' => 60, 'annual' => 5, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false],
-            ['code' => 'WITHOUT_PAY', 'name' => 'Without pay', 'sortOrder' => 80, 'annual' => 0, 'accrual' => 'NONE', 'isPaid' => false, 'affectsBalance' => false, 'requiresCertification' => false],
+            ['code' => 'VACATION', 'name' => 'Vacation', 'sortOrder' => 10, 'annual' => 20, 'accrual' => 'MONTHLY', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false, 'uncertifiedDaysAllowed' => 0],
+            ['code' => 'SICK', 'name' => 'Sick', 'sortOrder' => 20, 'annual' => 14, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => true, 'uncertifiedDaysAllowed' => 2],
+            ['code' => 'SICK_UNCERTIFIED', 'name' => 'Sick (uncertified)', 'sortOrder' => 30, 'annual' => 2, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false, 'uncertifiedDaysAllowed' => 0],
+            ['code' => 'PTO', 'name' => 'Paid time off', 'sortOrder' => 40, 'annual' => 5, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false, 'uncertifiedDaysAllowed' => 0],
+            ['code' => 'PATERNITY', 'name' => 'Paternity', 'sortOrder' => 50, 'annual' => 5, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false, 'uncertifiedDaysAllowed' => 0],
+            ['code' => 'PROFESSIONAL', 'name' => 'Professional', 'sortOrder' => 60, 'annual' => 5, 'accrual' => 'UPFRONT', 'isPaid' => true, 'affectsBalance' => true, 'requiresCertification' => false, 'uncertifiedDaysAllowed' => 0],
+            ['code' => 'WITHOUT_PAY', 'name' => 'Without pay', 'sortOrder' => 80, 'annual' => 0, 'accrual' => 'NONE', 'isPaid' => false, 'affectsBalance' => false, 'requiresCertification' => false, 'uncertifiedDaysAllowed' => 0],
         ];
 
         foreach ($types as $type) {
@@ -28,6 +28,7 @@ class LeaveTypeSeeder extends Seeder
                     'isPaid' => $type['isPaid'],
                     'affectsBalance' => $type['affectsBalance'],
                     'requiresCertification' => $type['requiresCertification'],
+                    'uncertifiedDaysAllowed' => $type['uncertifiedDaysAllowed'],
                     'isActive' => true,
                     'sortOrder' => $type['sortOrder'],
                 ],

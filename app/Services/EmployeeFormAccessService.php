@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Employee;
 use App\Models\PaymentMethod;
 use App\Models\Role;
 use App\Models\User;
@@ -132,6 +133,56 @@ class EmployeeFormAccessService
     }
 
     /**
+     * Read-only profile an employee may see for their own record.
+     *
+     * @return array{tabs: array<string, string>, fields: array<string, string>}
+     */
+    public function selfViewAccess(): array
+    {
+        $profile = $this->normalize(null);
+        $viewTabs = [
+            'personal',
+            'address',
+            'employment',
+            'education',
+            'payment_details',
+            'contact',
+            'contracts',
+            'documents',
+        ];
+
+        foreach ($viewTabs as $tab) {
+            $profile['tabs'][$tab] = 'view';
+        }
+
+        foreach ($this->fieldCatalog() as $field) {
+            $profile['fields'][$field['key']] = 'view';
+        }
+
+        return $profile;
+    }
+
+    /**
+     * Role access, plus self-view when the user is looking at their own employee record.
+     *
+     * @return array{tabs: array<string, string>, fields: array<string, string>}
+     */
+    public function forUserViewingEmployee(?User $user, ?Employee $employee): array
+    {
+        $profile = $this->forUser($user);
+        if (
+            $user
+            && $employee
+            && $employee->user_id
+            && (string) $employee->user_id === (string) $user->id
+        ) {
+            return $this->mergeProfiles($profile, $this->selfViewAccess());
+        }
+
+        return $profile;
+    }
+
+    /**
      * @param  array<string, mixed>|null  $profile
      * @return array{tabs: array<string, string>, fields: array<string, string>}
      */
@@ -258,6 +309,7 @@ class EmployeeFormAccessService
         foreach ($attributes as $key => $value) {
             if (! array_key_exists($key, $profile['fields'])) {
                 $filtered[$key] = $value;
+
                 continue;
             }
 

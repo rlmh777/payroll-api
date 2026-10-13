@@ -13,11 +13,16 @@ class HrSetting extends Model
         'birthday_visibility',
         'contract_expiry_enabled',
         'contract_expiry_offsets',
+        'appraisal_reminder_enabled',
+        'appraisal_reminder_interval_value',
+        'appraisal_reminder_interval_unit',
     ];
 
     protected $casts = [
         'contract_expiry_enabled' => 'boolean',
         'contract_expiry_offsets' => 'array',
+        'appraisal_reminder_enabled' => 'boolean',
+        'appraisal_reminder_interval_value' => 'integer',
     ];
 
     private static ?self $cachedCurrent = null;
@@ -38,6 +43,9 @@ class HrSetting extends Model
             'birthday_visibility' => BirthdayVisibility::Company->value,
             'contract_expiry_enabled' => true,
             'contract_expiry_offsets' => self::defaultOffsets(),
+            'appraisal_reminder_enabled' => true,
+            'appraisal_reminder_interval_value' => 2,
+            'appraisal_reminder_interval_unit' => 'days',
         ]);
     }
 
@@ -55,6 +63,41 @@ class HrSetting extends Model
     public function contractExpiryEnabled(): bool
     {
         return $this->contract_expiry_enabled !== false;
+    }
+
+    public function appraisalReminderEnabled(): bool
+    {
+        return $this->appraisal_reminder_enabled !== false;
+    }
+
+    /**
+     * @return array{value: int, unit: string}
+     */
+    public function appraisalReminderInterval(): array
+    {
+        return self::normalizeReminderInterval(
+            (int) ($this->appraisal_reminder_interval_value ?: 2),
+            (string) ($this->appraisal_reminder_interval_unit ?: 'days'),
+        );
+    }
+
+    /**
+     * @return array{value: int, unit: string}
+     */
+    public static function normalizeReminderInterval(int $value, string $unit): array
+    {
+        $unit = strtolower($unit);
+        if (! in_array($unit, ['days', 'weeks'], true)) {
+            $unit = 'days';
+        }
+        if ($value < 1) {
+            $value = 1;
+        }
+        if ($value > 30) {
+            $value = 30;
+        }
+
+        return ['value' => $value, 'unit' => $unit];
     }
 
     /**

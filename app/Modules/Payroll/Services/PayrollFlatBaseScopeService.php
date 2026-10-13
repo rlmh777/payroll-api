@@ -85,8 +85,8 @@ class PayrollFlatBaseScopeService
     }
 
     /**
-     * Vacation / leave already paid in advance — amount to attribute to vacation expense
-     * (and clear against leave-advance liability) without increasing net pay.
+     * Vacation / leave already paid in advance — amount to record on the payroll run
+     * (vacation expense / leave-advance clearing) without increasing cash or taxable pay.
      *
      * @return array{
      *     amount: float,
@@ -106,7 +106,7 @@ class PayrollFlatBaseScopeService
         string $employeeId,
         Carbon $startDate,
         Carbon $endDate,
-        ?float $flatPeriodBasePay,
+        ?float $dailyRate,
     ): array {
         $empty = [
             'amount' => 0.0,
@@ -115,7 +115,7 @@ class PayrollFlatBaseScopeService
             'lines' => [],
         ];
 
-        if ($flatPeriodBasePay === null || $flatPeriodBasePay <= 0) {
+        if ($dailyRate === null || $dailyRate <= 0) {
             return $empty;
         }
 
@@ -132,7 +132,6 @@ class PayrollFlatBaseScopeService
             ->get();
 
         $periodDays = max(1, $startDate->diffInDays($endDate) + 1);
-        $dailyRate = round($flatPeriodBasePay / $periodDays, 4);
         $lines = [];
         $totalDays = 0;
         $totalAmount = 0.0;

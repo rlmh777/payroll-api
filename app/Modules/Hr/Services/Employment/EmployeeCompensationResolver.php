@@ -283,4 +283,37 @@ class EmployeeCompensationResolver
 
         return $dailyRate > 0 ? $dailyRate : null;
     }
+
+    /**
+     * Daily rate used to record already-paid / payable leave on a payroll run.
+     * Flat-period salary is spread across calendar days in the period; otherwise
+     * daily or hourly compensation is used.
+     */
+    public function leaveDailyRate(
+        ?EmployeeCompensation $compensation,
+        ?int $payrateFrequencyId,
+        Carbon $startDate,
+        Carbon $endDate,
+    ): ?float {
+        $flatPeriodBasePay = $this->flatPeriodBasePay($compensation, $payrateFrequencyId);
+        if ($flatPeriodBasePay !== null && $flatPeriodBasePay > 0) {
+            $periodDays = max(1, $startDate->diffInDays($endDate) + 1);
+
+            return round($flatPeriodBasePay / $periodDays, 4);
+        }
+
+        $dailyRate = $this->effectiveDailyRate($compensation);
+        if ($dailyRate !== null && $dailyRate > 0) {
+            return round($dailyRate, 4);
+        }
+
+        $hourlyRate = $this->effectiveHourlyRate($compensation);
+        if ($hourlyRate !== null && $hourlyRate > 0) {
+            $hoursPerDay = $this->standardWeeklyHours($compensation) / 5;
+
+            return round($hourlyRate * $hoursPerDay, 4);
+        }
+
+        return null;
+    }
 }

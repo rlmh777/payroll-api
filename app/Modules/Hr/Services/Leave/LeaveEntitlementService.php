@@ -27,6 +27,9 @@ class LeaveEntitlementService
      *     isPaid: bool,
      *     affectsBalance: bool,
      *     requiresCertification: bool,
+     *     uncertifiedDaysAllowed: float,
+     *     uncertifiedDaysUsed: float,
+     *     uncertifiedDaysRemaining: float,
      *     annualEntitlementDays: float,
      *     accrualMethod: string,
      *     accruedDays: float,
@@ -76,6 +79,8 @@ class LeaveEntitlementService
             ? max(0, round($accrued - $taken - $scheduled, 2))
             : 0.0;
 
+        $certification = $this->certificationSnapshot($employeeId, $leaveType, $period);
+
         return [
             'leaveTypeId' => (int) $leaveType->id,
             'code' => $leaveType->code,
@@ -83,6 +88,9 @@ class LeaveEntitlementService
             'isPaid' => (bool) $leaveType->isPaid,
             'affectsBalance' => (bool) $leaveType->affectsBalance,
             'requiresCertification' => (bool) $leaveType->requiresCertification,
+            'uncertifiedDaysAllowed' => $certification['uncertifiedDaysAllowed'],
+            'uncertifiedDaysUsed' => $certification['uncertifiedDaysUsed'],
+            'uncertifiedDaysRemaining' => $certification['uncertifiedDaysRemaining'],
             'annualEntitlementDays' => $policy['annualEntitlementDays'],
             'accrualMethod' => $policy['accrualMethod']->value,
             'accruedDays' => $accrued,
@@ -149,6 +157,84 @@ class LeaveEntitlementService
         }
 
         return null;
+    }
+
+    public function assertCertificationProof(
+        string $employeeId,
+        int $leaveTypeId,
+        float $requestedDays,
+        bool $hasProof,
+        ?Carbon $asOf = null,
+        ?string $excludeLeaveId = null,
+    ): ?string {
+        $leaveType = LeaveType::query()->find($leaveTypeId);
+        if (!$leaveType || !$leaveType->requiresCertification) {
+            return null;
+        }
+
+        if ($hasProof) {
+            return null;
+        }
+
+        $asOf = ($asOf ?? Carbon::today())->copy()->startOfDay();
+        $period = $this->policyPeriod($this->activeContract($employeeId, $asOf), $asOf);
+        $snapshot = $this->certificationSnapshot($employeeId, $leaveType, $period, $excludeLeaveId);
+        $remaining = $snapshot['uncertifiedDaysRemaining'];
+
+        if ($requestedDays <= $remaining + 0.001) {
+            return null;
+        }
+
+        if ($snapshot['uncertifiedDaysAllowed'] <= 0) {
+            return sprintf('Medical documentation is required for %s leave.', $leaveType->name);
+        }
+
+        return sprintf(
+            'Medical documentation is required. %s allows %.2f uncertified day(s) this period; %.2f already used and %.2f requested.',
+            $leaveType->name,
+            $snapshot['uncertifiedDaysAllowed'],
+            $snapshot['uncertifiedDaysUsed'],
+            $requestedDays,
+        );
+    }
+
+    /**
+     * @param array{start: Carbon, end: Carbon} $period
+     * @return array{
+     *     uncertifiedDaysAllowed: float,
+     *     uncertifiedDaysUsed: float,
+     *     uncertifiedDaysRemaining: float,
+     * }
+     */
+    public function certificationSnapshot(
+        string $employeeId,
+        LeaveType $leaveType,
+        array $period,
+        ?string $excludeLeaveId = null,
+    ): array {
+        if (!$leaveType->requiresCertification) {
+            return [
+                'uncertifiedDaysAllowed' => 0.0,
+                'uncertifiedDaysUsed' => 0.0,
+                'uncertifiedDaysRemaining' => 0.0,
+            ];
+        }
+
+        $allowed = round((float) $leaveType->uncertifiedDaysAllowed, 2);
+        $used = $this->sumUncertifiedLeaveDays(
+            $employeeId,
+            (int) $leaveType->id,
+            $period['start'],
+            $period['end'],
+            $excludeLeaveId,
+        );
+        $remaining = max(0, round($allowed - $used, 2));
+
+        return [
+            'uncertifiedDaysAllowed' => $allowed,
+            'uncertifiedDaysUsed' => round($used, 2),
+            'uncertifiedDaysRemaining' => $remaining,
+        ];
     }
 
     /**
@@ -283,6 +369,36 @@ class LeaveEntitlementService
             ->where('startDate', '>=', $periodStart->toDateString())
             ->where('startDate', '<=', $periodEnd->toDateString())
             ->sum('totalDays');
+    }
+
+    private function sumUncertifiedLeaveDays(
+        string $employeeId,
+        int $leaveTypeId,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        ?string $excludeLeaveId = null,
+    ): float {
+        $codes = array_map(
+            fn (LeaveStatusCode $code) => $code->value,
+            array_merge(
+                LeaveStatusCode::scheduledBalanceStatuses(),
+                LeaveStatusCode::takenBalanceStatuses(),
+            ),
+        );
+
+        $query = EmployeeLeave::query()
+            ->where('employeeId', $employeeId)
+            ->where('leaveTypeId', $leaveTypeId)
+            ->whereHas('leaveStatus', fn ($builder) => $builder->whereIn('code', $codes))
+            ->whereDoesntHave('attachments')
+            ->where('startDate', '>=', $periodStart->toDateString())
+            ->where('startDate', '<=', $periodEnd->toDateString());
+
+        if ($excludeLeaveId) {
+            $query->where('id', '!=', $excludeLeaveId);
+        }
+
+        return (float) $query->sum('totalDays');
     }
 
     private function leaveDaysForRecord(int $leaveId): float

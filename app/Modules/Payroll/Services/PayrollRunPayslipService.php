@@ -228,7 +228,7 @@ class PayrollRunPayslipService
                         $typeName = trim((string) ($line['leaveTypeName'] ?? 'Leave'));
 
                         return [
-                            'label' => $typeName.' (already paid)',
+                            'label' => $typeName.' (advance)',
                             'hours' => $days,
                             'rate' => $days > 0 ? round($amount / $days, 2) : 0.0,
                             'amount' => $amount,
@@ -242,7 +242,7 @@ class PayrollRunPayslipService
                     $days = (float) ($alreadyPaidLeave['days'] ?? 0);
                     $amount = round((float) $alreadyPaidLeave['amount'], 2);
                     $alreadyPaidEarningsRows[] = [
-                        'label' => 'Vacation (already paid)',
+                        'label' => 'Vacation (advance)',
                         'hours' => $days,
                         'rate' => $days > 0 ? round($amount / $days, 2) : 0.0,
                         'amount' => $amount,

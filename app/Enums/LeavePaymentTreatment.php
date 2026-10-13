@@ -7,10 +7,10 @@ enum LeavePaymentTreatment: string
     /** Leave is unpaid; payroll should not pay for these days. */
     case Unpaid = 'unpaid';
 
-    /** Leave is paid through the normal payroll run. */
+    /** Vacation days are paid with the next payroll (normal salary for those days, not extra money). */
     case PaidWithPayroll = 'paid_with_payroll';
 
-    /** Leave pay was already issued outside this run; payroll must not pay again. */
+    /** Vacation was paid as an advance; next payroll records it but must not pay those days again. */
     case AlreadyPaid = 'already_paid';
 
     /**

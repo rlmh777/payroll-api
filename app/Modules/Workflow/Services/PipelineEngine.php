@@ -18,6 +18,12 @@ class PipelineEngine
 
     public const SUBJECT_TIMESHEET = 'timesheet';
 
+    public const SUBJECT_FORM_RESPONSE = 'form_response';
+
+    public const SUBJECT_APPRAISAL = 'employee_appraisal';
+
+    public const SUBJECT_PROFILE_CHANGE = 'employee_profile_change';
+
     /**
      * @return array{instance: PipelineInstance, domain_status: ?string}
      */

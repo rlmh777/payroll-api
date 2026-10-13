@@ -4,24 +4,24 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Support\ConfiguredStorage;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasUuids, HasRoles;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable;
 
     protected $primaryKey = 'id';
+
     protected $keyType = 'string';
 
     public $incrementing = false;
@@ -86,6 +86,28 @@ class User extends Authenticatable
         }
 
         return (string) config('modules.default_module', 'payroll');
+    }
+
+    public function defaultMenu(): ?string
+    {
+        $preferred = $this->preferences['default_menu'] ?? null;
+        if (! is_string($preferred)) {
+            return null;
+        }
+
+        $route = trim($preferred);
+
+        return $route === '' ? null : $route;
+    }
+
+    public function textSize(): string
+    {
+        $preferred = $this->preferences['text_size'] ?? null;
+        if (is_string($preferred) && in_array($preferred, ['sm', 'md', 'lg'], true)) {
+            return $preferred;
+        }
+
+        return 'sm';
     }
 
     public function preference(string $key, mixed $default = null): mixed

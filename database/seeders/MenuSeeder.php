@@ -14,13 +14,20 @@ class MenuSeeder extends Seeder
         'payroll.dashboard' => 'payroll',
         'payroll.reports' => 'payroll',
         'employee.dashboard' => 'employee',
+        'employee.profile' => 'employee',
+        'employee.forms' => 'employee',
+        'employee.appraisals' => 'employee',
         'employee.scheduler' => 'employee',
         'hr.employees' => 'hr',
         'hr.settings.birthdays' => 'hr',
         'hr.settings.letter_templates' => 'hr',
         'hr.settings.email_templates' => 'hr',
         'hr.vacancies' => 'hr',
+        'hr.panel' => 'hr',
         'hr.candidates' => 'hr',
+        'hr.appraisals' => 'hr',
+        'hr.settings.appraisals' => 'hr',
+        'hr.settings.form_templates' => 'hr',
         'hr.settings' => 'hr',
         'hr.settings.vacancy_stages' => 'hr',
         'hr.settings.candidate_stages' => 'hr',
@@ -52,6 +59,7 @@ class MenuSeeder extends Seeder
         'admin.users' => 'admin',
         'admin.settings' => 'admin',
         'admin.pipelines' => 'admin',
+        'admin.biometric_devices' => 'admin',
     ];
 
     /**
@@ -73,11 +81,44 @@ class MenuSeeder extends Seeder
         ]);
 
         $this->ensureMenu([
+            'title' => 'Profile',
+            'route' => '/employee/profile',
+            'icon' => 'badge',
+            'permission' => null,
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'employee.profile',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Forms',
+            'route' => '/forms',
+            'icon' => 'assignment',
+            'permission' => null,
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'employee.forms',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Appraisals',
+            'route' => '/appraisals',
+            'icon' => 'rate_review',
+            'permission' => null,
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'employee.appraisals',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
             'title' => 'Scheduler',
             'route' => '/payroll/scheduler',
             'icon' => 'calendar_month',
             'permission' => 'view-calendars',
-            'order' => 2,
+            'order' => 3,
             'type' => 'menu',
             'system_key' => 'employee.scheduler',
             'module_code' => 'employee',
@@ -143,6 +184,18 @@ class MenuSeeder extends Seeder
 
         $this->ensureMenu([
             'parent_id' => null,
+            'title' => 'Interview panel',
+            'route' => '/hr/panel',
+            'icon' => 'how_to_vote',
+            'permission' => 'score-vacancies|view-vacancies',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'hr.panel',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
             'title' => 'Candidates',
             'route' => '/hr/candidates',
             'icon' => 'badge',
@@ -150,6 +203,18 @@ class MenuSeeder extends Seeder
             'order' => 4,
             'type' => 'menu',
             'system_key' => 'hr.candidates',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Appraisals',
+            'route' => '/hr/appraisals',
+            'icon' => 'rate_review',
+            'permission' => 'view-appraisals|employees-crud|appraisals-crud',
+            'order' => 4,
+            'type' => 'menu',
+            'system_key' => 'hr.appraisals',
             'module_code' => 'hr',
         ]);
 
@@ -181,6 +246,8 @@ class MenuSeeder extends Seeder
             ['Birthdays', '/hr/settings/birthdays', 'cake', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 13, 'hr.settings.birthdays'],
             ['Letter templates', '/hr/settings/letter-templates', 'description', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 14, 'hr.settings.letter_templates'],
             ['Email templates', '/hr/settings/email-templates', 'email', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 15, 'hr.settings.email_templates'],
+            ['Form templates', '/hr/settings/form-templates', 'dynamic_form', 'view-vacancies', 16, 'hr.settings.form_templates'],
+            ['Appraisals', '/hr/settings/appraisals', 'notifications_active', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 17, 'hr.settings.appraisals'],
         ];
 
         foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {
@@ -383,6 +450,18 @@ class MenuSeeder extends Seeder
             'order' => 7,
             'type' => 'submenu',
             'system_key' => 'admin.users',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Biometric Devices',
+            'route' => '/admin/settings/biometric-devices',
+            'icon' => 'fingerprint',
+            'permission' => 'view-biometric-devices',
+            'order' => 12,
+            'type' => 'submenu',
+            'system_key' => 'admin.biometric_devices',
             'module_code' => 'admin',
         ]);
 
@@ -634,12 +713,18 @@ class MenuSeeder extends Seeder
             'database-backup-crud',
             'view-file-storage',
             'file-storage-crud',
+            'view-biometric-devices',
+            'biometric-devices-crud',
             'view-email-settings',
             'email-settings-crud',
             'view-login-page',
             'login-page-crud',
             'view-vacancies',
             'vacancies-crud',
+            'score-vacancies',
+            'form-templates-crud',
+            'view-appraisals',
+            'appraisals-crud',
             'view-settings',
             'view-reports',
             'list-reports',

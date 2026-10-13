@@ -2,17 +2,17 @@ name: Deploy API
 
 on:
   push:
-    branches: [dev, main]
+    branches: [main, master]
   workflow_dispatch:
     inputs:
-      environment:
-        description: Target environment
+      client:
+        description: Client environment to deploy (one GitHub Environment per client)
         required: true
         type: choice
-        options: [dev, prod]
+        options: [chaacreek]
 
 concurrency:
-  group: deploy-api-${{ github.ref }}
+  group: deploy-api-${{ github.event.inputs.client || 'chaacreek' }}
   cancel-in-progress: true
 
 permissions:
@@ -21,18 +21,20 @@ permissions:
 
 jobs:
   deploy:
-    name: Build & deploy (${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'dev') }})
+    name: Build & deploy (${{ github.event.inputs.client || 'chaacreek' }})
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'dev') }}
+    environment: ${{ github.event.inputs.client || 'chaacreek' }}
     env:
+      CLIENT: ${{ github.event.inputs.client || 'chaacreek' }}
       IMAGE_TAG: ${{ github.sha }}
-      # Live shared stack (rg-payroll-test / acrpayrolltestgqo0ax were destroyed).
-      ACR_NAME: acrpayrollshrdprodi7i0ek
-      ACR_LOGIN_SERVER: acrpayrollshrdprodi7i0ek.azurecr.io
-      RESOURCE_GROUP: rg-payroll-shrd-prod
-      CONTAINER_APP_API: ca-payroll-shrdprod-api
-      CONTAINER_APP_QUEUE: ca-payroll-shrdprod-queue
-      CONTAINER_APP_SCHEDULER: ca-payroll-shrdprod-scheduler
+      ACR_NAME: ${{ vars.ACR_NAME || 'acrpayrollshrdprodi7i0ek' }}
+      ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER || 'acrpayrollshrdprodi7i0ek.azurecr.io' }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-payroll-shrd-prod' }}
+      CONTAINER_APP_API: ${{ vars.CONTAINER_APP_API || 'ca-payroll-shrdprod-api' }}
+      CONTAINER_APP_QUEUE: ${{ vars.CONTAINER_APP_QUEUE || 'ca-payroll-shrdprod-queue' }}
+      CONTAINER_APP_SCHEDULER: ${{ vars.CONTAINER_APP_SCHEDULER || 'ca-payroll-shrdprod-scheduler' }}
+      STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT || 'stpayrollshrdprodi7i0ek' }}
+      TENANT_SLUG: ${{ vars.TENANT_SLUG || github.event.inputs.client || 'chaacreek' }}
 
     steps:
       - name: Checkout
@@ -87,8 +89,7 @@ jobs:
       - name: Configure Azure Blob Storage
         run: |
           set -euo pipefail
-          STORAGE_ACCOUNT="stpayrollshrdprodi7i0ek"
-          CONTAINER="chaacreek"
+          CONTAINER="$TENANT_SLUG"
 
           ACCOUNT_KEY=$(az storage account keys list \
             --account-name "$STORAGE_ACCOUNT" \
@@ -132,6 +133,6 @@ jobs:
         run: |
           FQDN=$(az containerapp show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_API" --query "properties.configuration.ingress.fqdn" -o tsv)
           echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Environment: \`${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod' || 'dev') }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Client environment: \`$CLIENT\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Image: \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- URL: https://$FQDN" >> "$GITHUB_STEP_SUMMARY"

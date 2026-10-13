@@ -22,8 +22,8 @@ class VacancyController extends Controller
         $stages = VacancyStage::query()
             ->with(['vacancies' => fn ($query) => $query
                 ->with(Vacancy::defaultRelations())
-                ->withCount('applications')
-                ->applyFilters($request)
+                ->withCount(['applications', 'panelMembers'])
+                ->applyFilters($request),
             ])
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -42,7 +42,7 @@ class VacancyController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Vacancy::query()->with(Vacancy::defaultRelations())->withCount('applications');
+        $query = Vacancy::query()->with(Vacancy::defaultRelations())->withCount(['applications', 'panelMembers']);
         $query->applyFilters($request);
         $query->orderBy('sort_order')->orderByDesc('created_at');
 
@@ -211,6 +211,7 @@ class VacancyController extends Controller
             'advertise_internal' => ['sometimes', 'boolean'],
             'advertise_public' => ['sometimes', 'boolean'],
             'vacancy_stage_id' => ['nullable', 'integer', 'exists:vacancy_stages,id'],
+            'form_template_id' => ['nullable', 'uuid', 'exists:form_templates,id'],
             'attachments' => ['nullable', 'array', 'max:10'],
             'attachments.*' => ['file', 'mimes:'.self::ATTACHMENT_MIMES, 'max:10240'],
             'remove_attachment_ids' => ['sometimes', 'array'],
@@ -228,7 +229,7 @@ class VacancyController extends Controller
     {
         $merge = [];
 
-        foreach (['job_title_id', 'worksite_id', 'department_id', 'hiring_manager_id', 'vacancy_stage_id'] as $key) {
+        foreach (['job_title_id', 'worksite_id', 'department_id', 'hiring_manager_id', 'vacancy_stage_id', 'form_template_id'] as $key) {
             if ($request->has($key) && $request->input($key) === '') {
                 $merge[$key] = null;
             }
@@ -264,6 +265,7 @@ class VacancyController extends Controller
             'advertise_internal',
             'advertise_public',
             'vacancy_stage_id',
+            'form_template_id',
         ] as $field) {
             if (array_key_exists($field, $validated)) {
                 $attributes[$field] = $validated[$field];

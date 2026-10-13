@@ -23,6 +23,11 @@ Schedule::command('hr:send-contract-expiry-reminders')
     ->withoutOverlapping()
     ->onOneServer();
 
+Schedule::command('hr:send-appraisal-reminders')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 foreach (config('database-backup.schedule_times', []) as $time) {
     if (! is_string($time) || $time === '') {
         continue;

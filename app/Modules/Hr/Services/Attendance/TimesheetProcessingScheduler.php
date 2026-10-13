@@ -27,10 +27,14 @@ class TimesheetProcessingScheduler
     }
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      */
     public function queue(array $filters = []): void
     {
+        if (! class_exists(ProcessClockingLogsJob::class)) {
+            return;
+        }
+
         if ($filters === []) {
             $filters = $this->dailyFilters();
         }
@@ -40,7 +44,7 @@ class TimesheetProcessingScheduler
 
     public function queueAfterIngest(int $insertedCount, array $rows = []): void
     {
-        if ($insertedCount <= 0 || !config('attendance.timesheet_processing.queue_after_ingest', true)) {
+        if ($insertedCount <= 0 || ! config('attendance.timesheet_processing.queue_after_ingest', true)) {
             return;
         }
 
@@ -50,7 +54,7 @@ class TimesheetProcessingScheduler
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rows
+     * @param  array<int, array<string, mixed>>  $rows
      * @return array{startDate:string, endDate:string}|null
      */
     private function punchDateRangeFromRows(array $rows): ?array

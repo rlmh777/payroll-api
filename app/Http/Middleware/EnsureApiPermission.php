@@ -45,6 +45,10 @@ class EnsureApiPermission
         }
 
         if (! $allowed) {
+            if ($this->allowsSelfEmployeeRead($request, $user, $method, $relativePath)) {
+                return $next($request);
+            }
+
             return response()->json([
                 'message' => 'Forbidden. Missing required permission.',
                 'permission' => count($permissions) === 1 ? $permissions[0] : $permissions,
@@ -184,5 +188,48 @@ class EnsureApiPermission
         $regex = '#^'.preg_replace('/\{[^}]+\}/', '[^/]+', trim($patternPath, '/')).'$#';
 
         return (bool) preg_match($regex, $path);
+    }
+
+    private function allowsSelfEmployeeRead(Request $request, User $user, string $method, string $path): bool
+    {
+        if ($method !== 'GET' && $method !== 'HEAD' && $method !== 'OPTIONS') {
+            return false;
+        }
+
+        $ownEmployeeId = $user->employee()->value('id');
+        if (! $ownEmployeeId) {
+            return false;
+        }
+
+        if ($path === 'employees/me') {
+            return true;
+        }
+
+        if (preg_match('#^employees/by-user/([^/]+)$#', $path, $matches) === 1) {
+            return (string) $matches[1] === (string) $user->id;
+        }
+
+        if (preg_match('#^employees/([^/]+)$#', $path, $matches) === 1) {
+            return (string) $matches[1] === (string) $ownEmployeeId;
+        }
+
+        $segment = strtok($path, '/');
+        if (! is_string($segment) || $segment === '') {
+            return false;
+        }
+
+        $catalogs = config('api-permissions.self_employee_catalogs', []);
+        if (is_array($catalogs) && in_array($segment, $catalogs, true)) {
+            return true;
+        }
+
+        $scoped = config('api-permissions.self_employee_resources', []);
+        if (! is_array($scoped) || ! in_array($segment, $scoped, true)) {
+            return false;
+        }
+
+        $requestedEmployeeId = $request->input('employeeId', $request->input('employee_id'));
+
+        return $requestedEmployeeId !== null && (string) $requestedEmployeeId === (string) $ownEmployeeId;
     }
 }

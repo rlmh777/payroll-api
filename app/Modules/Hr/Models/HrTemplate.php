@@ -51,7 +51,7 @@ class HrTemplate extends Model
     public static function categoriesFor(string $channel): array
     {
         return $channel === self::CHANNEL_EMAIL
-            ? ['leave', 'security', 'recruiting', 'contracts', 'other']
+            ? ['leave', 'security', 'recruiting', 'contracts', 'appraisal', 'other']
             : ['bank', 'embassy', 'other'];
     }
 
@@ -84,6 +84,14 @@ class HrTemplate extends Model
                 ['token' => '{{days_until_expiry}}', 'label' => 'Days until expiry'],
                 ['token' => '{{reminder_window}}', 'label' => 'Reminder window'],
                 ['token' => '{{contract_type}}', 'label' => 'Contract type'],
+                ['token' => '{{invite_code}}', 'label' => 'Panel invite code'],
+                ['token' => '{{login_url}}', 'label' => 'Panel login URL'],
+                ['token' => '{{panel_instructions}}', 'label' => 'Panel instructions'],
+                ['token' => '{{period_label}}', 'label' => 'Appraisal period'],
+                ['token' => '{{step_label}}', 'label' => 'Current pipeline step'],
+                ['token' => '{{action_url}}', 'label' => 'Appraisal action URL'],
+                ['token' => '{{decision_summary}}', 'label' => 'Appraisal decision summary'],
+                ['token' => '{{hr_recommendations}}', 'label' => 'HR recommendations'],
             ];
         }
 

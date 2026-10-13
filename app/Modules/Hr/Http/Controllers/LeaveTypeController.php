@@ -46,6 +46,7 @@ class LeaveTypeController extends Controller
             'isPaid' => (bool) ($validated['isPaid'] ?? true),
             'affectsBalance' => (bool) ($validated['affectsBalance'] ?? true),
             'requiresCertification' => (bool) ($validated['requiresCertification'] ?? false),
+            'uncertifiedDaysAllowed' => round((float) ($validated['uncertifiedDaysAllowed'] ?? 0), 2),
             'isActive' => (bool) ($validated['isActive'] ?? true),
             'sortOrder' => (int) ($validated['sortOrder'] ?? 0),
         ]);
@@ -74,7 +75,7 @@ class LeaveTypeController extends Controller
         $validated = $request->validate($this->rules(partial: true, leaveType: $leaveType));
 
         $leaveTypeData = collect($validated)->only([
-            'name', 'code', 'isPaid', 'affectsBalance', 'requiresCertification', 'isActive', 'sortOrder',
+            'name', 'code', 'isPaid', 'affectsBalance', 'requiresCertification', 'uncertifiedDaysAllowed', 'isActive', 'sortOrder',
         ])->filter(fn ($value, $key) => array_key_exists($key, $validated))->all();
 
         if (isset($leaveTypeData['name'])) {
@@ -82,6 +83,9 @@ class LeaveTypeController extends Controller
         }
         if (isset($leaveTypeData['code'])) {
             $leaveTypeData['code'] = strtoupper(trim((string) $leaveTypeData['code']));
+        }
+        if (array_key_exists('uncertifiedDaysAllowed', $leaveTypeData)) {
+            $leaveTypeData['uncertifiedDaysAllowed'] = round((float) $leaveTypeData['uncertifiedDaysAllowed'], 2);
         }
 
         if (!empty($leaveTypeData)) {
@@ -154,6 +158,7 @@ class LeaveTypeController extends Controller
             'isPaid' => ['boolean'],
             'affectsBalance' => ['boolean'],
             'requiresCertification' => ['boolean'],
+            'uncertifiedDaysAllowed' => ['nullable', 'numeric', 'min:0'],
             'isActive' => ['boolean'],
             'sortOrder' => ['integer', 'min:0'],
             'annualEntitlementDays' => ['nullable', 'numeric', 'min:0'],

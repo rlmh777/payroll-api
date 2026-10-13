@@ -32,6 +32,8 @@ class AuthUserPresenter
             'employeeFormAccess' => $formAccess,
             'preferences' => [
                 'defaultModule' => $user->defaultModule(),
+                'defaultMenu' => $user->defaultMenu(),
+                'textSize' => $user->textSize(),
                 'onboardingEnabled' => $user->preference('onboarding_enabled') !== false,
                 'onboardingCompleted' => (bool) $user->preference('onboarding_completed', false),
                 'onboardingSeen' => self::onboardingSeen($user),
@@ -57,9 +59,6 @@ class AuthUserPresenter
         return $normalized;
     }
 
-    /**
-     * @return object
-     */
     private static function onboardingSeen(User $user): object
     {
         $raw = $user->preference('onboarding_seen', []);

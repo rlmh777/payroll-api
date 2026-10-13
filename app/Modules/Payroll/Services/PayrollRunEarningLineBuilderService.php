@@ -203,7 +203,8 @@ class PayrollRunEarningLineBuilderService
                     $alreadyPaidAmount,
                     'ALREADY_PAID_LEAVE',
                     null,
-                    'Already paid in advance',
+                    'Vacation advance (already paid — not additional pay)',
+                    $this->payrollAccountMappingService->accountIdFor('VACATION_PAY'),
                 );
             }
         }

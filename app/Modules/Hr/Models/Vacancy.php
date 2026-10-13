@@ -35,6 +35,7 @@ class Vacancy extends Model
         'advertise_internal',
         'advertise_public',
         'vacancy_stage_id',
+        'form_template_id',
         'sort_order',
         'published_at',
     ];
@@ -85,6 +86,21 @@ class Vacancy extends Model
     public function attachments(): HasMany
     {
         return $this->hasMany(VacancyAttachment::class, 'vacancy_id');
+    }
+
+    public function formTemplate(): BelongsTo
+    {
+        return $this->belongsTo(FormTemplate::class, 'form_template_id');
+    }
+
+    public function panelMembers(): HasMany
+    {
+        return $this->hasMany(VacancyPanelMember::class, 'vacancy_id');
+    }
+
+    public function formResponses(): HasMany
+    {
+        return $this->hasMany(FormResponse::class, 'vacancy_id');
     }
 
     protected static function booted(): void
@@ -162,6 +178,19 @@ class Vacancy extends Model
         }
     }
 
+    private function panelMembersCount(): int
+    {
+        if (array_key_exists('panel_members_count', $this->attributes)) {
+            return (int) $this->attributes['panel_members_count'];
+        }
+
+        if ($this->relationLoaded('panelMembers')) {
+            return $this->panelMembers->count();
+        }
+
+        return (int) $this->panelMembers()->count();
+    }
+
     public function isListedPublicly(): bool
     {
         $stage = $this->stage;
@@ -181,6 +210,7 @@ class Vacancy extends Model
             'department',
             'hiringManager.person',
             'attachments',
+            'formTemplate',
         ];
     }
 
@@ -238,6 +268,9 @@ class Vacancy extends Model
                 'firstName' => $person?->firstName,
                 'lastName' => $person?->lastName,
             ] : null;
+            $payload['form_template_id'] = $this->form_template_id;
+            $payload['form_template'] = $this->formTemplate?->summary();
+            $payload['panel_members_count'] = $this->panelMembersCount();
         }
 
         return $payload;

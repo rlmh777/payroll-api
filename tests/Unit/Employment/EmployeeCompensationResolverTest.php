@@ -96,6 +96,35 @@ class EmployeeCompensationResolverTest extends TestCase
         $this->assertNull($this->resolver->flatPeriodBasePay($baseNoOt, null));
     }
 
+    public function test_leave_daily_rate_from_hourly_standard_week(): void
+    {
+        $compensation = $this->makeCompensation('2024-01-01', null, true, 'HOURLY_OT', true, 20, 0, 40);
+
+        $rate = $this->resolver->leaveDailyRate(
+            $compensation,
+            null,
+            Carbon::parse('2026-10-01'),
+            Carbon::parse('2026-10-14'),
+        );
+
+        $this->assertSame(160.0, $rate);
+    }
+
+    public function test_leave_daily_rate_prefers_explicit_daily_rate(): void
+    {
+        $compensation = $this->makeCompensation('2024-01-01', null, true, 'DAILY_RATE', false, 0, 0, 40);
+        $compensation->dailyRate = 125;
+
+        $rate = $this->resolver->leaveDailyRate(
+            $compensation,
+            null,
+            Carbon::parse('2026-10-01'),
+            Carbon::parse('2026-10-14'),
+        );
+
+        $this->assertSame(125.0, $rate);
+    }
+
     public function test_legacy_hourly_maps_to_hourly_ot(): void
     {
         $this->assertSame(CompensationMethod::HourlyOt, CompensationMethod::fromStored('HOURLY'));

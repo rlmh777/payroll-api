@@ -20,10 +20,14 @@ class HrSettingController extends Controller
     {
         $hasContractFields = $request->exists('contractExpiryEnabled')
             || $request->exists('contractExpiryOffsets');
+        $hasAppraisalFields = $request->exists('appraisalReminderEnabled')
+            || $request->exists('appraisalReminderIntervalValue')
+            || $request->exists('appraisalReminderIntervalUnit');
+        $partialUpdate = $hasContractFields || $hasAppraisalFields;
 
         $validated = $request->validate([
             'birthdayVisibility' => [
-                $hasContractFields ? 'sometimes' : 'required',
+                $partialUpdate ? 'sometimes' : 'required',
                 'string',
                 Rule::in(BirthdayVisibility::values()),
             ],
@@ -31,6 +35,9 @@ class HrSettingController extends Controller
             'contractExpiryOffsets' => ['sometimes', 'array', 'min:1', 'max:12'],
             'contractExpiryOffsets.*.value' => ['required', 'integer', 'min:1', 'max:36'],
             'contractExpiryOffsets.*.unit' => ['required', 'string', Rule::in(['days', 'weeks', 'months'])],
+            'appraisalReminderEnabled' => ['sometimes', 'boolean'],
+            'appraisalReminderIntervalValue' => ['sometimes', 'integer', 'min:1', 'max:30'],
+            'appraisalReminderIntervalUnit' => ['sometimes', 'string', Rule::in(['days', 'weeks'])],
         ]);
 
         $setting = HrSetting::current();
@@ -43,6 +50,20 @@ class HrSettingController extends Controller
         }
         if (array_key_exists('contractExpiryOffsets', $validated)) {
             $payload['contract_expiry_offsets'] = HrSetting::normalizeOffsets($validated['contractExpiryOffsets']);
+        }
+        if (array_key_exists('appraisalReminderEnabled', $validated)
+            || array_key_exists('appraisalReminderIntervalValue', $validated)
+            || array_key_exists('appraisalReminderIntervalUnit', $validated)
+        ) {
+            $interval = HrSetting::normalizeReminderInterval(
+                (int) ($validated['appraisalReminderIntervalValue'] ?? $setting->appraisal_reminder_interval_value ?: 2),
+                (string) ($validated['appraisalReminderIntervalUnit'] ?? $setting->appraisal_reminder_interval_unit ?: 'days'),
+            );
+            $payload['appraisal_reminder_enabled'] = array_key_exists('appraisalReminderEnabled', $validated)
+                ? (bool) $validated['appraisalReminderEnabled']
+                : $setting->appraisalReminderEnabled();
+            $payload['appraisal_reminder_interval_value'] = $interval['value'];
+            $payload['appraisal_reminder_interval_unit'] = $interval['unit'];
         }
 
         if ($payload !== []) {
@@ -60,15 +81,23 @@ class HrSettingController extends Controller
      * @return array{
      *     birthdayVisibility: string,
      *     contractExpiryEnabled: bool,
-     *     contractExpiryOffsets: list<array{value: int, unit: string}>
+     *     contractExpiryOffsets: list<array{value: int, unit: string}>,
+     *     appraisalReminderEnabled: bool,
+     *     appraisalReminderIntervalValue: int,
+     *     appraisalReminderIntervalUnit: string
      * }
      */
     private function formatSetting(HrSetting $setting): array
     {
+        $interval = $setting->appraisalReminderInterval();
+
         return [
             'birthdayVisibility' => $setting->birthdayVisibility()->value,
             'contractExpiryEnabled' => $setting->contractExpiryEnabled(),
             'contractExpiryOffsets' => $setting->contractExpiryOffsets(),
+            'appraisalReminderEnabled' => $setting->appraisalReminderEnabled(),
+            'appraisalReminderIntervalValue' => $interval['value'],
+            'appraisalReminderIntervalUnit' => $interval['unit'],
         ];
     }
 }

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 
 class VacancyApplication extends Model
@@ -69,6 +70,11 @@ class VacancyApplication extends Model
     public function candidateStage(): BelongsTo
     {
         return $this->belongsTo(CandidateStage::class, 'candidate_stage_id');
+    }
+
+    public function formResponses(): HasMany
+    {
+        return $this->hasMany(FormResponse::class, 'vacancy_application_id');
     }
 
     public function scopeApplyFilters(Builder $query, Request $request): Builder
@@ -190,6 +196,8 @@ class VacancyApplication extends Model
                 'lastName' => $person?->lastName,
                 'email' => $person?->email,
             ] : null,
+            'scores_count' => (int) ($this->submitted_scores_count ?? $this->attributes['form_responses_count'] ?? 0),
+            'average_score' => $this->average_score !== null ? round((float) $this->average_score, 2) : null,
         ];
     }
 }

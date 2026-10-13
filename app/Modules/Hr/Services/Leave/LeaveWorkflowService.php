@@ -233,7 +233,7 @@ class LeaveWorkflowService
         $treatment = LeavePaymentTreatment::fromStored($paymentTreatment);
 
         if (! $treatment) {
-            abort(422, 'Select whether vacation is unpaid, paid with payroll, or already paid in advance.');
+            abort(422, 'Select whether vacation has already been paid or should be included in the next payroll.');
         }
 
         return $treatment;

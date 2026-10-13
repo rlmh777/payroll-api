@@ -207,6 +207,8 @@ class PayrollRunCalculationService
                         ? trim(collect([$employee->firstName, $employee->middleName, $employee->lastName])->filter()->implode(' '))
                         : null,
                     'baseEarnings' => round((float) $preTax['baseEarnings'], 2),
+                    'alreadyPaidLeave' => round((float) ($timesheet['alreadyPaidLeave']['amount'] ?? 0), 2),
+                    'alreadyPaidLeaveDays' => (int) ($timesheet['alreadyPaidLeave']['days'] ?? 0),
                     'taxableAllowances' => round((float) $preTax['taxableAllowances'], 2),
                     'nonTaxableAllowances' => round((float) $preTax['nonTaxableAllowances'], 2),
                     'grossPay' => round((float) $preTax['taxableGross'], 2),
@@ -290,6 +292,7 @@ class PayrollRunCalculationService
 
         return [
             'baseEarnings' => round((float) $collection->sum('baseEarnings'), 2),
+            'alreadyPaidLeave' => round((float) $collection->sum('alreadyPaidLeave'), 2),
             'taxableAllowances' => round((float) $collection->sum('taxableAllowances'), 2),
             'nonTaxableAllowances' => round((float) $collection->sum('nonTaxableAllowances'), 2),
             'grossPay' => round((float) $collection->sum('grossPay'), 2),

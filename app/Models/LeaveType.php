@@ -19,6 +19,7 @@ class LeaveType extends Model
         'isPaid',
         'affectsBalance',
         'requiresCertification',
+        'uncertifiedDaysAllowed',
         'isActive',
         'sortOrder',
     ];
@@ -27,6 +28,7 @@ class LeaveType extends Model
         'isPaid' => 'boolean',
         'affectsBalance' => 'boolean',
         'requiresCertification' => 'boolean',
+        'uncertifiedDaysAllowed' => 'float',
         'isActive' => 'boolean',
         'sortOrder' => 'integer',
     ];

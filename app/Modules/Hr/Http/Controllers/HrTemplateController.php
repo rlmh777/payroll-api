@@ -138,6 +138,7 @@ class HrTemplateController extends Controller
             'security' => 'Password / security',
             'recruiting' => 'Job application',
             'contracts' => 'Contracts',
+            'appraisal' => 'Appraisals',
             'other' => 'Other',
         ];
 

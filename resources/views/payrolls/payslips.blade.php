@@ -363,7 +363,7 @@
                                         <td class="label-cell">
                                             {{ $earning['label'] }}
                                             @if (!empty($earning['alreadyPaid']))
-                                                <div class="line-label" style="font-weight: normal; font-size: 10px; opacity: 0.85;">Paid in advance — not included in cash earnings</div>
+                                                <div class="line-label" style="font-weight: normal; font-size: 10px; opacity: 0.85;">Advance — recorded at payroll, not additional pay; excluded from cash and deductions</div>
                                             @endif
                                         </td>
                                         <td class="text-right">{{ number_format($earning['hours'], 2) }}</td>
@@ -371,7 +371,7 @@
                                         <td class="text-right">
                                             {{ number_format($earning['amount'], 2) }}
                                             @if (!empty($earning['alreadyPaid']))
-                                                <div class="line-label" style="font-weight: normal; font-size: 10px;">Already paid</div>
+                                                <div class="line-label" style="font-weight: normal; font-size: 10px;">Recorded only</div>
                                             @endif
                                         </td>
                                         <td></td>

@@ -19,15 +19,16 @@ class VacancyApplicationController extends Controller
 {
     public function __construct(
         private readonly ApplicantToEmployeeConverter $converter,
-    ) {
-    }
+    ) {}
 
     public function board(Request $request): JsonResponse
     {
         $stages = CandidateStage::query()
             ->with(['applications' => fn ($query) => $query
                 ->with(VacancyApplication::defaultRelations())
-                ->applyFilters($request)
+                ->withCount(['formResponses as submitted_scores_count' => fn ($query) => $query->whereNotNull('submitted_at')])
+                ->withAvg(['formResponses as average_score' => fn ($query) => $query->whereNotNull('submitted_at')], 'total_score')
+                ->applyFilters($request),
             ])
             ->orderBy('sort_order')
             ->orderBy('id')

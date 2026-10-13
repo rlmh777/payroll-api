@@ -5,10 +5,11 @@ namespace App\Modules\Hr\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\EmployeeReporting;
+use App\Modules\Hr\Services\Activity\EmployeeTimeTravelService;
+use App\Modules\Hr\Services\Employee\EmployeeCodeGenerator;
 use App\Modules\Hr\Services\EmployeeNameSearch;
 use App\Modules\Hr\Services\EmployeePersonSync;
-use App\Modules\Hr\Services\Employee\EmployeeCodeGenerator;
-use App\Modules\Hr\Services\Activity\EmployeeTimeTravelService;
+use App\Modules\Hr\Services\ProfileChange\ProfileChangeWorkflowService;
 use App\Services\EmployeeFormAccessService;
 use App\Support\ConfiguredStorage;
 use Illuminate\Http\Request;
@@ -32,8 +33,8 @@ class EmployeeController extends Controller
         private readonly EmployeeCodeGenerator $codeGenerator,
         private readonly EmployeeTimeTravelService $employeeTimeTravelService,
         private readonly EmployeeFormAccessService $employeeFormAccess,
-    ) {
-    }
+        private readonly ProfileChangeWorkflowService $profileChanges,
+    ) {}
 
     /**
      * @return array<int, string>
@@ -70,18 +71,50 @@ class EmployeeController extends Controller
         return array_values(array_unique($relations));
     }
 
+    public function me(Request $request)
+    {
+        $user = $request->user();
+        $employee = Employee::query()
+            ->where('user_id', $user?->id)
+            ->first();
+
+        if (! $employee) {
+            return response()->json(['message' => 'No employee record is linked to your account.'], 404);
+        }
+
+        $profile = $this->employeeFormAccess->forUserViewingEmployee($user, $employee);
+        $employee->load($this->employeeFormAccess->detailRelationsForProfile($profile));
+
+        $payload = $this->sanitizeEmployee($employee, $profile);
+        $payload['pendingProfileChange'] = $this->profileChanges->pendingForEmployee($employee, $user);
+
+        return response()->json($payload);
+    }
+
     public function byUser(Request $request, string $userId)
     {
+        $actor = $request->user();
+        if (
+            $actor
+            && (string) $actor->id !== (string) $userId
+            && ! $actor->can('view-employees')
+        ) {
+            return response()->json(['message' => 'Forbidden. Missing required permission.'], 403);
+        }
+
         $employee = Employee::query()
             ->with($this->relationsForRequest($request))
             ->where('user_id', $userId)
             ->first();
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json(['error' => 'Employee not found'], 404);
         }
 
-        return response()->json($employee);
+        $profile = $this->employeeFormAccess->forUserViewingEmployee($actor, $employee);
+        $employee->load($this->employeeFormAccess->detailRelationsForProfile($profile));
+
+        return response()->json($this->sanitizeEmployee($employee, $profile));
     }
 
     public function subordinates(Request $request, string $employeeId)
@@ -143,7 +176,7 @@ class EmployeeController extends Controller
                 ->values()
                 ->all();
 
-            if (!empty($statusIds)) {
+            if (! empty($statusIds)) {
                 $query->whereIn('employeeStatusId', $statusIds);
             }
         } elseif ($request->filled('employee_status_id')) {
@@ -244,7 +277,16 @@ class EmployeeController extends Controller
 
     public function show(Request $request, Employee $employee)
     {
-        $profile = $this->employeeFormAccess->forUser($request->user());
+        $actor = $request->user();
+        if (
+            $actor
+            && (string) $employee->user_id !== (string) $actor->id
+            && ! $actor->can('view-employees')
+        ) {
+            return response()->json(['message' => 'Forbidden. Missing required permission.'], 403);
+        }
+
+        $profile = $this->employeeFormAccess->forUserViewingEmployee($actor, $employee);
         $employee->load($this->employeeFormAccess->detailRelationsForProfile($profile));
 
         return response()->json($this->sanitizeEmployee($employee, $profile));

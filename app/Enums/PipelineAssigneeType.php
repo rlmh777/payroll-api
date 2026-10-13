@@ -6,6 +6,7 @@ enum PipelineAssigneeType: string
 {
     case Supervisor = 'supervisor';
     case DepartmentHead = 'department_head';
+    case SkipLevel = 'skip_level';
     case Admin = 'admin';
     case Role = 'role';
     case SubjectOwner = 'subject_owner';

@@ -97,7 +97,7 @@ class EmployeeLeaveController extends Controller
                 return response()->json([
                     'errors' => [
                         'paymentTreatment' => [
-                            'Select whether vacation is unpaid, paid with this payroll, or already paid in advance.',
+                            'Select whether vacation has already been paid or should be included in the next payroll.',
                         ],
                     ],
                 ], 422);
@@ -149,7 +149,7 @@ class EmployeeLeaveController extends Controller
                 return response()->json([
                     'errors' => [
                         'paymentTreatment' => [
-                            'Select whether vacation is unpaid, paid with this payroll, or already paid in advance.',
+                            'Select whether vacation has already been paid or should be included in the next payroll.',
                         ],
                     ],
                 ], 422);
@@ -249,6 +249,18 @@ class EmployeeLeaveController extends Controller
         $employeeId = $request->input('employeeId');
         $multiplier = $this->multiplierForLeaveType((int) $request->input('leaveTypeId'));
         $uploadedFiles = $this->uploadedAttachmentFiles($request);
+
+        $certError = $this->entitlementService->assertCertificationProof(
+            $employeeId,
+            (int) $request->input('leaveTypeId'),
+            (float) $request->input('totalDays'),
+            $uploadedFiles !== [],
+            $startDate,
+        );
+
+        if ($certError) {
+            return response()->json(['errors' => ['attachments' => [$certError]]], 422);
+        }
 
         $overlappingLeaves = $this->checkForOverlappingLeaves(
             $employeeId,
@@ -440,6 +452,21 @@ class EmployeeLeaveController extends Controller
             ], 422);
         }
 
+        $uploadedFiles = $this->uploadedAttachmentFiles($request);
+        $hasProof = $uploadedFiles !== [] || $employeeLeave->attachments()->exists();
+        $certError = $this->entitlementService->assertCertificationProof(
+            $employeeId,
+            $leaveTypeId,
+            (float) $request->input('totalDays', $employeeLeave->totalDays),
+            $hasProof,
+            Carbon::parse($startDate),
+            $employeeLeave->id,
+        );
+
+        if ($certError) {
+            return response()->json(['errors' => ['attachments' => [$certError]]], 422);
+        }
+
         $payload = $request->only([
             'employeeId',
             'leaveTypeId',
@@ -455,7 +482,7 @@ class EmployeeLeaveController extends Controller
         $payload['multiplier'] = $this->multiplierForLeaveType($leaveTypeId);
 
         $employeeLeave->update($payload);
-        $this->attachUploadedFiles($employeeLeave, $this->uploadedAttachmentFiles($request));
+        $this->attachUploadedFiles($employeeLeave, $uploadedFiles);
 
         return response()->json($employeeLeave->fresh()->load(self::LEAVE_RELATIONS));
     }
