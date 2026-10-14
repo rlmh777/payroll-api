@@ -145,6 +145,19 @@ class EmployeeCompensationResolverTest extends TestCase
         $this->assertFalse($this->resolver->shouldAutoFillScheduledTimesheets($dailyRate));
     }
 
+    public function test_formatted_salary_uses_the_compensation_method(): void
+    {
+        $base = $this->makeCompensation('2024-01-01', null, true, 'BASE_NO_OT', false, 0, 52000, 40);
+        $hourly = $this->makeCompensation('2024-01-01', null, true, 'HOURLY_OT', true, 20, 0, 40);
+        $daily = $this->makeCompensation('2024-01-01', null, true, 'DAILY_RATE', false, 0, 0, 40);
+        $daily->dailyRate = 125;
+
+        $this->assertSame('$52,000.00 per year', $this->resolver->formattedSalary($base));
+        $this->assertSame('$20.00 per hour', $this->resolver->formattedSalary($hourly));
+        $this->assertSame('$125.00 per day', $this->resolver->formattedSalary($daily));
+        $this->assertSame('', $this->resolver->formattedSalary(null));
+    }
+
     private function makeCompensation(
         string $effectiveDate,
         ?string $endDate,

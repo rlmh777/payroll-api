@@ -128,6 +128,10 @@ class UserController extends Controller
                 'two_factor_required' => $user->two_factor_required,
                 'passkey_count' => (int) ($user->web_authn_credentials_count ?? 0),
                 'requires_two_factor' => $user->requiresTwoFactor(\App\Models\AuthSetting::current()),
+                'allowed_ips' => \App\Services\UserIpAllowlist::normalize($user->allowed_ips),
+                'locked_until' => $user->locked_until?->toIso8601String(),
+                'is_locked' => $user->locked_until !== null && $user->locked_until->isFuture(),
+                'client_ip' => $request->ip(),
             ],
         ]);
     }

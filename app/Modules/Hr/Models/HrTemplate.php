@@ -65,6 +65,7 @@ class HrTemplate extends Model
             ['token' => '{{employee_code}}', 'label' => 'Employee code'],
             ['token' => '{{job_title}}', 'label' => 'Job title'],
             ['token' => '{{department}}', 'label' => 'Department'],
+            ['token' => '{{salary}}', 'label' => 'Salary'],
             ['token' => '{{company_name}}', 'label' => 'Company name'],
             ['token' => '{{current_date}}', 'label' => 'Current date'],
         ];

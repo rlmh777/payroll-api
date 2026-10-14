@@ -61,6 +61,7 @@ class UserRoleSeeder extends Seeder
             'view-dashboard',
             'view-leave',
             'view-leave-types',
+            'employee-leave-crud',
         ];
 
         $supervisorPermissions = [
@@ -69,6 +70,7 @@ class UserRoleSeeder extends Seeder
             'view-leave',
             'view-leave-types',
             'leave-crud',
+            'employee-leave-crud',
             'view-timesheets',
             'timesheets-crud',
             'view-payroll-allowances',

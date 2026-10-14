@@ -3,7 +3,10 @@
 namespace App\Providers;
 
 use App\Modules\Hr\Observers\EmployeeActivityObserver;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +29,12 @@ class AppServiceProvider extends ServiceProvider
         if (! config('employee-activity.enabled', true)) {
             return;
         }
+
+        RateLimiter::for('sensitive-action', function (Request $request) {
+            $userId = (string) ($request->user()?->id ?: $request->ip());
+
+            return Limit::perMinute(5)->by($userId);
+        });
 
         $observer = $this->app->make(EmployeeActivityObserver::class);
 

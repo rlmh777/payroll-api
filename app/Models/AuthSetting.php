@@ -20,6 +20,8 @@ class AuthSetting extends Model
         'username_separator',
         'username_include_middle_initial',
         'employee_login_domain',
+        'lockout_max_attempts',
+        'lockout_decay_minutes',
     ];
 
     protected $casts = [

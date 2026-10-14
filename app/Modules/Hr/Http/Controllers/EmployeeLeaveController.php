@@ -11,6 +11,7 @@ use App\Models\LeaveStatus;
 use App\Models\LeaveType;
 use App\Helpers\EmployeeLeaveHelper;
 use App\Modules\Hr\Services\Leave\LeaveEntitlementService;
+use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Modules\Hr\Services\Leave\LeaveTeamListService;
 use App\Modules\Hr\Services\Leave\LeaveWorkflowService;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
@@ -37,6 +38,7 @@ class EmployeeLeaveController extends Controller
         private readonly LeaveEntitlementService $entitlementService,
         private readonly LeaveWorkflowService $workflowService,
         private readonly LeaveTeamListService $teamListService,
+        private readonly LeaveSupervisorAuthorizationService $authorization,
         private readonly EmployeeHoursBankService $hoursBankService,
         private readonly EmployeeCompensationResolver $compensationResolver,
     ) {
@@ -112,6 +114,10 @@ class EmployeeLeaveController extends Controller
         } elseif ($status === 'rejected') {
             $leave = $this->workflowService->reject($employeeLeave, $request->user(), $note);
         } else {
+            if (! $this->authorization->canCancelLeave($request->user(), $employeeLeave)) {
+                return $this->leaveForbidden('You can only cancel your own unapproved leave, or unapproved leave for employees who report to you.');
+            }
+
             $leave = $this->workflowService->cancel($employeeLeave, $request->user(), $note);
         }
 
@@ -156,6 +162,12 @@ class EmployeeLeaveController extends Controller
             }
         }
 
+        if ($validated['action'] === 'cancel'
+            && ! $this->authorization->canCancelLeave($request->user(), $employeeLeave)
+        ) {
+            return $this->leaveForbidden('You can only cancel your own unapproved leave, or unapproved leave for employees who report to you.');
+        }
+
         $leave = match ($validated['action']) {
             'approve' => $this->workflowService->approve(
                 $employeeLeave,
@@ -173,7 +185,27 @@ class EmployeeLeaveController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        if ($request->filled('employeeId')
+            && ! $this->authorization->canViewEmployeeLeaves($user, (string) $request->input('employeeId'))
+        ) {
+            return $this->leaveForbidden('You can only view your own leave, or leave for employees who report to you.');
+        }
+
         $query = EmployeeLeave::with(self::LEAVE_RELATIONS);
+
+        $readableIds = $this->authorization->readableEmployeeIds($user);
+        if ($readableIds !== null) {
+            if ($readableIds->isEmpty()) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('employeeId', $readableIds->all());
+            }
+        }
 
         if ($request->has('employeeId')) {
             $query->where('employeeId', $request->input('employeeId'));
@@ -230,6 +262,14 @@ class EmployeeLeaveController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if (! $this->authorization->canCreateLeaveFor($request->user(), (string) $request->input('employeeId'))) {
+            return $this->leaveForbidden('You can only create leave for yourself, or for employees who report to you.');
+        }
+
+        if ($request->boolean('assigned') && ! $this->authorization->isLeaveAdmin($request->user())) {
+            return $this->leaveForbidden('Only leave administrators can assign leave that skips approval.');
         }
 
         $balanceError = $this->entitlementService->assertSufficientBalance(
@@ -395,6 +435,10 @@ class EmployeeLeaveController extends Controller
 
     public function show(EmployeeLeave $employeeLeave): JsonResponse
     {
+        if (! $this->authorization->canViewLeave(request()->user(), $employeeLeave)) {
+            return $this->leaveForbidden('You can only view your own leave, or leave for employees who report to you.');
+        }
+
         return response()->json($employeeLeave->load(self::LEAVE_RELATIONS));
     }
 
@@ -402,6 +446,10 @@ class EmployeeLeaveController extends Controller
     {
         if ($request->isMethod('put') && empty($request->all())) {
             return response()->json(['message' => 'No data provided for update'], 422);
+        }
+
+        if (! $this->authorization->canMutateLeave($request->user(), $employeeLeave)) {
+            return $this->leaveForbidden('You can only update unapproved leave for yourself, or for employees who report to you.');
         }
 
         $validator = Validator::make($request->all(), [
@@ -429,6 +477,12 @@ class EmployeeLeaveController extends Controller
         $toTime = $request->input('toTime', $employeeLeave->toTime);
         $employeeId = $request->input('employeeId', $employeeLeave->employeeId);
         $leaveTypeId = (int) $request->input('leaveTypeId', $employeeLeave->leaveTypeId);
+
+        if ((string) $employeeId !== (string) $employeeLeave->employeeId
+            && ! $this->authorization->canCreateLeaveFor($request->user(), (string) $employeeId)
+        ) {
+            return $this->leaveForbidden('You can only update leave for yourself, or for employees who report to you.');
+        }
 
         if ($startDate && $endDate && Carbon::parse($endDate)->lt(Carbon::parse($startDate))) {
             return response()->json([
@@ -489,6 +543,10 @@ class EmployeeLeaveController extends Controller
 
     public function destroy(EmployeeLeave $employeeLeave): JsonResponse
     {
+        if (! $this->authorization->canMutateLeave(request()->user(), $employeeLeave)) {
+            return $this->leaveForbidden('You can only delete unapproved leave for yourself, or for employees who report to you.');
+        }
+
         $paths = $employeeLeave->attachments()->pluck('filePath')->all();
         $employeeLeave->attachments()->delete();
         $employeeLeave->delete();
@@ -667,6 +725,11 @@ class EmployeeLeaveController extends Controller
             Carbon::parse($employeeLeave->startDate),
             'Applied on leave request',
         );
+    }
+
+    private function leaveForbidden(string $message): JsonResponse
+    {
+        return response()->json(['message' => $message], 403);
     }
 
     private function estimateLeaveHours(string $employeeId, float $totalDays, Carbon $asOf): float

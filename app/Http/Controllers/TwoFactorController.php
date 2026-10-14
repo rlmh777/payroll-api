@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\LoginAccessDeniedException;
 use App\Models\User;
+use App\Services\LoginAccessService;
 use App\Services\TwoFactorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,7 +69,11 @@ class TwoFactorController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'challenge_key' => ['required', 'string'],
-            'code' => ['required', 'string', 'max:64'],
+            $this->access->assertCanSignIn($user, $request);
+
+            return response()->json($this->twoFactor->beginSetup($user, $challengeKey));
+        } catch (LoginAccessDeniedException $exception) {
+            return $exception->toResponse();
         ]);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -95,13 +101,17 @@ class TwoFactorController extends Controller
         }
     }
 
-    public function setupOptions(Request $request): JsonResponse
-    {
-        $user = $request->user();
-        if (! $user instanceof User) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+            $this->access->assertCanSignIn($user, $request);
 
+            return response()->json($this->twoFactor->confirmSetup(
+                $user,
+                (string) $request->input('code'),
+                $challengeKey,
+            ));
+        } catch (LoginAccessDeniedException $exception) {
+            return $exception->toResponse();
+        } catch (\Throwable $exception) {
+            return $this->failedLoginFactor($user, $exception->getMessage());
         try {
             $payload = $this->twoFactor->beginSetup($user, null);
             unset($payload['challenge_key']);

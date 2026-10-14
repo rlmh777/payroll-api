@@ -39,6 +39,34 @@ class NavigationService
         ];
     }
 
+    /**
+     * Application codes the user may open (enabled modules with authorized menus).
+     *
+     * @return list<string>
+     */
+    public function accessibleModuleCodes(User $user): array
+    {
+        $navigation = $this->forUser($user);
+        $fromLauncher = collect($navigation['launcher'] ?? [])
+            ->pluck('code')
+            ->filter()
+            ->map(fn ($code) => (string) $code)
+            ->values()
+            ->all();
+
+        if ($fromLauncher !== []) {
+            return $fromLauncher;
+        }
+
+        return collect($navigation['moduleMenus'] ?? [])
+            ->filter(fn ($menus) => is_array($menus) && $menus !== [])
+            ->keys()
+            ->reject(fn ($code) => $code === 'core' || $code === '')
+            ->map(fn ($code) => (string) $code)
+            ->values()
+            ->all();
+    }
+
     private function filterTreeByModule(array $tree, string $moduleCode): array
     {
         return array_values(array_filter($tree, function (array $node) use ($moduleCode) {

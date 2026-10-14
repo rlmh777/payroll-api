@@ -466,6 +466,18 @@ class MenuSeeder extends Seeder
         ]);
 
         $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Application Logs',
+            'route' => '/admin/settings/application-logs',
+            'icon' => 'terminal',
+            'permission' => 'view-application-logs',
+            'order' => 13,
+            'type' => 'submenu',
+            'system_key' => 'admin.application_logs',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
             'title' => 'Scheduler',
             'route' => '/payroll/scheduler',
             'icon' => 'fas fa-calendar-week',
@@ -715,6 +727,8 @@ class MenuSeeder extends Seeder
             'file-storage-crud',
             'view-biometric-devices',
             'biometric-devices-crud',
+            'view-application-logs',
+            'application-logs-crud',
             'view-email-settings',
             'email-settings-crud',
             'view-login-page',
@@ -742,6 +756,7 @@ class MenuSeeder extends Seeder
             'view-pay-items',
             'view-leave',
             'view-leave-types',
+            'employee-leave-crud',
             'manager-users',
             'reset-subordinate-passwords',
             'manager-tax',

@@ -25,7 +25,9 @@ class EmployeeNameSearch
                 } else {
                     self::applySubstringSearch($personQuery, $search);
                 }
-            })->orWhereRaw('"employee"."code" ILIKE ?', ['%'.$search.'%']);
+            })->orWhereRaw('"employee"."code" ILIKE ?', ['%'.$search.'%'])
+                ->orWhereRaw('"employee"."internalId1" ILIKE ?', ['%'.$search.'%'])
+                ->orWhereRaw('"employee"."internalId2" ILIKE ?', ['%'.$search.'%']);
         });
     }
 

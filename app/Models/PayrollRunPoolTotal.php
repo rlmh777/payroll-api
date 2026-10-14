@@ -23,7 +23,7 @@ class PayrollRunPoolTotal extends Model
     ];
 
     protected $casts = [
-        'total_amount' => 'decimal:2',
+        'total_amount' => 'decimal:10',
     ];
 
     public function payrollRun(): BelongsTo

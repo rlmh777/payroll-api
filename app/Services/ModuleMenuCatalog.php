@@ -551,6 +551,17 @@ class ModuleMenuCatalog
                 'order' => 12,
                 'type' => 'submenu',
             ],
+            [
+                'system_key' => 'admin.application_logs',
+                'module_code' => 'admin',
+                'parent_system_key' => 'admin.settings',
+                'title' => 'Application Logs',
+                'route' => '/admin/settings/application-logs',
+                'icon' => 'terminal',
+                'permission' => 'view-application-logs',
+                'order' => 13,
+                'type' => 'submenu',
+            ],
         ];
     }
 }

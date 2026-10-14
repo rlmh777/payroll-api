@@ -4,6 +4,7 @@ namespace Tests\Unit\Hr;
 
 use App\Models\HrSetting;
 use App\Modules\Hr\Services\ContractExpiryReminderService;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use App\Support\ConfiguredMail;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
@@ -25,7 +26,7 @@ class ContractExpiryReminderOffsetTest extends TestCase
 
     public function test_offset_is_due_on_the_reminder_day_and_one_day_late(): void
     {
-        $service = new ContractExpiryReminderService($this->createStub(ConfiguredMail::class));
+        $service = $this->reminderService();
         $end = Carbon::parse('2026-10-08');
         $offset = ['value' => 1, 'unit' => 'months'];
 
@@ -37,11 +38,19 @@ class ContractExpiryReminderOffsetTest extends TestCase
 
     public function test_three_month_and_one_day_windows(): void
     {
-        $service = new ContractExpiryReminderService($this->createStub(ConfiguredMail::class));
+        $service = $this->reminderService();
         $end = Carbon::parse('2026-07-07');
 
         $this->assertTrue($service->offsetIsDue($end, ['value' => 3, 'unit' => 'months'], Carbon::parse('2026-04-07')));
         $this->assertTrue($service->offsetIsDue($end, ['value' => 1, 'unit' => 'days'], Carbon::parse('2026-07-06')));
         $this->assertTrue($service->offsetIsDue($end, ['value' => 1, 'unit' => 'weeks'], Carbon::parse('2026-06-30')));
+    }
+
+    private function reminderService(): ContractExpiryReminderService
+    {
+        return new ContractExpiryReminderService(
+            $this->createStub(ConfiguredMail::class),
+            $this->createStub(EmployeeCompensationResolver::class),
+        );
     }
 }

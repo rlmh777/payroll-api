@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuthSetting;
 use App\Models\User;
+use App\Services\LoginLockoutService;
 use App\Support\AuthUserPresenter;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -265,6 +266,7 @@ class TwoFactorService
     private function sessionPayload(User $user): array
     {
         $userPayload = AuthUserPresenter::present($user);
+        $this->lockout->clear($user);
         $token = $user->createToken($user->email)->plainTextToken;
 
         return [

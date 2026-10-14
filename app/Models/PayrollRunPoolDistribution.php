@@ -40,7 +40,7 @@ class PayrollRunPoolDistribution extends Model
         'weight' => 'decimal:4',
         'weighted_points' => 'decimal:4',
         'share_ratio' => 'decimal:8',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:10',
         'is_eligible' => 'boolean',
         'worked_hours' => 'decimal:4',
         'expected_hours' => 'decimal:4',

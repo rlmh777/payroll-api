@@ -104,6 +104,11 @@ enum LeaveStatusCode: string
         return in_array($this, self::pendingActionStatuses(), true);
     }
 
+    public function isFullyApproved(): bool
+    {
+        return in_array($this, [self::Scheduled, self::Taken], true);
+    }
+
     public function isTerminal(): bool
     {
         return in_array($this, [self::Cancelled, self::Rejected, self::Taken], true);

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Menu;
+use App\Models\User;
+use App\Services\NavigationService;
 use App\Support\AuthUserPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class UserPreferencesController extends Controller
 {
+    public function __construct(
+        private readonly NavigationService $navigationService,
+    ) {}
+
     public function update(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -39,6 +45,7 @@ class UserPreferencesController extends Controller
         $moduleCode = $validated['defaultModule'] ?? $user->defaultModule();
 
         if (array_key_exists('defaultModule', $validated)) {
+            $this->assertUserCanAccessModule($user, $validated['defaultModule']);
             $preferences['default_module'] = $validated['defaultModule'];
         }
         if (array_key_exists('onboardingEnabled', $validated)) {
@@ -72,6 +79,20 @@ class UserPreferencesController extends Controller
         $user->save();
 
         return response()->json(AuthUserPresenter::present($user->fresh()));
+    }
+
+    private function assertUserCanAccessModule(User $user, string $moduleCode): void
+    {
+        $accessible = $this->navigationService->accessibleModuleCodes($user);
+        if ($accessible === [] || in_array($moduleCode, $accessible, true)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'defaultModule' => count($accessible) === 1
+                ? 'You only have access to one application.'
+                : 'Choose an application you have permission to use.',
+        ]);
     }
 
     private function assertMenuBelongsToModule(string $route, string $moduleCode): void

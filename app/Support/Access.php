@@ -68,6 +68,14 @@ class Access
     }
 
     /**
+     * Create / update / delete a leave record for self or (if a supervisor) reports.
+     */
+    public static function canWriteEmployeeLeave(?User $user): bool
+    {
+        return self::canAny($user, ['leave-crud', 'employee-leave-crud']);
+    }
+
+    /**
      * Accounts / payroll confirmation of leave payment treatment.
      */
     public static function canManageAppraisals(?User $user): bool

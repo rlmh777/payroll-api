@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Menu;
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -178,6 +179,53 @@ class UserPreferencesTest extends TestCase
             ->assertJsonPath('preferences.textSize', 'sm');
     }
 
+    public function test_user_cannot_set_default_application_without_permission(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ada Lovelace',
+            'username' => 'alovelace',
+            'email' => 'ada@example.com',
+            'password' => bcrypt('secret'),
+        ]);
+        $this->grant($user, 'view-payroll-overview');
+        Sanctum::actingAs($user);
+
+        $this->createMenu('payroll', '/payroll/overview', 'Overview', 'view-payroll-overview');
+        $this->createMenu('hr', '/hr/employees', 'Employees', 'view-employees');
+
+        $this->putJson('/api/user/preferences', [
+            'defaultModule' => 'hr',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['defaultModule']);
+    }
+
+    public function test_user_cannot_choose_default_application_when_only_one_is_accessible(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ada Lovelace',
+            'username' => 'alovelace',
+            'email' => 'ada@example.com',
+            'password' => bcrypt('secret'),
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->createMenu('payroll', '/payroll/overview', 'Overview');
+
+        $this->putJson('/api/user/preferences', [
+            'defaultModule' => 'hr',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['defaultModule']);
+
+        $this->putJson('/api/user/preferences', [
+            'defaultModule' => 'payroll',
+            'defaultMenu' => '/payroll/overview',
+        ])
+            ->assertOk()
+            ->assertJsonPath('preferences.defaultModule', 'payroll');
+    }
+
     public function test_text_size_must_be_one_of_the_allowed_sizes(): void
     {
         $user = User::query()->create([
@@ -193,15 +241,29 @@ class UserPreferencesTest extends TestCase
         ])->assertUnprocessable();
     }
 
-    private function createMenu(string $moduleCode, string $route, string $title): void
-    {
+    private function createMenu(
+        string $moduleCode,
+        string $route,
+        string $title,
+        ?string $permission = null,
+    ): void {
         Menu::query()->create([
             'title' => $title,
             'route' => $route,
             'module_code' => $moduleCode,
+            'permission' => $permission,
             'type' => 'menu',
             'order' => 1,
             'is_active' => true,
         ]);
+    }
+
+    private function grant(User $user, string $name): void
+    {
+        $permission = Permission::query()->firstOrCreate([
+            'name' => $name,
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo($permission);
     }
 }

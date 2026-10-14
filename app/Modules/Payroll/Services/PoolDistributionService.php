@@ -10,6 +10,7 @@ use App\Models\PayrollRun;
 use App\Models\PayrollRunPoolDistribution;
 use App\Models\PayrollRunPoolTotal;
 use App\Models\PoolDistributionType;
+use App\Modules\Payroll\Support\MoneyPrecision;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -55,7 +56,7 @@ class PoolDistributionService
                 'isTaxable' => (bool) $type->is_taxable,
                 'isSsSubject' => (bool) $type->is_ss_subject,
                 'payrollEarningCodeId' => $type->payroll_earning_code_id,
-                'totalAmount' => round((float) ($total?->total_amount ?? 0), 2),
+                'totalAmount' => MoneyPrecision::store($total?->total_amount ?? 0),
                 'notes' => $total?->notes,
                 'totalId' => $total?->id,
                 'departmentShares' => $type->departmentShares->map(fn ($share) => [
@@ -80,7 +81,7 @@ class PoolDistributionService
                     continue;
                 }
 
-                $amount = round((float) ($row['totalAmount'] ?? 0), 2);
+                $amount = MoneyPrecision::store($row['totalAmount'] ?? 0);
                 $notes = $row['notes'] ?? null;
 
                 $existing = PayrollRunPoolTotal::query()
@@ -157,7 +158,7 @@ class PoolDistributionService
                     continue;
                 }
 
-                $poolAmount = round((float) $total->total_amount, 2);
+                $poolAmount = MoneyPrecision::store($total->total_amount);
                 if ($poolAmount <= 0) {
                     continue;
                 }
@@ -230,10 +231,10 @@ class PoolDistributionService
                 foreach ($eligibleParticipants as $index => $participant) {
                     $ratio = round($participant['weighted'] / $denominator, 8);
                     if ($index === $lastIndex) {
-                        $amount = round($poolAmount - $allocated, 2);
+                        $amount = MoneyPrecision::store($poolAmount - $allocated);
                     } else {
-                        $amount = round($poolAmount * $ratio, 2);
-                        $allocated = round($allocated + $amount, 2);
+                        $amount = MoneyPrecision::store($poolAmount * $ratio);
+                        $allocated = MoneyPrecision::store($allocated + $amount);
                     }
 
                     $distributions[] = $this->storeDistribution(
@@ -363,7 +364,7 @@ class PoolDistributionService
         foreach ($shares as $share) {
             $departmentId = (int) $share->department_id;
             $percent = round((float) $share->percent, 2);
-            $departmentAmount = round($poolAmount * ($percent / 100), 2);
+            $departmentAmount = MoneyPrecision::store($poolAmount * ($percent / 100));
             $members = $grouped[$departmentId] ?? [];
             $working = [];
             $listed = [];
@@ -390,7 +391,7 @@ class PoolDistributionService
             }
 
             $paidCount = count($working);
-            $shareEach = $paidCount > 0 ? round($departmentAmount / $paidCount, 2) : 0.0;
+            $shareEach = $paidCount > 0 ? MoneyPrecision::store($departmentAmount / $paidCount) : 0.0;
             $allocated = 0.0;
             $lastPaidIndex = $paidCount > 0 ? $paidCount - 1 : -1;
             $paidIndex = 0;
@@ -400,10 +401,10 @@ class PoolDistributionService
                 $ratio = 0.0;
                 if ($member['paid'] && $paidCount > 0) {
                     if ($paidIndex === $lastPaidIndex) {
-                        $amount = round($departmentAmount - $allocated, 2);
+                        $amount = MoneyPrecision::store($departmentAmount - $allocated);
                     } else {
                         $amount = $shareEach;
-                        $allocated = round($allocated + $amount, 2);
+                        $allocated = MoneyPrecision::store($allocated + $amount);
                     }
                     $ratio = round(1 / $paidCount, 8);
                     $paidIndex++;
@@ -606,7 +607,9 @@ class PoolDistributionService
             'employee_id' => $employeeId,
             'department_id' => $extra['departmentId'] ?? null,
             'department_percent' => $extra['departmentPercent'] ?? null,
-            'department_amount' => $extra['departmentAmount'] ?? null,
+            'department_amount' => isset($extra['departmentAmount'])
+                ? MoneyPrecision::store($extra['departmentAmount'])
+                : null,
             'worked_this_period' => $extra['workedThisPeriod'] ?? null,
             'points' => $points,
             'weight' => $weight,
@@ -631,13 +634,15 @@ class PoolDistributionService
             'departmentId' => $extra['departmentId'] ?? null,
             'departmentName' => $extra['departmentName'] ?? null,
             'departmentPercent' => $extra['departmentPercent'] ?? null,
-            'departmentAmount' => $extra['departmentAmount'] ?? null,
+            'departmentAmount' => isset($extra['departmentAmount'])
+                ? MoneyPrecision::store($extra['departmentAmount'])
+                : null,
             'workedThisPeriod' => $extra['workedThisPeriod'] ?? null,
             'points' => round($points, 4),
             'weight' => round($weight, 4),
             'weightedPoints' => round($weighted, 4),
             'shareRatio' => round($ratio, 8),
-            'amount' => round($amount, 2),
+            'amount' => MoneyPrecision::store($amount),
             'isEligible' => $isEligible,
             'eligibilityReason' => $reason,
             'workedHours' => isset($eligibility['workedHours']) ? round((float) $eligibility['workedHours'], 4) : null,

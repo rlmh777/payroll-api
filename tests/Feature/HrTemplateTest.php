@@ -20,14 +20,16 @@ class HrTemplateTest extends TestCase
         $this->getJson('/api/hr-templates?channel=letter')
             ->assertOk()
             ->assertJsonFragment(['system_key' => 'letter.bank'])
-            ->assertJsonFragment(['system_key' => 'letter.embassy']);
+            ->assertJsonFragment(['system_key' => 'letter.embassy'])
+            ->assertJsonFragment(['token' => '{{salary}}', 'label' => 'Salary']);
 
         $this->getJson('/api/hr-templates?channel=email')
             ->assertOk()
             ->assertJsonFragment(['system_key' => 'email.leave_approved'])
             ->assertJsonFragment(['system_key' => 'email.password_reset'])
             ->assertJsonFragment(['system_key' => 'email.job_application_received'])
-            ->assertJsonFragment(['system_key' => 'email.contract_expiring']);
+            ->assertJsonFragment(['system_key' => 'email.contract_expiring'])
+            ->assertJsonFragment(['token' => '{{salary}}', 'label' => 'Salary']);
     }
 
     public function test_system_templates_can_be_updated_but_not_deleted(): void

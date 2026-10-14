@@ -27,6 +27,7 @@ use App\Http\Controllers\RelationshipController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserTokenController;
+use App\Modules\Core\Http\Controllers\ApplicationLogController;
 use App\Modules\Core\Http\Controllers\DatabaseBackupController;
 use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
 use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
@@ -150,13 +151,13 @@ Route::post('/tokens/revoke', [AuthController::class, 'revokeToken'])->middlewar
 Route::post('/tokens/revoke-all', [AuthController::class, 'revokeAllTokens'])->middleware('auth:sanctum');
 Route::delete('/tokens/{tokenId}', [AuthController::class, 'revokeSpecificToken'])->middleware('auth:sanctum');
 Route::get('/tokens', [AuthController::class, 'listTokens'])->middleware('auth:sanctum');
-Route::post('/login', [AuthController::class, 'authenticate']);
-Route::post('/login/invite-code', [InviteCodeLoginController::class, 'store']);
+Route::post('/login', [AuthController::class, 'authenticate'])->middleware('throttle:login');
+Route::post('/login/invite-code', [InviteCodeLoginController::class, 'store'])->middleware('throttle:login');
 Route::post('/login/passkey/options', [\App\Http\Controllers\PasskeyController::class, 'loginOptions']);
-Route::post('/login/passkey', [\App\Http\Controllers\PasskeyController::class, 'login']);
-Route::post('/login/two-factor/verify', [\App\Http\Controllers\TwoFactorController::class, 'verifyLogin']);
+Route::post('/login/passkey', [\App\Http\Controllers\PasskeyController::class, 'login'])->middleware('throttle:login');
+Route::post('/login/two-factor/verify', [\App\Http\Controllers\TwoFactorController::class, 'verifyLogin'])->middleware('throttle:login');
 Route::post('/login/two-factor/setup', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginOptions']);
-Route::post('/login/two-factor/setup/confirm', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginConfirm']);
+Route::post('/login/two-factor/setup/confirm', [\App\Http\Controllers\TwoFactorController::class, 'setupLoginConfirm'])->middleware('throttle:login');
 Route::get('/login-page', [\App\Http\Controllers\LoginPageSettingController::class, 'publicShow']);
 Route::get('/careers/vacancies', [VacancyController::class, 'publicIndex']);
 Route::get('/careers/vacancies/{vacancy}', [VacancyController::class, 'publicShow']);
@@ -177,6 +178,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth-settings', [\App\Http\Controllers\AuthSettingController::class, 'show']);
     Route::put('/auth-settings', [\App\Http\Controllers\AuthSettingController::class, 'update']);
     Route::put('/users/{user}/security', [\App\Http\Controllers\AuthSettingController::class, 'updateUserTwoFactor']);
+    Route::post('/sensitive-actions/challenge', [\App\Http\Controllers\SensitiveActionController::class, 'store'])
+        ->middleware('throttle:sensitive-action');
 });
 Route::get('/user/menu', [UserController::class, 'topLevelMenus'])->middleware('auth:sanctum');
 Route::get('/user/menus', [UserController::class, 'userMenus'])->middleware('auth:sanctum');

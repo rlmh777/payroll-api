@@ -24,8 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.permission' => \App\Http\Middleware\EnsureApiPermission::class,
         ]);
 
+        $middleware->trustProxies(at: '*');
+
         $middleware->appendToGroup('api', [
             \App\Http\Middleware\EnsureApiPermission::class,
+            \App\Http\Middleware\EnsureUserIpAllowed::class,
         ]);
 
         // API-only auth: return 401 JSON instead of redirecting to a missing login route.

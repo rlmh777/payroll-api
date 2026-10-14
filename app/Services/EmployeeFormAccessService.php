@@ -57,6 +57,8 @@ class EmployeeFormAccessService
     {
         return [
             ['key' => 'code', 'label' => 'Employee Code', 'tab' => 'personal'],
+            ['key' => 'internalId1', 'label' => 'Internal Code 1', 'tab' => 'personal'],
+            ['key' => 'internalId2', 'label' => 'Internal Code 2', 'tab' => 'personal'],
             ['key' => 'honorificId', 'label' => 'Honorific', 'tab' => 'personal'],
             ['key' => 'firstName', 'label' => 'First Name', 'tab' => 'personal'],
             ['key' => 'lastName', 'label' => 'Last Name', 'tab' => 'personal'],

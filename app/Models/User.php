@@ -42,6 +42,7 @@ class User extends Authenticatable
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
         'two_factor_required',
+        'allowed_ips',
     ];
 
     protected $appends = [
@@ -58,6 +59,7 @@ class User extends Authenticatable
         'remember_token',
         'two_factor_secret',
         'two_factor_recovery_codes',
+        'failed_login_attempts',
     ];
 
     /**
@@ -75,6 +77,9 @@ class User extends Authenticatable
             'two_factor_required' => 'boolean',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
+            'failed_login_attempts' => 'integer',
+            'locked_until' => 'datetime',
+            'allowed_ips' => 'array',
         ];
     }
 

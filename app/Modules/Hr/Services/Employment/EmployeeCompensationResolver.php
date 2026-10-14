@@ -240,6 +240,53 @@ class EmployeeCompensationResolver
      *   standardWeeklyHours:?float
      * }
      */
+    public function formattedSalary(?EmployeeCompensation $compensation): string
+    {
+        if (! $compensation) {
+            return '';
+        }
+
+        $method = $this->method($compensation);
+        if ($method->isDailyRateBased()) {
+            $rate = $this->effectiveDailyRate($compensation);
+
+            return $rate ? $this->money($rate).' per day' : '';
+        }
+
+        if ($method->isHourlyBased()) {
+            $rate = $this->effectiveHourlyRate($compensation);
+
+            return $rate ? $this->money($rate).' per hour' : '';
+        }
+
+        $yearly = $this->effectiveYearlyRate($compensation);
+
+        return $yearly ? $this->money($yearly).' per year' : '';
+    }
+
+    public function formattedSalaryForEmployee(
+        ?string $employeeId,
+        ?string $employmentDetailId = null,
+        ?Carbon $date = null,
+    ): string {
+        if (! $employeeId) {
+            return '';
+        }
+
+        $records = EmployeeCompensation::query()
+            ->where('employeeId', $employeeId)
+            ->get();
+
+        return $this->formattedSalary(
+            $this->compensationForDate($records, $date ?? Carbon::now(), $employmentDetailId),
+        );
+    }
+
+    private function money(float $amount): string
+    {
+        return '$'.number_format($amount, 2, '.', ',');
+    }
+
     public function payrollSnapshot(?EmployeeCompensation $compensation): array
     {
         $method = $this->method($compensation);

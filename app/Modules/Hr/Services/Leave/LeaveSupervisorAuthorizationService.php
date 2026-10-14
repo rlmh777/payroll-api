@@ -155,6 +155,111 @@ class LeaveSupervisorAuthorizationService
         return $this->subordinateEmployeeIds($user)->contains((string) $employeeId);
     }
 
+    public function isOwnEmployee(?User $user, string $employeeId): bool
+    {
+        $actor = $this->actorEmployee($user);
+
+        return $actor !== null && (string) $actor->id === (string) $employeeId;
+    }
+
+    /**
+     * Employee IDs the user may read leave records for.
+     * null = unrestricted. Empty collection = none.
+     *
+     * @return Collection<int, string>|null
+     */
+    public function readableEmployeeIds(?User $user): ?Collection
+    {
+        if (! $user) {
+            return collect();
+        }
+
+        if ($this->isLeaveAdmin($user) || Access::canConfirmLeavePayment($user)) {
+            return null;
+        }
+
+        $ids = $this->visibleEmployeeIdsForLeaveList($user) ?? collect();
+        $actor = $this->actorEmployee($user);
+        if ($actor) {
+            $ids->push((string) $actor->id);
+        }
+
+        return $ids->unique()->values();
+    }
+
+    public function canViewEmployeeLeaves(?User $user, string $employeeId): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $readable = $this->readableEmployeeIds($user);
+        if ($readable === null) {
+            return true;
+        }
+
+        return $readable->contains((string) $employeeId);
+    }
+
+    public function canViewLeave(?User $user, EmployeeLeave $leave): bool
+    {
+        return $this->canViewEmployeeLeaves($user, (string) $leave->employeeId);
+    }
+
+    public function canCreateLeaveFor(?User $user, string $employeeId): bool
+    {
+        if ($this->isLeaveAdmin($user)) {
+            return true;
+        }
+
+        if (! Access::canWriteEmployeeLeave($user)) {
+            return false;
+        }
+
+        return $this->isOwnEmployee($user, $employeeId)
+            || $this->isDirectSupervisorOf($user, $employeeId);
+    }
+
+    public function isUnapprovedLeave(EmployeeLeave $leave): bool
+    {
+        $leave->loadMissing('leaveStatus');
+        $code = $leave->leaveStatus?->codeEnum();
+
+        return $code !== null && $code->isPendingAction();
+    }
+
+    /**
+     * Update / delete / cancel an unapproved leave for self or a direct report.
+     * Leave admins may mutate any leave.
+     */
+    public function canMutateLeave(?User $user, EmployeeLeave $leave): bool
+    {
+        if ($this->isLeaveAdmin($user)) {
+            return true;
+        }
+
+        if (! Access::canWriteEmployeeLeave($user) || ! $this->isUnapprovedLeave($leave)) {
+            return false;
+        }
+
+        $employeeId = (string) $leave->employeeId;
+
+        return $this->isOwnEmployee($user, $employeeId)
+            || $this->isDirectSupervisorOf($user, $employeeId);
+    }
+
+    public function canCancelLeave(?User $user, EmployeeLeave $leave): bool
+    {
+        if ($this->isLeaveAdmin($user)) {
+            $leave->loadMissing('leaveStatus');
+            $code = $leave->leaveStatus?->codeEnum();
+
+            return $code !== null && in_array($code, LeaveStatusCode::cancellableStatuses(), true);
+        }
+
+        return $this->canMutateLeave($user, $leave);
+    }
+
     public function isDepartmentHeadForLeave(?User $user, EmployeeLeave $leave): bool
     {
         $departmentIds = $this->headedDepartmentIds($user);

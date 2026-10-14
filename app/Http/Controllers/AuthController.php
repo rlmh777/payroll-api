@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\LoginAccessDeniedException;
+use App\Services\LoginAccessService;
 use App\Services\TwoFactorService;
 use App\Support\LoginUserFinder;
 use Illuminate\Http\Request;
@@ -13,6 +15,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly TwoFactorService $twoFactor,
         private readonly LoginUserFinder $loginUsers,
+        private readonly LoginAccessService $access,
     ) {
     }
 
@@ -27,16 +30,28 @@ class AuthController extends Controller
         $identifier = trim((string) ($request->input('username') ?: $request->input('email')));
         $user = $this->loginUsers->find($identifier);
 
-        if (
-            !$user ||
-            !Hash::check(
-                $request->password,
-                $user->password
-            )
-        ) {
-            return response()->json([
-                'message' => 'Mismatch Username or Password',
-            ], 400);
+        try {
+            if ($user) {
+                $this->access->assertCanSignIn($user, $request);
+            }
+
+            if (
+                ! $user ||
+                ! Hash::check(
+                    $request->password,
+                    $user->password
+                )
+            ) {
+                if ($user) {
+                    $this->access->recordFailedAttempt($user);
+                }
+
+                return response()->json([
+                    'message' => 'Mismatch Username or Password',
+                ], 400);
+            }
+        } catch (LoginAccessDeniedException $exception) {
+            return $exception->toResponse();
         }
 
         return response()->json($this->twoFactor->completePasswordLogin($user));

@@ -289,7 +289,7 @@ class LeaveTeamListService
             ])->values()->all() ?? [],
             'canApprove' => $canManage && $pending,
             'canReject' => $canManage && $pending,
-            'canCancel' => $canManage && $cancellable,
+            'canCancel' => $this->authorization->canCancelLeave($user, $leave) && $cancellable,
             'requiresPaymentConfirmation' => $requiresPaymentConfirmation,
             'duration' => $leave->duration,
             'approvalDate' => $leave->approvalDate?->format('Y-m-d'),

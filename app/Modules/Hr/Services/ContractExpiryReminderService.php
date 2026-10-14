@@ -10,6 +10,7 @@ use App\Models\HrSetting;
 use App\Models\User;
 use App\Modules\Hr\Models\Employee;
 use App\Modules\Hr\Models\HrTemplate;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use App\Support\ConfiguredMail;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -23,6 +24,7 @@ class ContractExpiryReminderService
 
     public function __construct(
         private readonly ConfiguredMail $mail,
+        private readonly EmployeeCompensationResolver $compensationResolver,
     ) {
     }
 
@@ -264,6 +266,11 @@ class ContractExpiryReminderService
             '{{employee_code}}' => (string) ($employee?->code ?? ''),
             '{{job_title}}' => (string) ($contract->jobTitle?->name ?? ''),
             '{{department}}' => (string) ($contract->department?->name ?? ''),
+            '{{salary}}' => $this->compensationResolver->formattedSalaryForEmployee(
+                $employee?->id ? (string) $employee->id : null,
+                $contract->id ? (string) $contract->id : null,
+                Carbon::parse($asOf),
+            ),
             '{{contract_type}}' => (string) ($contract->contractType?->name ?? ''),
             '{{contract_end_date}}' => $end->toFormattedDateString(),
             '{{days_until_expiry}}' => (string) $asOf->diffInDays($end),

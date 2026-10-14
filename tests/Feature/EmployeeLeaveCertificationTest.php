@@ -142,7 +142,7 @@ class EmployeeLeaveCertificationTest extends TestCase
         $employee = $this->createEmployee('sick@example.com', 'Sick', 'Worker');
         $user = $employee->user()->firstOrFail();
         $permissions = [];
-        foreach (['leave-crud', 'view-leave'] as $name) {
+        foreach (['leave-crud', 'view-leave', 'employees-crud'] as $name) {
             $permissions[] = Permission::query()->firstOrCreate([
                 'name' => $name,
                 'guard_name' => 'web',

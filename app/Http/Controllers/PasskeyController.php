@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\LoginAccessDeniedException;
 use App\Models\User;
 use App\Models\WebAuthnCredential;
+use App\Services\LoginAccessService;
 use App\Services\PasskeyService;
 use App\Services\TwoFactorService;
 use App\Support\Access;
@@ -17,6 +19,7 @@ class PasskeyController extends Controller
     public function __construct(
         private readonly PasskeyService $passkeys,
         private readonly TwoFactorService $twoFactor,
+        private readonly LoginAccessService $access,
     ) {
     }
 
@@ -59,6 +62,9 @@ class PasskeyController extends Controller
                 (string) $request->input('challenge_key'),
                 $request->input('credential', []),
             );
+            $this->access->assertCanSignIn($user, $request);
+        } catch (LoginAccessDeniedException $exception) {
+            return $exception->toResponse();
         } catch (\Throwable $exception) {
             return response()->json(['message' => $exception->getMessage()], 400);
         }

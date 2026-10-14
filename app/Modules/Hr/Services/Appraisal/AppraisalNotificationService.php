@@ -7,6 +7,7 @@ use App\Models\HrSetting;
 use App\Models\User;
 use App\Modules\Hr\Models\EmployeeAppraisal;
 use App\Modules\Hr\Models\HrTemplate;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
 use App\Modules\Workflow\Services\PipelineEngine;
 use App\Support\ConfiguredMail;
 use Carbon\Carbon;
@@ -27,6 +28,7 @@ class AppraisalNotificationService
         private readonly ConfiguredMail $mail,
         private readonly PipelineEngine $pipelineEngine,
         private readonly AppraisalAssigneeResolver $assignees,
+        private readonly EmployeeCompensationResolver $compensationResolver,
     ) {}
 
     public function notifyCurrentStep(EmployeeAppraisal $appraisal): void
@@ -168,6 +170,9 @@ class AppraisalNotificationService
             '{{recipient_name}}' => $recipient->name ?: 'there',
             '{{employee_name}}' => $appraisal->employeeDisplayName(),
             '{{employee_code}}' => (string) ($appraisal->employee?->code ?? ''),
+            '{{salary}}' => $this->compensationResolver->formattedSalaryForEmployee(
+                $appraisal->employee_id ? (string) $appraisal->employee_id : null,
+            ),
             '{{period_label}}' => (string) $appraisal->period_label,
             '{{step_label}}' => (string) ($stepLabel ?: 'the current step'),
             '{{action_url}}' => $actionUrl,
