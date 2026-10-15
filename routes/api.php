@@ -5,6 +5,7 @@ use App\Http\Controllers\BankAccountTypeController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\BiometricDeviceController;
 use App\Http\Controllers\BiometricPushController;
+use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CitizenshipStatusController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ContactTypeController;
@@ -446,6 +447,16 @@ Route::prefix('accounts')->group(function () {
     Route::put('/{account}', [AccountController::class, 'update']);
     Route::delete('/{account}', [AccountController::class, 'destroy']);
     Route::get('/{account}/sub-accounts', [AccountController::class, 'subAccounts']);
+});
+
+Route::prefix('chart-of-account')->group(function () {
+    Route::get('/', [ChartOfAccountController::class, 'index']);
+    Route::post('/', [ChartOfAccountController::class, 'store']);
+    Route::get('/{chartOfAccount}', [ChartOfAccountController::class, 'show']);
+    Route::put('/{chartOfAccount}', [ChartOfAccountController::class, 'update']);
+    Route::delete('/{chartOfAccount}', [ChartOfAccountController::class, 'destroy']);
+    Route::get('/{chartOfAccount}/hierarchy', [ChartOfAccountController::class, 'hierarchy']);
+    Route::get('/{chartOfAccount}/balance-history', [ChartOfAccountController::class, 'balanceHistory']);
 });
 
 // Account Type Routes

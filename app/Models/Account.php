@@ -23,7 +23,15 @@ class Account extends Model
         'code2',
         'balance',
         'parent_id',
-        'account_type_id'
+        'account_type_id',
+        'type',
+        'is_active',
+        'level',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'balance' => 'decimal:2',
     ];
 
     public function deductions(): HasMany {

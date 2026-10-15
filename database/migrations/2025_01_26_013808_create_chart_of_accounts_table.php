@@ -16,13 +16,16 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('name', 100);
             $table->string('description', 255);
-            $table->string('code1',24);
+            $table->string('code1', 24);
             $table->string('code2', 24)->nullable();
-            $table->decimal('balance', 12, 2)->default(0);
+            $table->decimal('balance', 15, 2)->default(0);
             // Create account_type_id column without foreign key constraint
             // The foreign key will be added in a later migration after account_types table exists
             $table->unsignedBigInteger('account_type_id')->nullable();
             $table->uuid('parent_id')->nullable();
+            $table->string('type', 20)->nullable(); // asset, liability, equity, revenue, expense
+            $table->boolean('is_active')->default(true);
+            $table->integer('level')->default(1);
             $table->timestamps();
         });
 
