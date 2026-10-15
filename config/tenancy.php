@@ -47,4 +47,11 @@ return [
             'azurecontainerapps.io,web.core.windows.net,localhost'
         ))
     ))),
+
+    /*
+    | Public hostname suffix for shared custom domains: {slug}.{suffix}
+    | e.g. kamihrm.com → https://chaacreek.kamihrm.com
+    | Per-request Host overrides this when it is not a central Azure/local host.
+    */
+    'public_host_suffix' => strtolower(ltrim(trim((string) env('TENANCY_PUBLIC_HOST_SUFFIX', '')), '.')),
 ];

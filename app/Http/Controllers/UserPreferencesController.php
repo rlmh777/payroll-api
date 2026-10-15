@@ -33,6 +33,7 @@ class UserPreferencesController extends Controller
             'onboardingCompleted' => ['sometimes', 'boolean'],
             'onboardingSeen' => ['sometimes', 'array'],
             'onboardingSeen.*' => ['boolean'],
+            'passkeyPrompt' => ['sometimes', 'string', Rule::in(['prompt', 'never'])],
         ]);
 
         if ($validated === []) {
@@ -59,6 +60,9 @@ class UserPreferencesController extends Controller
         }
         if (array_key_exists('textSize', $validated)) {
             $preferences['text_size'] = $validated['textSize'];
+        }
+        if (array_key_exists('passkeyPrompt', $validated)) {
+            $preferences['passkey_prompt'] = $validated['passkeyPrompt'];
         }
         if (array_key_exists('defaultMenu', $validated)) {
             $route = is_string($validated['defaultMenu']) ? trim($validated['defaultMenu']) : '';

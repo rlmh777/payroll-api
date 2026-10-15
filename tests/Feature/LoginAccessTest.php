@@ -75,6 +75,21 @@ class LoginAccessTest extends TestCase
         $this->assertNull($fresh->locked_until);
     }
 
+    public function test_login_rate_limiter_is_registered(): void
+    {
+        $passkey = $this->postJson('/api/login/passkey', []);
+        $this->assertNotSame(500, $passkey->status());
+        $this->assertStringNotContainsString(
+            'Rate limiter [login] is not defined',
+            (string) $passkey->json('message'),
+        );
+
+        $this->postJson('/api/login', [
+            'username' => 'nobody',
+            'password' => 'whatever',
+        ])->assertStatus(400);
+    }
+
     public function test_unknown_user_does_not_reveal_lockout(): void
     {
         $this->postJson('/api/login', [

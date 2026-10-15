@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\PaymentMethod;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Core\Services\FormAccessCatalog;
 use Illuminate\Support\Arr;
 
 class EmployeeFormAccessService
@@ -27,27 +28,17 @@ class EmployeeFormAccessService
         'edit' => 3,
     ];
 
+    public function __construct(
+        private readonly FormAccessCatalog $catalog,
+    ) {
+    }
+
     /**
      * @return list<array{key: string, label: string, group: string}>
      */
     public function tabCatalog(): array
     {
-        return [
-            ['key' => 'personal', 'label' => 'Personal Info', 'group' => 'stepper'],
-            ['key' => 'address', 'label' => 'Address', 'group' => 'stepper'],
-            ['key' => 'employment', 'label' => 'Employment', 'group' => 'stepper'],
-            ['key' => 'education', 'label' => 'Education', 'group' => 'stepper'],
-            ['key' => 'payment_details', 'label' => 'Payment Details', 'group' => 'stepper'],
-            ['key' => 'contact', 'label' => 'Contact Info', 'group' => 'stepper'],
-            ['key' => 'contracts', 'label' => 'Contracts', 'group' => 'details'],
-            ['key' => 'compensation', 'label' => 'Compensation', 'group' => 'details'],
-            ['key' => 'documents', 'label' => 'Documents', 'group' => 'details'],
-            ['key' => 'incidents', 'label' => 'Incidents', 'group' => 'details'],
-            ['key' => 'time_travel', 'label' => 'Time Travel', 'group' => 'details'],
-            ['key' => 'allowances', 'label' => 'Default Other Payments', 'group' => 'details'],
-            ['key' => 'deductions', 'label' => 'Default Deductions', 'group' => 'details'],
-            ['key' => 'ss_benefit', 'label' => 'SS Benefit', 'group' => 'details'],
-        ];
+        return $this->catalog->tabs();
     }
 
     /**
@@ -55,37 +46,7 @@ class EmployeeFormAccessService
      */
     public function fieldCatalog(): array
     {
-        return [
-            ['key' => 'code', 'label' => 'Employee Code', 'tab' => 'personal'],
-            ['key' => 'internalId1', 'label' => 'Internal Code 1', 'tab' => 'personal'],
-            ['key' => 'internalId2', 'label' => 'Internal Code 2', 'tab' => 'personal'],
-            ['key' => 'honorificId', 'label' => 'Honorific', 'tab' => 'personal'],
-            ['key' => 'firstName', 'label' => 'First Name', 'tab' => 'personal'],
-            ['key' => 'lastName', 'label' => 'Last Name', 'tab' => 'personal'],
-            ['key' => 'middleName', 'label' => 'Middle Name', 'tab' => 'personal'],
-            ['key' => 'maidenName', 'label' => 'Maiden Name', 'tab' => 'personal'],
-            ['key' => 'birthdate', 'label' => 'Birthdate', 'tab' => 'personal'],
-            ['key' => 'socialSecurityNumber', 'label' => 'Social Security Number', 'tab' => 'personal'],
-            ['key' => 'socialSecurityExpirationDate', 'label' => 'SS Expiration Date', 'tab' => 'personal'],
-            ['key' => 'passportNumber', 'label' => 'Passport Number', 'tab' => 'personal'],
-            ['key' => 'votersId', 'label' => 'Voters ID', 'tab' => 'personal'],
-            ['key' => 'taxIdentificationNumber', 'label' => 'Tax Identification Number', 'tab' => 'personal'],
-            ['key' => 'phone', 'label' => 'Phone', 'tab' => 'personal'],
-            ['key' => 'email', 'label' => 'Email', 'tab' => 'personal'],
-            ['key' => 'genderId', 'label' => 'Gender', 'tab' => 'personal'],
-            ['key' => 'nationalityId', 'label' => 'Nationality', 'tab' => 'personal'],
-            ['key' => 'citizenshipStatusId', 'label' => 'Citizenship Status', 'tab' => 'personal'],
-            ['key' => 'address1', 'label' => 'Address 1', 'tab' => 'address'],
-            ['key' => 'address2', 'label' => 'Address 2', 'tab' => 'address'],
-            ['key' => 'localityId', 'label' => 'Locality', 'tab' => 'address'],
-            ['key' => 'unionMembership', 'label' => 'Union Membership', 'tab' => 'address'],
-            ['key' => 'health', 'label' => 'Health', 'tab' => 'address'],
-            ['key' => 'employmentStatusId', 'label' => 'Employment Status', 'tab' => 'employment'],
-            ['key' => 'employeeStatusId', 'label' => 'Employee Status', 'tab' => 'employment'],
-            ['key' => 'timesheetTemplateId', 'label' => 'Timesheet Template', 'tab' => 'employment'],
-            ['key' => 'supervisorId', 'label' => 'Supervisor', 'tab' => 'employment'],
-            ['key' => 'paymentMethodId', 'label' => 'Payment Method', 'tab' => 'employment'],
-        ];
+        return $this->catalog->fields();
     }
 
     /**
@@ -307,8 +268,22 @@ class EmployeeFormAccessService
     public function filterWritableAttributes(array $attributes, array $profile, bool $isCreate): array
     {
         $filtered = [];
+        $customKeys = array_fill_keys($this->catalog->customFieldKeys(), true);
+        $incomingCustom = is_array($attributes['customAttributes'] ?? null)
+            ? $attributes['customAttributes']
+            : [];
 
         foreach ($attributes as $key => $value) {
+            if ($key === 'customAttributes' || $key === 'custom_attributes') {
+                continue;
+            }
+
+            if (isset($customKeys[$key])) {
+                $incomingCustom[$key] = $value;
+
+                continue;
+            }
+
             if (! array_key_exists($key, $profile['fields'])) {
                 $filtered[$key] = $value;
 
@@ -318,6 +293,20 @@ class EmployeeFormAccessService
             if ($this->fieldWritable($profile, $key, $isCreate)) {
                 $filtered[$key] = $value;
             }
+        }
+
+        $writableCustom = [];
+        foreach ($incomingCustom as $key => $value) {
+            if (! is_string($key) || ! isset($customKeys[$key])) {
+                continue;
+            }
+            if ($this->fieldWritable($profile, $key, $isCreate)) {
+                $writableCustom[$key] = $value;
+            }
+        }
+
+        if ($writableCustom !== [] || array_key_exists('customAttributes', $attributes) || array_key_exists('custom_attributes', $attributes)) {
+            $filtered['customAttributes'] = $writableCustom;
         }
 
         if ($isCreate && ! $this->fieldWritable($profile, 'paymentMethodId', true)) {
@@ -380,6 +369,15 @@ class EmployeeFormAccessService
             $payload['paymentMethod'] = null;
             $payload['payment_method'] = null;
         }
+
+        $custom = is_array($payload['customAttributes'] ?? null) ? $payload['customAttributes'] : [];
+        foreach ($this->catalog->customFieldKeys() as $key) {
+            if ($this->fieldVisible($profile, $key)) {
+                continue;
+            }
+            unset($custom[$key], $payload[$key]);
+        }
+        $payload['customAttributes'] = $custom;
 
         return $payload;
     }

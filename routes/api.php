@@ -28,6 +28,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserTokenController;
 use App\Modules\Core\Http\Controllers\ApplicationLogController;
+use App\Modules\Core\Http\Controllers\FormAccessCatalogController;
 use App\Modules\Core\Http\Controllers\DatabaseBackupController;
 use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
 use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
@@ -346,6 +347,13 @@ Route::prefix('hr-templates')->middleware('auth:sanctum')->group(function () {
     Route::get('/{hrTemplate}', [HrTemplateController::class, 'show']);
     Route::put('/{hrTemplate}', [HrTemplateController::class, 'update']);
     Route::delete('/{hrTemplate}', [HrTemplateController::class, 'destroy']);
+});
+
+Route::prefix('form-access')->middleware('auth:sanctum')->group(function () {
+    Route::get('/employee', [FormAccessCatalogController::class, 'showEmployee']);
+    Route::post('/employee/fields', [FormAccessCatalogController::class, 'storeEmployeeField']);
+    Route::put('/employee/fields/{formAccessField}', [FormAccessCatalogController::class, 'updateEmployeeField']);
+    Route::delete('/employee/fields/{formAccessField}', [FormAccessCatalogController::class, 'destroyEmployeeField']);
 });
 
 Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {

@@ -53,5 +53,7 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class,
             PipelineTemplateSeeder::class,
         ]);
+
+        app(\App\Modules\Core\Services\FormAccessCatalog::class)->syncEmployee();
     }
 }

@@ -27,6 +27,7 @@ class MenuSeeder extends Seeder
         'hr.candidates' => 'hr',
         'hr.appraisals' => 'hr',
         'hr.settings.appraisals' => 'hr',
+        'hr.settings.employee_fields' => 'hr',
         'hr.settings.form_templates' => 'hr',
         'hr.settings' => 'hr',
         'hr.settings.vacancy_stages' => 'hr',
@@ -248,6 +249,7 @@ class MenuSeeder extends Seeder
             ['Email templates', '/hr/settings/email-templates', 'email', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 15, 'hr.settings.email_templates'],
             ['Form templates', '/hr/settings/form-templates', 'dynamic_form', 'view-vacancies', 16, 'hr.settings.form_templates'],
             ['Appraisals', '/hr/settings/appraisals', 'notifications_active', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 17, 'hr.settings.appraisals'],
+            ['Employee fields', '/hr/settings/employee-fields', 'tune', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 18, 'hr.settings.employee_fields'],
         ];
 
         foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {

@@ -19,8 +19,9 @@ class TwoFactorService
 {
     private readonly Google2FA $google2fa;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly LoginLockoutService $lockout,
+    ) {
         $this->google2fa = new Google2FA();
     }
 

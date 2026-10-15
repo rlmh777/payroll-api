@@ -35,6 +35,7 @@ class InitializeTenancy
 
         try {
             $this->tenants->initializeBySlug($slug);
+            $this->tenants->applyPublicUrls($request);
         } catch (Throwable $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),

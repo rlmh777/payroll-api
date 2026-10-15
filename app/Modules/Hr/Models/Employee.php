@@ -57,6 +57,7 @@ class Employee extends Model
         'code',
         'internalId1',
         'internalId2',
+        'customAttributes',
         'payrateFrequencyId',
         'paymentMethodId',
         'employmentStatusId',
@@ -65,6 +66,10 @@ class Employee extends Model
     ];
 
     protected $with = ['person'];
+
+    protected $casts = [
+        'customAttributes' => 'array',
+    ];
 
     public function person(): BelongsTo
     {

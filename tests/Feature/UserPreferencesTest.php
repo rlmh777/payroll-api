@@ -241,6 +241,29 @@ class UserPreferencesTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_user_can_decline_passkey_setup_prompt(): void
+    {
+        $user = User::query()->create([
+            'name' => 'Ada Lovelace',
+            'username' => 'alovelace',
+            'email' => 'ada@example.com',
+            'password' => bcrypt('secret'),
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/user')
+            ->assertOk()
+            ->assertJsonPath('preferences.passkeyPrompt', 'prompt');
+
+        $this->putJson('/api/user/preferences', [
+            'passkeyPrompt' => 'never',
+        ])
+            ->assertOk()
+            ->assertJsonPath('preferences.passkeyPrompt', 'never');
+
+        $this->assertSame('never', $user->fresh()->preference('passkey_prompt'));
+    }
+
     private function createMenu(
         string $moduleCode,
         string $route,

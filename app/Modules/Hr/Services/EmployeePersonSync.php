@@ -63,6 +63,14 @@ class EmployeePersonSync
 
             $supervisorChanged = array_key_exists('supervisorId', $employeeData);
 
+            if (array_key_exists('customAttributes', $employeeData)) {
+                $incoming = is_array($employeeData['customAttributes']) ? $employeeData['customAttributes'] : [];
+                $employeeData['customAttributes'] = array_merge(
+                    is_array($employee->customAttributes) ? $employee->customAttributes : [],
+                    $incoming,
+                );
+            }
+
             if ($employeeData !== []) {
                 $employee->update($employeeData);
             }

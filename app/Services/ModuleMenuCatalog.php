@@ -350,6 +350,17 @@ class ModuleMenuCatalog
                 'type' => 'submenu',
             ],
             [
+                'system_key' => 'hr.settings.employee_fields',
+                'module_code' => 'hr',
+                'parent_system_key' => 'hr.settings',
+                'title' => 'Employee fields',
+                'route' => '/hr/settings/employee-fields',
+                'icon' => 'tune',
+                'permission' => self::HR_SETTINGS_PERMISSION,
+                'order' => 18,
+                'type' => 'submenu',
+            ],
+            [
                 'system_key' => 'payroll.employees',
                 'module_code' => 'payroll',
                 'title' => 'Employees',

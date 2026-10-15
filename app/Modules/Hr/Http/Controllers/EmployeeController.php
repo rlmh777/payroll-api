@@ -467,6 +467,8 @@ class EmployeeController extends Controller
             'employmentStatusId' => 'nullable|integer|exists:employment_status,id',
             'employeeStatusId' => 'nullable|integer|exists:employee_status,id',
             'timesheetTemplateId' => 'nullable|uuid|exists:timesheet_template,id',
+            'customAttributes' => 'nullable|array',
+            'customAttributes.*' => 'nullable',
             'supervisorId' => array_values(array_filter([
                 'nullable',
                 'uuid',

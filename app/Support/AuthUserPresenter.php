@@ -37,6 +37,7 @@ class AuthUserPresenter
                 'onboardingEnabled' => $user->preference('onboarding_enabled') !== false,
                 'onboardingCompleted' => (bool) $user->preference('onboarding_completed', false),
                 'onboardingSeen' => self::onboardingSeen($user),
+                'passkeyPrompt' => $user->preference('passkey_prompt') === 'never' ? 'never' : 'prompt',
             ],
             'hasPasskeys' => $user->webAuthnCredentials()->exists(),
         ];

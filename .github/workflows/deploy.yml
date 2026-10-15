@@ -35,6 +35,7 @@ jobs:
       CONTAINER_APP_SCHEDULER: ${{ vars.CONTAINER_APP_SCHEDULER || 'ca-payroll-shrdprod-scheduler' }}
       STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT || 'stpayrollshrdprodi7i0ek' }}
       TENANT_SLUG: ${{ vars.TENANT_SLUG || github.event.inputs.client || 'chaacreek' }}
+      TENANCY_PUBLIC_HOST_SUFFIX: ${{ vars.TENANCY_PUBLIC_HOST_SUFFIX || 'kamihrm.com' }}
 
     steps:
       - name: Checkout
@@ -116,6 +117,7 @@ jobs:
                 "AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT" \
                 "AZURE_STORAGE_CONTAINER=$CONTAINER" \
                 "AZURE_STORAGE_ACCOUNT_KEY=secretref:azure-storage-account-key" \
+                "TENANCY_PUBLIC_HOST_SUFFIX=${TENANCY_PUBLIC_HOST_SUFFIX:-kamihrm.com}" \
               --output none
           done
 

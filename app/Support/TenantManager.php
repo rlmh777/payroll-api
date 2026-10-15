@@ -110,6 +110,7 @@ class TenantManager
         DB::setDefaultConnection('tenant');
 
         $this->current = $tenant;
+        $this->applyPublicUrls();
     }
 
     public function forget(): void
@@ -126,6 +127,65 @@ class TenantManager
         $slug = trim($slug, '-');
 
         return $slug;
+    }
+
+    public function applyPublicUrls(?Request $request = null): void
+    {
+        $url = $this->publicBaseUrl($request);
+        if ($url === null) {
+            return;
+        }
+
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        Config::set('app.url', $url);
+        Config::set('app.frontend_url', $url);
+        if ($host !== '') {
+            Config::set('webauthn.rp_id', $host);
+        }
+
+        $origins = config('webauthn.origins', []);
+        $origins = is_array($origins) ? $origins : [];
+        $origins[] = $url;
+        Config::set('webauthn.origins', array_values(array_unique(array_filter($origins))));
+    }
+
+    public function publicBaseUrl(?Request $request = null): ?string
+    {
+        $requestHost = strtolower((string) ($request?->getHost() ?? ''));
+        if ($requestHost !== '' && ! $this->isCentralHost($requestHost)) {
+            $scheme = ($request?->isSecure() || $request?->getScheme() === 'https') ? 'https' : 'http';
+
+            return $scheme.'://'.$requestHost;
+        }
+
+        $tenant = $this->current;
+        $suffix = (string) config('tenancy.public_host_suffix', '');
+        if ($tenant && $suffix !== '') {
+            return 'https://'.$tenant->slug.'.'.$suffix;
+        }
+
+        $fallback = rtrim((string) config('app.frontend_url', ''), '/');
+
+        return $fallback !== '' ? $fallback : null;
+    }
+
+    public function isCentralHost(string $host): bool
+    {
+        $host = strtolower($host);
+        $central = array_map('strtolower', config('tenancy.central_domains', []));
+        if (in_array($host, $central, true)) {
+            return true;
+        }
+
+        $labels = explode('.', $host);
+        $first = $labels[0] ?? '';
+        if ($first !== '' && in_array($first, $central, true)) {
+            return true;
+        }
+
+        $suffixes = array_map('strtolower', config('tenancy.central_domain_suffixes', []));
+
+        return $this->hostMatchesCentralSuffix($host, $suffixes);
     }
 
     public function databaseNameForSlug(string $slug): string

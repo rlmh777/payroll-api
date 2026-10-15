@@ -26,15 +26,25 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (! config('employee-activity.enabled', true)) {
-            return;
-        }
+        RateLimiter::for('login', function (Request $request) {
+            $identity = strtolower((string) (
+                $request->input('username')
+                ?: $request->input('email')
+                ?: $request->ip()
+            ));
+
+            return Limit::perMinute(10)->by($identity.'|'.$request->ip());
+        });
 
         RateLimiter::for('sensitive-action', function (Request $request) {
             $userId = (string) ($request->user()?->id ?: $request->ip());
 
             return Limit::perMinute(5)->by($userId);
         });
+
+        if (! config('employee-activity.enabled', true)) {
+            return;
+        }
 
         $observer = $this->app->make(EmployeeActivityObserver::class);
 
