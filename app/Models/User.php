@@ -3,19 +3,25 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\ConfiguredStorage;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasUuids;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable;
 
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
+
     protected $keyType = 'string';
 
     public $incrementing = false;
@@ -27,8 +33,20 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
+        'picture_path',
         'email',
         'password',
+        'preferences',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+        'two_factor_required',
+        'allowed_ips',
+    ];
+
+    protected $appends = [
+        'pictureUrl',
     ];
 
     /**
@@ -39,18 +57,189 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'failed_login_attempts',
     ];
 
     /**
      * Get the attributes that should be cast.
      *
-     * @return array<string, string>
+     * @return array<string, bool|string>
      */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'preferences' => 'array',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_required' => 'boolean',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'failed_login_attempts' => 'integer',
+            'locked_until' => 'datetime',
+            'allowed_ips' => 'array',
         ];
+    }
+
+    public function defaultModule(): string
+    {
+        $preferred = $this->preferences['default_module'] ?? null;
+        if (is_string($preferred) && $preferred !== '' && $preferred !== 'core') {
+            return $preferred;
+        }
+
+        return (string) config('modules.default_module', 'payroll');
+    }
+
+    public function defaultMenu(): ?string
+    {
+        $preferred = $this->preferences['default_menu'] ?? null;
+        if (! is_string($preferred)) {
+            return null;
+        }
+
+        $route = trim($preferred);
+
+        return $route === '' ? null : $route;
+    }
+
+    public function textSize(): string
+    {
+        $preferred = $this->preferences['text_size'] ?? null;
+        if (is_string($preferred) && in_array($preferred, ['sm', 'md', 'lg'], true)) {
+            return $preferred;
+        }
+
+        return 'sm';
+    }
+
+    public function preference(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->preferences ?? [], $key, $default);
+    }
+
+    /**
+     * Many-to-many roles via explicit pivot table user_roles.
+     */
+    public function rolesManyToMany(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Direct relationship to user_roles pivot rows.
+     */
+    public function userRoles(): HasMany
+    {
+        return $this->hasMany(UserRole::class, 'user_id');
+    }
+
+    /**
+     * One-to-one relationship with employee.
+     */
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class, 'user_id');
+    }
+
+    public function storeProfilePicture(UploadedFile $file): string
+    {
+        $storage = app(ConfiguredStorage::class);
+        $this->deleteProfilePictureFiles();
+
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg'));
+        $fileName = 'user_'.$this->id.'_'.time().'.'.$extension;
+        $path = $storage->store($file, 'users/pictures', $fileName);
+
+        $this->picture_path = $path;
+        $this->save();
+        $this->syncPicturePathToPerson($path);
+
+        return $path;
+    }
+
+    public function clearProfilePicture(): void
+    {
+        $this->deleteProfilePictureFiles();
+        $this->picture_path = null;
+        $this->save();
+        $this->syncPicturePathToPerson(null);
+    }
+
+    public function getPictureUrlAttribute(): ?string
+    {
+        $path = $this->picture_path;
+        if (! filled($path)) {
+            $this->loadMissing('employee.person');
+            $path = $this->employee?->person?->picturePath;
+        }
+
+        return app(ConfiguredStorage::class)->urlOrNull($path);
+    }
+
+    private function deleteProfilePictureFiles(): void
+    {
+        $storage = app(ConfiguredStorage::class);
+        $this->loadMissing('employee.person');
+        $personPath = $this->employee?->person?->picturePath;
+
+        $storage->delete($this->picture_path);
+        if ($personPath && $personPath !== $this->picture_path) {
+            $storage->delete($personPath);
+        }
+    }
+
+    private function syncPicturePathToPerson(?string $path): void
+    {
+        $this->loadMissing('employee.person');
+        $person = $this->employee?->person;
+        if (! $person) {
+            return;
+        }
+
+        $person->update(['picturePath' => $path]);
+    }
+
+    public function webAuthnCredentials(): HasMany
+    {
+        return $this->hasMany(WebAuthnCredential::class, 'user_id');
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null && filled($this->two_factor_secret);
+    }
+
+    /**
+     * Effective 2FA requirement after applying company policy + per-user override.
+     */
+    public function requiresTwoFactor(AuthSetting $settings): bool
+    {
+        if ($this->two_factor_required === false) {
+            return false;
+        }
+
+        if ($this->two_factor_required === true) {
+            return true;
+        }
+
+        return $settings->two_factor_policy === AuthSetting::POLICY_REQUIRED;
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user) {
+            if (filled($user->username)) {
+                $user->username = \App\Services\UsernameGenerator::sanitize((string) $user->username);
+            }
+
+            if (blank($user->username) && filled($user->email)) {
+                $user->username = app(\App\Services\UsernameGenerator::class)
+                    ->uniqueFromEmailLocalPart((string) $user->email);
+            }
+        });
     }
 }

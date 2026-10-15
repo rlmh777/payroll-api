@@ -2,57 +2,86 @@
 
 namespace App\Models;
 
+use App\Support\ConfiguredStorage;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
-use ParagonIE\CipherSweet\BlindIndex;
-use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
-use ParagonIE\CipherSweet\EncryptedRow;
-use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
-use ParagonIE\CipherSweet\Constants;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
     protected $table = 'company';
-    protected $primarykey = 'id';
+
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'legalName',
         'alias',
         'socialSecurityNumber',
+        'socialSecurityElectronicEmployerNumber',
+        'bankBranchNumber',
         'taxIdentificationNumber',
         'logoPath',
         'phoneNumber1',
         'phoneNumber2',
         'email',
         'street',
-        'localityId'
+        'localityId',
+        'primaryColor',
+        'secondaryColor',
+    ];
+
+    protected $attributes = [
+        'primaryColor' => '#1976D2',
+        'secondaryColor' => '#26A69A',
+    ];
+
+    protected $appends = [
+        'logoUrl',
     ];
 
     public function locality(): BelongsTo
     {
-        return $this->belongsTo(Locality::class);
+        return $this->belongsTo(Locality::class, 'localityId');
     }
 
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    public function companyBankAccounts(): HasMany
     {
-        $encryptedRow
-            // add the columns you want to encrypt the values ​​for
-            ->addField('legalName')
-            ->addField('alias')
-            ->addField('socialSecurityNumber')
-            ->addField('taxIdentificationNumber')
-            ->addField('phoneNumber1')
-            ->addField('phoneNumber2')
-            ->addField('email')
-
-            // add a blind index for each column you want to search
-            ->addBlindIndex('legalName', new BlindIndex('legalNameIndex'))
-            ->addBlindIndex('alias', new BlindIndex('aliasIndex'))
-            ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
-            ->addBlindIndex('taxIdentificationNumber', new BlindIndex('taxIdentificationNumberIndex'))
-            ->addBlindIndex('phoneNumber1', new BlindIndex('phoneNumber1Index'))
-            ->addBlindIndex('phoneNumber2', new BlindIndex('phoneNumber2Index'))
-            ->addBlindIndex('email', new BlindIndex('emailIndex'));
+        return $this->hasMany(CompanyBankAccount::class, 'companyId');
     }
 
+    public function getLogoUrlAttribute(): ?string
+    {
+        if (! $this->logoPath) {
+            return null;
+        }
+
+        return app(ConfiguredStorage::class)->url($this->logoPath);
+    }
+
+    protected function socialSecurityNumber(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value) {
+                if (is_resource($value)) {
+                    return stream_get_contents($value) ?: '';
+                }
+
+                return $value ?? '';
+            },
+        );
+    }
+
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+
+        foreach ($array as $key => $value) {
+            if (is_resource($value)) {
+                $array[$key] = stream_get_contents($value) ?: '';
+            }
+        }
+
+        return $array;
+    }
 }

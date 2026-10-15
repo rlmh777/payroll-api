@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DeductionType extends Model
 {
@@ -11,14 +12,25 @@ class DeductionType extends Model
     protected $primarykey = 'id';
 
     protected $fillable = [
-        'name'
+        'name',
+        'category',
+        'note',
+        'defaultAmount',
+        'accountId',
     ];
 
-    public function deductions(): HasMany {
-        return $this->hasMany(EmployeeDefaultDeduction::class);
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'accountId');
     }
 
-    public function historicalDeductions(): HasMany {
+    public function deductions(): HasMany
+    {
+        return $this->hasMany(EmployeeDefaultDeduction::class, 'deductionTypeId');
+    }
+
+    public function historicalDeductions(): HasMany
+    {
         return $this->hasMany(HistoricalEmployeeDeduction::class);
     }
 

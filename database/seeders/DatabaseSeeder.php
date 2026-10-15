@@ -3,9 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,13 +12,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
-
         $this->call([
             GenderSeeder::class,
             HonorificSeeder::class,
@@ -30,9 +21,39 @@ class DatabaseSeeder extends Seeder
             CountrySeeder::class,
             DistrictSeeder::class,
             localitiesSeeder::class,
-            EmployeeModelSeeder::class,
-            UserSeeder::class,
             RoleAndPermissionSeeder::class,
+            // Menus (and their permissions) must exist before role permission sync.
+            MenuSeeder::class,
+            UserRoleSeeder::class,
+            DegreeSeeder::class,
+            EmployeeStatusSeeder::class,
+            ContractTypeSeeder::class,
+            EmploymentStatusSeeder::class,
+            RelationshipSeeder::class,
+            AccountTypeSeeder::class,
+            BankAccountTypeSeeder::class,
+            SocialSecuritySeeder::class,
+            SocialSecurityContributionRuleSeeder::class,
+            PersonalReliefSeeder::class,
+            SsBenefitTypeSeeder::class,
+            PayrollChartOfAccountsSeeder::class,
+            PayrollEarningCodeSeeder::class,
+            CompanySeeder::class,
+            ModuleSeeder::class,
+            DepartmentSeeder::class,
+            WorksiteSeeder::class,
+            TimesheetTemplateSeeder::class,
+            ShiftTemplateSeeder::class,
+            CalendarGroupSeeder::class,
+            BelizePublicHolidays2026Seeder::class,
+            PayPeriodGroupSeeder::class,
+            EmployeeImportTemplateSeeder::class,
+            SupervisorUserSeeder::class,
+            SupervisorDepartmentHeadSeeder::class,
+            SuperAdminSeeder::class,
+            PipelineTemplateSeeder::class,
         ]);
+
+        app(\App\Modules\Core\Services\FormAccessCatalog::class)->syncEmployee();
     }
 }

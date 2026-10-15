@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'ai' => [
+        'api_url' => env('AI_API_URL', 'https://api.openai.com/v1/chat/completions'),
+        'api_key' => env('AI_API_KEY'),
+        'model' => env('AI_MODEL', 'gpt-4'),
+    ],
+
 ];

@@ -3,18 +3,53 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class LeaveType extends Model
 {
-    protected $table = 'leave_Type';
-    protected $primarykey = 'id';
+    protected $table = 'leave_type';
+    protected $primaryKey = 'id';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
-        'name'
+        'name',
+        'code',
+        'isPaid',
+        'affectsBalance',
+        'requiresCertification',
+        'uncertifiedDaysAllowed',
+        'isActive',
+        'sortOrder',
     ];
 
-    public function leaves(): HasMany {
-        return $this->hasMany(TrackEmployeeLeave::class);
+    protected $casts = [
+        'isPaid' => 'boolean',
+        'affectsBalance' => 'boolean',
+        'requiresCertification' => 'boolean',
+        'uncertifiedDaysAllowed' => 'float',
+        'isActive' => 'boolean',
+        'sortOrder' => 'integer',
+    ];
+
+    public function leaves(): HasMany
+    {
+        return $this->hasMany(EmployeeLeave::class, 'leaveTypeId');
+    }
+
+    public function policy(): HasOne
+    {
+        return $this->hasOne(LeaveTypePolicy::class, 'leaveTypeId');
+    }
+
+    public function isVacation(): bool
+    {
+        $code = strtoupper(trim((string) $this->code));
+        if ($code === 'VACATION') {
+            return true;
+        }
+
+        return str_contains(strtolower((string) $this->name), 'vacation');
     }
 }

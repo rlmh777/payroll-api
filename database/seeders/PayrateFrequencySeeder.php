@@ -2,19 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\PayrateFrequency;
+use Illuminate\Database\Seeder;
 
 class PayrateFrequencySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        PayrateFrequency::create([
-            'name' => 'Monthly'
-        ]);
+        foreach (['Monthly', 'Biweekly'] as $name) {
+            PayrateFrequency::updateOrCreate(['name' => $name]);
+        }
     }
 }

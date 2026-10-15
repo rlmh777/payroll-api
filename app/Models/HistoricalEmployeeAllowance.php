@@ -2,42 +2,101 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HistoricalEmployeeAllowance extends Model
 {
     use HasUuids;
 
     protected $table = 'historical_employee_allowance';
-    protected $primarykey = 'id';
+
+    protected $primaryKey = 'id';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
+        'employee_id',
         'employeeId',
         'amount',
+        'quantity',
+        'unitAmount',
         'note',
-        'amount',
-        'payrollId',
+        'payroll_run_id',
+        'allowance_id',
         'allowanceId',
-        'chartOfAccountId'   
+        'account_id',
+        'accountId',
+        'allowance_date',
+        'departmentId',
+        'taxableAmount',
+        'ssSubjectAmount',
     ];
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'quantity' => 'decimal:4',
+        'unitAmount' => 'decimal:2',
+        'taxableAmount' => 'decimal:2',
+        'ssSubjectAmount' => 'decimal:2',
+        'allowance_date' => 'date',
+    ];
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
     }
 
-    public function allowance(): BelongsTo {
-        return $this->belongsTo(Allowance::class);
+    public function allowance(): BelongsTo
+    {
+        return $this->belongsTo(Allowance::class, 'allowance_id');
     }
 
-    public function payroll(): BelongsTo {
-        return $this->belongsTo(Payroll::class);
+    public function payrollRun(): BelongsTo
+    {
+        return $this->belongsTo(PayrollRun::class, 'payroll_run_id');
     }
 
-    public function chartOfAccount(): BelongsTo {
-        return $this->belongsTo(ChartOfAccount::class);
+    public function chartOfAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'account_id');
     }
 
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'departmentId');
+    }
+
+    public function getEmployeeIdAttribute(): ?string
+    {
+        return $this->attributes['employee_id'] ?? null;
+    }
+
+    public function setEmployeeIdAttribute(?string $value): void
+    {
+        $this->attributes['employee_id'] = $value;
+    }
+
+    public function getAllowanceIdAttribute(): ?string
+    {
+        return $this->attributes['allowance_id'] ?? null;
+    }
+
+    public function setAllowanceIdAttribute(?string $value): void
+    {
+        $this->attributes['allowance_id'] = $value;
+    }
+
+    public function getAccountIdAttribute(): ?string
+    {
+        return $this->attributes['account_id'] ?? null;
+    }
+
+    public function setAccountIdAttribute(?string $value): void
+    {
+        $this->attributes['account_id'] = $value;
+    }
 }

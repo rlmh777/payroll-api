@@ -34,7 +34,7 @@ return [
     'stores' => [
 
         'array' => [
-            'driver' => 'redis',
+            'driver' => 'array',
             'serialize' => false,
         ],
 

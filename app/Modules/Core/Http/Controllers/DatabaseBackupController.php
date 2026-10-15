@@ -1,0 +1,147 @@
+<?php
+
+namespace App\Modules\Core\Http\Controllers;
+
+use App\Exceptions\SensitiveActionException;
+use App\Models\DatabaseBackup;
+use App\Models\User;
+use App\Modules\Core\Services\DatabaseBackupService;
+use App\Services\SensitiveActionChallengeService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
+
+class DatabaseBackupController extends Controller
+{
+    public function __construct(
+        private readonly DatabaseBackupService $databaseBackupService,
+        private readonly SensitiveActionChallengeService $challenges,
+    ) {
+    }
+
+    public function index(): JsonResponse
+    {
+        return response()->json($this->databaseBackupService->list());
+    }
+
+    public function settings(): JsonResponse
+    {
+        return response()->json($this->databaseBackupService->settings());
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'label' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            $backup = $this->databaseBackupService->create(
+                'manual',
+                $validated['label'] ?? null,
+                $request->user(),
+            );
+        } catch (Throwable $exception) {
+            return response()->json([
+                'message' => $exception->getMessage() ?: 'Failed to create database backup.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Database backup created successfully.',
+            'data' => $backup,
+        ], 201);
+    }
+
+    public function download(DatabaseBackup $databaseBackup): StreamedResponse|JsonResponse
+    {
+        try {
+            return $this->databaseBackupService->download($databaseBackup);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 404);
+        }
+    }
+
+    public function restore(Request $request, DatabaseBackup $databaseBackup): JsonResponse
+    {
+        $actor = $request->user();
+        if (! $actor instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'challenge_key' => ['required', 'string'],
+            'confirmation_code' => ['required', 'string', 'max:16'],
+        ]);
+
+        try {
+            $this->challenges->consume(
+                $actor,
+                SensitiveActionChallengeService::ACTION_DATABASE_RESTORE,
+                (string) $validated['challenge_key'],
+                (string) $validated['confirmation_code'],
+                [
+                    'source' => 'backup',
+                    'backup_id' => (string) $databaseBackup->id,
+                ],
+            );
+            $this->databaseBackupService->restore($databaseBackup);
+        } catch (SensitiveActionException $exception) {
+            return response()->json(['message' => $exception->getMessage()], $exception->status);
+        } catch (Throwable $exception) {
+            return response()->json([
+                'message' => $exception->getMessage() ?: 'Failed to restore database backup.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Database restored successfully from backup.',
+            'data' => $databaseBackup->fresh(['creator:id,name,email']),
+        ]);
+    }
+
+    public function restoreUpload(Request $request): JsonResponse
+    {
+        $actor = $request->user();
+        if (! $actor instanceof User) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $validated = $request->validate([
+            'challenge_key' => ['required', 'string'],
+            'confirmation_code' => ['required', 'string', 'max:16'],
+            'file' => ['required', 'file', 'max:512000'], // ~500 MB
+        ]);
+
+        try {
+            $this->challenges->consume(
+                $actor,
+                SensitiveActionChallengeService::ACTION_DATABASE_RESTORE,
+                (string) $validated['challenge_key'],
+                (string) $validated['confirmation_code'],
+                ['source' => 'upload'],
+            );
+            $backup = $this->databaseBackupService->restoreUpload($request->file('file'));
+        } catch (SensitiveActionException $exception) {
+            return response()->json(['message' => $exception->getMessage()], $exception->status);
+        } catch (Throwable $exception) {
+            return response()->json([
+                'message' => $exception->getMessage() ?: 'Failed to restore uploaded backup.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Database restored successfully from uploaded backup.',
+            'data' => $backup,
+        ]);
+    }
+
+    public function destroy(DatabaseBackup $databaseBackup): JsonResponse
+    {
+        $this->databaseBackupService->delete($databaseBackup);
+
+        return response()->json(['message' => 'Database backup deleted successfully.']);
+    }
+}

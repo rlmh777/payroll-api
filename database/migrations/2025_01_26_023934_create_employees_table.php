@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -13,6 +14,7 @@ return new class extends Migration
     {
         Schema::create('employee', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->nullable()->unique()->constrained('users')->onDelete('set null');
             $table->string('code',64);
             $table->string('internalId1',64)->nullable();
             $table->string('internalId2',64)->nullable();
@@ -49,6 +51,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('employee');
+        // Use CASCADE to drop dependent foreign key constraints
+        if (Schema::hasTable('employee')) {
+            DB::statement('DROP TABLE IF EXISTS employee CASCADE');
+        }
     }
 };

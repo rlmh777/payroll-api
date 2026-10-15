@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -16,7 +17,7 @@ return new class extends Migration
             $table->string('name',255);
             $table->boolean('isTaxable')->default(false);
             $table->boolean('isSocialSecurityDeductable')->default(false);
-            $table->string('note',1024);
+            $table->string('note',1024)->nullable() ;
             $table->decimal('defaultAmount',total: 12, places: 2);
             $table->timestamps();
         });
@@ -27,6 +28,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('allowance');
+        // Use CASCADE to drop dependent foreign key constraints
+        if (Schema::hasTable('allowance')) {
+            DB::statement('DROP TABLE IF EXISTS allowance CASCADE');
+        }
     }
 };

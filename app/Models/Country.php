@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Country extends Model
@@ -11,7 +11,7 @@ class Country extends Model
     use HasUuids;
 
     protected $table = 'country';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -22,13 +22,15 @@ class Country extends Model
         'nationalityName'
     ];
 
-    public function districts(): HasMany {
-        return $this->hasMany(District::class);
+    public function districts(): HasMany
+    {
+        return $this->hasMany(District::class, 'countryId');
     }
 
-    public function employees(): HasMany {
+    public function employees(): HasMany
+    {
         return $this->hasMany(Employee::class);
     }
-    
+
 }
 

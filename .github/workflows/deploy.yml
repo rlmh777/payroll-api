@@ -1,0 +1,140 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      client:
+        description: Client environment to deploy (one GitHub Environment per client)
+        required: true
+        type: choice
+        options: [chaacreek]
+
+concurrency:
+  group: deploy-api-${{ github.event.inputs.client || 'chaacreek' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build & deploy (${{ github.event.inputs.client || 'chaacreek' }})
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.client || 'chaacreek' }}
+    env:
+      CLIENT: ${{ github.event.inputs.client || 'chaacreek' }}
+      IMAGE_TAG: ${{ github.sha }}
+      ACR_NAME: ${{ vars.ACR_NAME || 'acrpayrollshrdprodi7i0ek' }}
+      ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER || 'acrpayrollshrdprodi7i0ek.azurecr.io' }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-payroll-shrd-prod' }}
+      CONTAINER_APP_API: ${{ vars.CONTAINER_APP_API || 'ca-payroll-shrdprod-api' }}
+      CONTAINER_APP_QUEUE: ${{ vars.CONTAINER_APP_QUEUE || 'ca-payroll-shrdprod-queue' }}
+      CONTAINER_APP_SCHEDULER: ${{ vars.CONTAINER_APP_SCHEDULER || 'ca-payroll-shrdprod-scheduler' }}
+      STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT || 'stpayrollshrdprodi7i0ek' }}
+      TENANT_SLUG: ${{ vars.TENANT_SLUG || github.event.inputs.client || 'chaacreek' }}
+      TENANCY_PUBLIC_HOST_SUFFIX: ${{ vars.TENANCY_PUBLIC_HOST_SUFFIX || 'kamihrm.com' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push API image
+        run: |
+          set -euo pipefail
+          IMAGE="${ACR_LOGIN_SERVER}/payroll-api:${IMAGE_TAG}"
+          LATEST="${ACR_LOGIN_SERVER}/payroll-api:latest"
+
+          docker build \
+            --platform linux/amd64 \
+            --file Dockerfile \
+            --tag "$IMAGE" \
+            --tag "$LATEST" \
+            .
+
+          docker push "$IMAGE"
+          docker push "$LATEST"
+
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy Container Apps
+        run: |
+          set -euo pipefail
+          for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
+            echo "Updating $app -> $IMAGE"
+            az containerapp update \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --image "$IMAGE" \
+              --output none
+          done
+
+      - name: Configure Azure Blob Storage
+        run: |
+          set -euo pipefail
+          CONTAINER="$TENANT_SLUG"
+
+          ACCOUNT_KEY=$(az storage account keys list \
+            --account-name "$STORAGE_ACCOUNT" \
+            --query "[0].value" -o tsv)
+
+          az storage container create \
+            --name "$CONTAINER" \
+            --account-name "$STORAGE_ACCOUNT" \
+            --account-key "$ACCOUNT_KEY" \
+            --auth-mode key \
+            --public-access off \
+            --output none
+
+          for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
+            az containerapp secret set \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --secrets azure-storage-account-key="$ACCOUNT_KEY" \
+              --output none
+            az containerapp update \
+              --name "$app" \
+              --resource-group "$RESOURCE_GROUP" \
+              --set-env-vars \
+                "AZURE_STORAGE_ACCOUNT_NAME=$STORAGE_ACCOUNT" \
+                "AZURE_STORAGE_CONTAINER=$CONTAINER" \
+                "AZURE_STORAGE_ACCOUNT_KEY=secretref:azure-storage-account-key" \
+                "TENANCY_PUBLIC_HOST_SUFFIX=${TENANCY_PUBLIC_HOST_SUFFIX:-kamihrm.com}" \
+              --output none
+          done
+
+          unset ACCOUNT_KEY
+
+      - name: Ensure API runs migrations and insert-only catalog seed
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP_API" \
+            --resource-group "$RESOURCE_GROUP" \
+            --set-env-vars "RUN_MIGRATIONS=true" "RUN_SEEDERS=true" \
+            --output none
+
+      - name: Summary
+        run: |
+          FQDN=$(az containerapp show -g "$RESOURCE_GROUP" -n "$CONTAINER_APP_API" --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "### API deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Client environment: \`$CLIENT\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`$IMAGE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://$FQDN" >> "$GITHUB_STEP_SUMMARY"

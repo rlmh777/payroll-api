@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relation\HasMany;
 class PaymentMethod extends Model
 {
     protected $table = 'payment_method';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name'

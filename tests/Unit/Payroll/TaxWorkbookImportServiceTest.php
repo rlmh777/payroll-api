@@ -1,0 +1,360 @@
+<?php
+
+namespace Tests\Unit\Payroll;
+
+use App\Modules\Payroll\Services\TaxWorkbookImportService;
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+use ZipArchive;
+
+class TaxWorkbookImportServiceTest extends TestCase
+{
+    private TaxWorkbookImportService $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->service = new TaxWorkbookImportService();
+    }
+
+    public function test_parses_july_upload_workbook(): void
+    {
+        $parsed = $this->service->parse($this->fixturePath());
+
+        $this->assertEqualsWithDelta(37824.98, $parsed['total_debits'], 0.01);
+        $this->assertEqualsWithDelta(6142.0, $parsed['partial_exemptions_total'], 0.01);
+        $this->assertEqualsWithDelta(37824.98, $parsed['net_of_2251'], 0.01);
+        $this->assertNotEmpty($parsed['accounts_sheet']);
+        $this->assertNotEmpty($parsed['gst_sheet']);
+
+        $tikalNet = $this->firstByCode($parsed['lines'], '4501', true);
+        $this->assertNotNull($tikalNet);
+        $this->assertTrue($tikalNet['is_rollup']);
+        $this->assertStringContainsString('Tikal Tours Income', $tikalNet['account_name']);
+        $this->assertEqualsWithDelta(9565.0, $tikalNet['amount'], 0.01);
+        $this->assertFalse($tikalNet['include_in_tax']);
+        $this->assertTrue($this->hasName($parsed['lines'], 'Tikal Tour Guide'));
+        $this->assertTrue($this->hasName($parsed['lines'], 'Tikal Tours Income - Other'));
+
+        $tourHeading = null;
+        $tourTotal = null;
+        foreach ($parsed['lines'] as $line) {
+            if (($line['row_type'] ?? null) === 'heading' && str_contains((string) $line['account_name'], '4500 · Tour Income')) {
+                $tourHeading = $line;
+            }
+            if (($line['row_type'] ?? null) === 'total' && str_contains((string) $line['account_name'], 'Total 4500 · Tour Income')) {
+                $tourTotal = $line;
+            }
+        }
+        $this->assertNotNull($tourHeading);
+        $this->assertNotNull($tourTotal);
+        $this->assertEquals($tourHeading['group_index'], $tourTotal['group_index']);
+        $this->assertTrue($tourTotal['include_in_tax']);
+        $this->assertEqualsWithDelta(150895.55, $tourTotal['amount'], 0.01);
+
+        $mayaFarm = $this->firstByCode($parsed['lines'], '4815');
+        $this->assertNotNull($mayaFarm);
+        $this->assertEqualsWithDelta(3897.7, $mayaFarm['amount'], 0.01);
+
+        $this->assertNotNull($this->firstByCode($parsed['lines'], '4701'));
+
+        $headings = array_values(array_filter(
+            $parsed['lines'],
+            fn (array $line) => ($line['row_type'] ?? null) === 'heading'
+        ));
+        $headingNames = array_map(fn (array $line) => $line['account_name'], $headings);
+        $this->assertContains('Income:', $headingNames);
+        $this->assertTrue($this->hasName($parsed['lines'], '4500 · Tour Income'));
+        $this->assertTrue($this->hasName($parsed['lines'], '4800 · Other Income'));
+        $this->assertTrue($this->hasName($parsed['lines'], 'Guava Limb Income'));
+
+        $onSiteTotal = null;
+        foreach ($parsed['lines'] as $line) {
+            if (($line['row_type'] ?? null) === 'total' && str_contains((string) $line['account_name'], 'On-Site Activities')) {
+                $onSiteTotal = $line;
+                break;
+            }
+        }
+        $this->assertNotNull($onSiteTotal);
+        $this->assertFalse($onSiteTotal['include_in_tax']);
+        $this->assertEqualsWithDelta(45684.5, $onSiteTotal['amount'], 0.01);
+
+        $groupIndexes = array_unique(array_column($parsed['lines'], 'group_index'));
+        $this->assertGreaterThan(3, count($groupIndexes));
+        $this->assertGreaterThan(10, count($parsed['lines']));
+    }
+
+    public function test_accepts_gst_dates_in_the_selected_period(): void
+    {
+        $parsed = $this->service->parse($this->fixturePath(), 2026, 6);
+
+        $this->assertNotEmpty($parsed['gst_sheet']);
+    }
+
+    public function test_rejects_gst_dates_outside_the_selected_period(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('not in July 2026');
+        $this->expectExceptionMessage('was not imported');
+
+        $this->service->parse($this->fixturePath(), 2026, 7);
+    }
+
+    public function test_net_of_2251_uses_debit_not_credit_or_balance(): void
+    {
+        $rows = [
+            1 => [
+                'Q' => ['v' => 'Debit', 'f' => null],
+                'S' => ['v' => 'Credit', 'f' => null],
+                'U' => ['v' => 'Balance', 'f' => null],
+            ],
+            10 => [
+                'C' => ['v' => 'Total 2251 · GST Payable', 'f' => null],
+                'Q' => ['v' => 37824.98, 'f' => null],
+                'S' => ['v' => 102771.21, 'f' => null],
+                'U' => ['v' => 64946.23, 'f' => null],
+            ],
+        ];
+
+        $totals = $this->service->extractGstTotals($rows);
+
+        $this->assertEqualsWithDelta(37824.98, $totals['net_of_2251'], 0.01);
+        $this->assertEqualsWithDelta(37824.98, $totals['total_debits'], 0.01);
+    }
+
+    public function test_net_of_2251_sums_transaction_debits_not_signed_total(): void
+    {
+        $rows = [
+            1 => [
+                'G' => ['v' => 'Type', 'f' => null],
+                'S' => ['v' => 'Amount', 'f' => null],
+                'U' => ['v' => 'Balance', 'f' => null],
+            ],
+            5 => [
+                'G' => ['v' => 'Bill', 'f' => null],
+                'S' => ['v' => -27700.90, 'f' => null],
+            ],
+            6 => [
+                'G' => ['v' => 'Check', 'f' => null],
+                'S' => ['v' => -17.14, 'f' => null],
+            ],
+            7 => [
+                'G' => ['v' => 'General Journal', 'f' => null],
+                'S' => ['v' => -52.30, 'f' => null],
+            ],
+            8 => [
+                'G' => ['v' => 'General Journal', 'f' => null],
+                'S' => ['v' => 1333.33, 'f' => null],
+            ],
+            9 => [
+                'G' => ['v' => 'Credit', 'f' => null],
+                'S' => ['v' => 46.67, 'f' => null],
+            ],
+            22 => [
+                'D' => ['v' => 'Total 2251-a · Partial Exemption GST', 'f' => null],
+                'S' => ['v' => -5504.71, 'f' => null],
+                'U' => ['v' => -5504.71, 'f' => null],
+            ],
+            297 => [
+                'C' => ['v' => 'Total 2251 · GST Payable', 'f' => null],
+                'S' => ['v' => -26389.5, 'f' => null],
+                'U' => ['v' => -26389.5, 'f' => null],
+            ],
+        ];
+
+        $totals = $this->service->extractGstTotals($rows);
+
+        $this->assertEqualsWithDelta(27770.34, $totals['net_of_2251'], 0.01);
+        $this->assertEqualsWithDelta(27770.34, $totals['total_debits'], 0.01);
+        $this->assertEqualsWithDelta(5504.71, $totals['partial_exemptions_total'], 0.01);
+        $this->assertNotEqualsWithDelta(26389.5, $totals['total_debits'], 0.01);
+    }
+
+    public function test_parse_account_labels(): void
+    {
+        $this->assertSame('4501A', $this->service->parseAccountLabel('4501a · Tikal Tour Guide Prof Services')['code']);
+        $this->assertSame('4001A', $this->service->parseAccountLabel('4001 A· Spa Villa Income')['code']);
+        $this->assertTrue($this->service->parseAccountLabel('Total 4501 · Tikal Tours Income (NET)')['is_total']);
+        $this->assertSame('4715', $this->service->parseAccountLabel('4715 . Tubing')['code']);
+        $this->assertSame('4827A', $this->service->parseAccountLabel('4827A Spa Services GST-Other')['code']);
+        $this->assertSame('Spa Services GST-Other', $this->service->parseAccountLabel('4827A Spa Services GST-Other')['name']);
+        $this->assertSame('4827', $this->service->parseAccountLabel('4827 Spa Services GST-Other')['code']);
+        $this->assertSame('4001A', $this->service->parseAccountLabel('4001 A Spa Villa Income')['code']);
+    }
+
+    public function test_spa_services_gst_other_is_a_qb_account_not_a_heading(): void
+    {
+        $withDot = $this->service->extractAccountLines([
+            10 => [
+                'B' => ['v' => '4827A · Spa Services GST-Other', 'f' => null],
+                'E' => ['v' => 20548.70, 'f' => null],
+            ],
+        ]);
+        $withoutDot = $this->service->extractAccountLines([
+            10 => [
+                'B' => ['v' => '4827 Spa Services GST-Other', 'f' => null],
+                'E' => ['v' => 180, 'f' => null],
+            ],
+        ]);
+        $zeroAmount = $this->service->extractAccountLines([
+            10 => [
+                'B' => ['v' => '4827A · Spa Services GST-Other', 'f' => null],
+            ],
+        ]);
+
+        $this->assertCount(1, $withDot);
+        $this->assertSame('account', $withDot[0]['row_type']);
+        $this->assertSame('4827A', $withDot[0]['account_code']);
+        $this->assertEqualsWithDelta(20548.70, $withDot[0]['amount'], 0.01);
+
+        $this->assertCount(1, $withoutDot);
+        $this->assertSame('account', $withoutDot[0]['row_type']);
+        $this->assertSame('4827', $withoutDot[0]['account_code']);
+        $this->assertStringContainsString('Spa Services GST-Other', $withoutDot[0]['account_name']);
+
+        $this->assertCount(1, $zeroAmount);
+        $this->assertSame('account', $zeroAmount[0]['row_type']);
+        $this->assertSame('4827A', $zeroAmount[0]['account_code']);
+    }
+
+    public function test_parses_pnl_workbook(): void
+    {
+        $parsed = $this->service->parse($this->pnlFixturePath());
+
+        $this->assertEqualsWithDelta(10402.87, $parsed['total_debits'], 0.01);
+        $this->assertEqualsWithDelta(1737.67, $parsed['partial_exemptions_total'], 0.01);
+        $this->assertEqualsWithDelta(10402.87, $parsed['net_of_2251'], 0.01);
+        $this->assertNotEmpty($parsed['accounts_sheet']);
+        $this->assertNotEmpty($parsed['gst_sheet']);
+
+        $gstHeader = null;
+        foreach ($parsed['gst_sheet'] as $row) {
+            if ((int) ($row['row'] ?? 0) === 1) {
+                $gstHeader = $row;
+                break;
+            }
+        }
+        $this->assertNotNull($gstHeader);
+        $this->assertSame('Type', $gstHeader['G']);
+        $this->assertSame('Date', $gstHeader['I']);
+        $this->assertSame('Debit', $gstHeader['Q']);
+        $this->assertSame('Credit', $gstHeader['S']);
+        $this->assertSame('Balance', $gstHeader['U']);
+
+        $cottage = $this->firstByCode($parsed['lines'], '4000');
+        $this->assertNotNull($cottage);
+        $this->assertStringContainsString('Cottage Collection Room Income', $cottage['account_name']);
+        $this->assertEqualsWithDelta(101864.58, $cottage['amount'], 0.01);
+        $this->assertTrue($cottage['include_in_tax']);
+
+        $this->assertTrue($this->hasName($parsed['lines'], 'Ordinary Income'));
+        $this->assertGreaterThan(10, count($parsed['lines']));
+    }
+
+    public function test_accepts_pnl_gst_dates_in_august_2026(): void
+    {
+        $parsed = $this->service->parse($this->pnlFixturePath(), 2026, 8);
+
+        $this->assertNotEmpty($parsed['gst_sheet']);
+    }
+
+    public function test_detects_accounts_and_gst_without_sheet_names(): void
+    {
+        $julyRenamed = $this->copyWithSheetNames($this->fixturePath(), [
+            'Taxes Calculator' => 'Sheet1',
+            'GST' => 'Sheet2',
+        ]);
+        $pnlRenamed = $this->copyWithSheetNames($this->pnlFixturePath(), [
+            'Accounts' => 'Income statement',
+            'GST' => 'Register',
+        ]);
+
+        try {
+            $july = $this->service->parse($julyRenamed);
+            $this->assertEqualsWithDelta(37824.98, $july['total_debits'], 0.01);
+            $this->assertNotNull($this->firstByCode($july['lines'], '4501'));
+
+            $pnl = $this->service->parse($pnlRenamed);
+            $this->assertEqualsWithDelta(10402.87, $pnl['total_debits'], 0.01);
+            $this->assertNotNull($this->firstByCode($pnl['lines'], '4000'));
+        } finally {
+            @unlink($julyRenamed);
+            @unlink($pnlRenamed);
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return array<string, mixed>|null
+     */
+    private function firstByCode(array $lines, string $code, bool $rollup = false): ?array
+    {
+        foreach ($lines as $line) {
+            if ($line['account_code'] !== $code) {
+                continue;
+            }
+            if ($rollup && empty($line['is_rollup'])) {
+                continue;
+            }
+
+            return $line;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function hasName(array $lines, string $needle): bool
+    {
+        foreach ($lines as $line) {
+            if (str_contains((string) $line['account_name'], $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function fixturePath(): string
+    {
+        $path = dirname(__DIR__, 2).'/Fixtures/gst-business-tax-upload.xlsx';
+        $this->assertFileExists($path);
+
+        return $path;
+    }
+
+    private function pnlFixturePath(): string
+    {
+        $path = dirname(__DIR__, 2).'/Fixtures/gst-pnl-upload.xlsx';
+        $this->assertFileExists($path);
+
+        return $path;
+    }
+
+    /**
+     * @param  array<string, string>  $renames
+     */
+    private function copyWithSheetNames(string $path, array $renames): string
+    {
+        $copy = tempnam(sys_get_temp_dir(), 'gst-xlsx-');
+        $this->assertNotFalse($copy);
+        copy($path, $copy);
+
+        $zip = new ZipArchive();
+        $this->assertTrue($zip->open($copy) === true);
+        $xml = $zip->getFromName('xl/workbook.xml');
+        $this->assertNotFalse($xml);
+
+        foreach ($renames as $from => $to) {
+            $xml = str_replace('name="'.$from.'"', 'name="'.$to.'"', $xml);
+        }
+
+        $zip->deleteName('xl/workbook.xml');
+        $zip->addFromString('xl/workbook.xml', $xml);
+        $zip->close();
+
+        return $copy;
+    }
+}

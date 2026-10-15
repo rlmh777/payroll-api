@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class EmployeeWorkPermit extends Model
@@ -11,7 +11,7 @@ class EmployeeWorkPermit extends Model
     use HasUuids;
 
     protected $table = 'employee_work_permit';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -23,21 +23,8 @@ class EmployeeWorkPermit extends Model
         'socialSecurityNumber'
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
-    }
-
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    public function employee(): BelongsTo
     {
-        $encryptedRow
-            // add the columns you want to encrypt the values ​​for
-            ->addField('socialSecurityNumber')
-            ->addField('workPermitNumber')
-            
-
-            // add a blind index for each column you want to search
-            ->addBlindIndex('socialSecurityNumber', new BlindIndex('socialSecurityNumberIndex'))
-            ->addBlindIndex('workPermitNumber', new BlindIndex('workPermitNumberIndex'));
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
-
 }

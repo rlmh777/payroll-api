@@ -17,9 +17,10 @@ return new class extends Migration
             $table->foreignUuid('paymentToId')->constrained('vendor')->onDelete('cascade');
             $table->decimal('amount', total: 6, places: 2);
             $table->text('note');
-            $table->foreignUuid('payrollId')->constrained('payroll')->onDelete('cascade');
-            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
+            $table->foreignUuid('accountId')->constrained('accounts')->onDelete('cascade');
             $table->foreignId('deductionTypeId')->constrained('deduction_type')->onDelete('cascade');
+            $table->decimal('carryForwardShortfall', 12, 2)->default(0);
+            $table->integer('priority')->default(0);
             $table->timestamps();
         });
     }

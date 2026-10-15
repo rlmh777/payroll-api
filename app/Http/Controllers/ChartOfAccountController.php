@@ -78,7 +78,7 @@ class ChartOfAccountController extends Controller
                 'description' => 'required|string|max:255',
                 'code1' => 'required|string|max:24',
                 'code2' => 'required|string|max:24',
-                'parent_id' => 'nullable|exists:chart_of_account,id',
+                'parent_id' => 'nullable|exists:accounts,id',
                 'type' => 'required|string|in:asset,liability,equity,revenue,expense',
                 'is_active' => 'boolean',
                 'balance' => 'numeric|min:0',
@@ -130,7 +130,7 @@ class ChartOfAccountController extends Controller
                 'description' => 'sometimes|string|max:255',
                 'code1' => 'sometimes|string|max:24',
                 'code2' => 'sometimes|string|max:24',
-                'parent_id' => 'sometimes|nullable|exists:chart_of_account,id',
+                'parent_id' => 'sometimes|nullable|exists:accounts,id',
                 'type' => 'sometimes|string|in:asset,liability,equity,revenue,expense',
                 'is_active' => 'sometimes|boolean',
                 'balance' => 'sometimes|numeric|min:0',
@@ -202,7 +202,7 @@ class ChartOfAccountController extends Controller
     public function balanceHistory(ChartOfAccount $chartOfAccount): JsonResponse
     {
         $history = $chartOfAccount->transactions()
-            ->select('created_at', 'amount')
+            ->select('created_at', 'debit', 'credit')
             ->orderBy('created_at')
             ->get();
         return response()->json($history);

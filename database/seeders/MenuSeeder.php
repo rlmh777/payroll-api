@@ -1,0 +1,842 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Menu;
+use App\Models\Permission;
+use App\Models\Role;
+use App\Services\ModuleMenuCatalog;
+use Illuminate\Database\Seeder;
+
+class MenuSeeder extends Seeder
+{
+    private const ROOT_MODULE_BY_SYSTEM_KEY = [
+        'payroll.dashboard' => 'payroll',
+        'payroll.reports' => 'payroll',
+        'employee.dashboard' => 'employee',
+        'employee.profile' => 'employee',
+        'employee.forms' => 'employee',
+        'employee.appraisals' => 'employee',
+        'employee.scheduler' => 'employee',
+        'hr.employees' => 'hr',
+        'hr.settings.birthdays' => 'hr',
+        'hr.settings.letter_templates' => 'hr',
+        'hr.settings.email_templates' => 'hr',
+        'hr.vacancies' => 'hr',
+        'hr.panel' => 'hr',
+        'hr.candidates' => 'hr',
+        'hr.appraisals' => 'hr',
+        'hr.settings.appraisals' => 'hr',
+        'hr.settings.employee_fields' => 'hr',
+        'hr.settings.form_templates' => 'hr',
+        'hr.settings' => 'hr',
+        'hr.settings.vacancy_stages' => 'hr',
+        'hr.settings.candidate_stages' => 'hr',
+        'hr.settings.job_titles' => 'hr',
+        'hr.settings.department' => 'hr',
+        'hr.settings.worksite' => 'hr',
+        'hr.settings.holidays' => 'hr',
+        'hr.settings.relationship' => 'hr',
+        'hr.settings.degree' => 'hr',
+        'hr.settings.country' => 'hr',
+        'hr.settings.district' => 'hr',
+        'hr.settings.locality' => 'hr',
+        'hr.settings.institution' => 'hr',
+        'payroll.employees' => 'payroll',
+        'hr.scheduler' => 'payroll',
+        'hr.timesheet' => 'payroll',
+        'hr.leaves' => 'payroll',
+        'payroll.root' => 'payroll',
+        'payroll.settings' => 'payroll',
+        'admin.modules' => 'admin',
+        'admin.database_backup' => 'admin',
+        'admin.file_storage' => 'admin',
+        'admin.email' => 'admin',
+        'admin.login' => 'admin',
+        'admin.login_page' => 'admin',
+        'admin.menu' => 'admin',
+        'admin.roles' => 'admin',
+        'admin.organization' => 'admin',
+        'admin.users' => 'admin',
+        'admin.settings' => 'admin',
+        'admin.pipelines' => 'admin',
+        'admin.biometric_devices' => 'admin',
+    ];
+
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        $this->createPermissions();
+
+        $this->ensureMenu([
+            'title' => 'Dashboard',
+            'route' => '/employee',
+            'icon' => 'dashboard',
+            'permission' => null,
+            'order' => 1,
+            'type' => 'menu',
+            'system_key' => 'employee.dashboard',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Profile',
+            'route' => '/employee/profile',
+            'icon' => 'badge',
+            'permission' => null,
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'employee.profile',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Forms',
+            'route' => '/forms',
+            'icon' => 'assignment',
+            'permission' => null,
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'employee.forms',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Appraisals',
+            'route' => '/appraisals',
+            'icon' => 'rate_review',
+            'permission' => null,
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'employee.appraisals',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Scheduler',
+            'route' => '/payroll/scheduler',
+            'icon' => 'calendar_month',
+            'permission' => 'view-calendars',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'employee.scheduler',
+            'module_code' => 'employee',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Dashboard',
+            'route' => '/',
+            'icon' => 'fas fa-tachometer-alt',
+            'permission' => 'view-dashboard',
+            'order' => 1,
+            'type' => 'menu',
+            'system_key' => 'payroll.dashboard',
+            'module_code' => 'payroll',
+        ]);
+
+        $employees = $this->ensureMenu([
+            'title' => 'Employees',
+            'route' => '/hr/employees',
+            'icon' => 'fas fa-user-friends',
+            'permission' => 'view-employees',
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'hr.employees',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $employees->id,
+            'title' => 'Add Employee',
+            'route' => '/hr/employees/new',
+            'icon' => 'person_add',
+            'permission' => 'employees-crud',
+            'order' => 1,
+            'type' => 'submenu',
+            'system_key' => 'hr.employees.new',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $employees->id,
+            'title' => 'Import Employees',
+            'route' => '/hr/employees/import',
+            'icon' => 'upload_file',
+            'permission' => 'employees-crud',
+            'order' => 2,
+            'type' => 'submenu',
+            'system_key' => 'hr.employees.import',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Vacancies',
+            'route' => '/hr/vacancies',
+            'icon' => 'work',
+            'permission' => 'view-vacancies',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'hr.vacancies',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Interview panel',
+            'route' => '/hr/panel',
+            'icon' => 'how_to_vote',
+            'permission' => 'score-vacancies|view-vacancies',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'hr.panel',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Candidates',
+            'route' => '/hr/candidates',
+            'icon' => 'badge',
+            'permission' => 'view-vacancies',
+            'order' => 4,
+            'type' => 'menu',
+            'system_key' => 'hr.candidates',
+            'module_code' => 'hr',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Appraisals',
+            'route' => '/hr/appraisals',
+            'icon' => 'rate_review',
+            'permission' => 'view-appraisals|employees-crud|appraisals-crud',
+            'order' => 4,
+            'type' => 'menu',
+            'system_key' => 'hr.appraisals',
+            'module_code' => 'hr',
+        ]);
+
+        $hrSettings = $this->ensureMenu([
+            'parent_id' => null,
+            'title' => 'Settings',
+            'route' => '/hr/settings',
+            'icon' => 'settings',
+            'permission' => ModuleMenuCatalog::HR_SETTINGS_PERMISSION,
+            'order' => 5,
+            'type' => 'menu',
+            'system_key' => 'hr.settings',
+            'module_code' => 'hr',
+        ]);
+
+        $hrSettingsSubmenus = [
+            ['Vacancy pipeline', '/hr/settings/vacancy-stages', 'view_kanban', 'view-vacancies', 1, 'hr.settings.vacancy_stages'],
+            ['Candidate pipeline', '/hr/settings/candidate-stages', 'account_tree', 'view-vacancies', 2, 'hr.settings.candidate_stages'],
+            ['Job Titles', '/hr/settings/job-titles', 'work', 'view-job-title', 3, 'hr.settings.job_titles'],
+            ['Department', '/hr/settings/department', 'fas fa-sitemap', 'view-department', 4, 'hr.settings.department'],
+            ['Work Site', '/hr/settings/worksite', 'fas fa-map', 'view-worksite', 5, 'hr.settings.worksite'],
+            ['Public Holidays', '/hr/settings/holidays', 'event', 'view-holidays', 6, 'hr.settings.holidays'],
+            ['Relationship', '/hr/settings/relationship', 'fas fa-users', 'view-relationship', 7, 'hr.settings.relationship'],
+            ['Degree', '/hr/settings/degree', 'fas fa-graduation-cap', 'view-degree', 8, 'hr.settings.degree'],
+            ['Country', '/hr/settings/country', 'fas fa-globe', 'view-country', 9, 'hr.settings.country'],
+            ['District', '/hr/settings/district', 'fas fa-map-marker-alt', 'view-district', 10, 'hr.settings.district'],
+            ['Locality', '/hr/settings/locality', 'fas fa-map-pin', 'view-locality', 11, 'hr.settings.locality'],
+            ['Institution', '/hr/settings/institution', 'fas fa-university', 'view-institution', 12, 'hr.settings.institution'],
+            ['Birthdays', '/hr/settings/birthdays', 'cake', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 13, 'hr.settings.birthdays'],
+            ['Letter templates', '/hr/settings/letter-templates', 'description', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 14, 'hr.settings.letter_templates'],
+            ['Email templates', '/hr/settings/email-templates', 'email', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 15, 'hr.settings.email_templates'],
+            ['Form templates', '/hr/settings/form-templates', 'dynamic_form', 'view-vacancies', 16, 'hr.settings.form_templates'],
+            ['Appraisals', '/hr/settings/appraisals', 'notifications_active', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 17, 'hr.settings.appraisals'],
+            ['Employee fields', '/hr/settings/employee-fields', 'tune', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 18, 'hr.settings.employee_fields'],
+        ];
+
+        foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {
+            $this->ensureMenu([
+                'parent_id' => $hrSettings->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'system_key' => $systemKey,
+                'module_code' => 'hr',
+            ]);
+        }
+
+        $payrollEmployees = $this->ensureMenu([
+            'title' => 'Employees',
+            'route' => '/payroll/employees',
+            'icon' => 'fas fa-user-friends',
+            'permission' => 'view-employees',
+            'order' => 2,
+            'type' => 'menu',
+            'system_key' => 'payroll.employees',
+            'module_code' => 'payroll',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $payrollEmployees->id,
+            'title' => 'Add Employee',
+            'route' => '/payroll/employees/new',
+            'icon' => 'person_add',
+            'permission' => 'employees-crud',
+            'order' => 1,
+            'type' => 'submenu',
+            'system_key' => 'payroll.employees.new',
+            'module_code' => 'payroll',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $payrollEmployees->id,
+            'title' => 'Import Employees',
+            'route' => '/payroll/employees/import',
+            'icon' => 'upload_file',
+            'permission' => 'employees-crud',
+            'order' => 2,
+            'type' => 'submenu',
+            'system_key' => 'payroll.employees.import',
+            'module_code' => 'payroll',
+        ]);
+
+        $settings = $this->ensureMenu([
+            'title' => 'Settings',
+            'route' => '/payroll/settings',
+            'icon' => 'fas fa-cog',
+            'permission' => 'view-settings',
+            'order' => 3,
+            'type' => 'menu',
+            'system_key' => 'payroll.settings',
+            'module_code' => 'payroll',
+        ]);
+
+        $adminSettings = $this->ensureMenu([
+            'title' => 'Settings',
+            'route' => '/admin/settings',
+            'icon' => 'fas fa-cog',
+            'permission' => 'view-settings',
+            'order' => 1,
+            'type' => 'menu',
+            'system_key' => 'admin.settings',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Pipelines',
+            'route' => '/admin/settings/pipelines',
+            'icon' => 'account_tree',
+            'permission' => 'view-pipeline-templates',
+            'order' => 1,
+            'type' => 'submenu',
+            'system_key' => 'admin.pipelines',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Modules',
+            'route' => '/admin/settings/modules',
+            'icon' => 'apps',
+            'permission' => 'manage-modules',
+            'order' => 2,
+            'type' => 'submenu',
+            'system_key' => 'admin.modules',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Database Backup',
+            'route' => '/admin/settings/database-backup',
+            'icon' => 'fas fa-database',
+            'permission' => 'view-database-backup',
+            'order' => 3,
+            'type' => 'submenu',
+            'system_key' => 'admin.database_backup',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'File Storage',
+            'route' => '/admin/settings/file-storage',
+            'icon' => 'cloud',
+            'permission' => 'view-file-storage',
+            'order' => 8,
+            'type' => 'submenu',
+            'system_key' => 'admin.file_storage',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Email',
+            'route' => '/admin/settings/email',
+            'icon' => 'email',
+            'permission' => 'view-email-settings',
+            'order' => 11,
+            'type' => 'submenu',
+            'system_key' => 'admin.email',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Login',
+            'route' => '/admin/settings/login',
+            'icon' => 'lock',
+            'permission' => 'manager-users',
+            'order' => 9,
+            'type' => 'submenu',
+            'system_key' => 'admin.login',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Login Page',
+            'route' => '/admin/settings/login-page',
+            'icon' => 'view_quilt',
+            'permission' => 'view-login-page',
+            'order' => 10,
+            'type' => 'submenu',
+            'system_key' => 'admin.login_page',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Menu',
+            'route' => '/admin/settings/menu',
+            'icon' => 'fas fa-bars',
+            'permission' => 'view-menu',
+            'order' => 4,
+            'type' => 'submenu',
+            'system_key' => 'admin.menu',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Roles',
+            'route' => '/admin/settings/roles',
+            'icon' => 'fas fa-user-shield',
+            'permission' => 'view-roles',
+            'order' => 5,
+            'type' => 'submenu',
+            'system_key' => 'admin.roles',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Organization',
+            'route' => '/admin/settings/organization',
+            'icon' => 'fas fa-building',
+            'permission' => 'view-organization',
+            'order' => 6,
+            'type' => 'submenu',
+            'system_key' => 'admin.organization',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Users',
+            'route' => '/admin/settings/users',
+            'icon' => 'fa-solid fa-users',
+            'permission' => 'manager-users|reset-subordinate-passwords',
+            'order' => 7,
+            'type' => 'submenu',
+            'system_key' => 'admin.users',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Biometric Devices',
+            'route' => '/admin/settings/biometric-devices',
+            'icon' => 'fingerprint',
+            'permission' => 'view-biometric-devices',
+            'order' => 12,
+            'type' => 'submenu',
+            'system_key' => 'admin.biometric_devices',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'parent_id' => $adminSettings->id,
+            'title' => 'Application Logs',
+            'route' => '/admin/settings/application-logs',
+            'icon' => 'terminal',
+            'permission' => 'view-application-logs',
+            'order' => 13,
+            'type' => 'submenu',
+            'system_key' => 'admin.application_logs',
+            'module_code' => 'admin',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Scheduler',
+            'route' => '/payroll/scheduler',
+            'icon' => 'fas fa-calendar-week',
+            'permission' => 'view-calendars',
+            'order' => 4,
+            'type' => 'menu',
+            'system_key' => 'hr.scheduler',
+            'module_code' => 'payroll',
+        ]);
+
+        $this->ensureMenu([
+            'title' => 'Timesheet',
+            'route' => '/payroll/timesheet',
+            'icon' => 'fas fa-clock',
+            'permission' => 'view-timesheets',
+            'order' => 5,
+            'type' => 'menu',
+            'system_key' => 'hr.timesheet',
+            'module_code' => 'payroll',
+        ]);
+
+        $leaves = $this->ensureMenu([
+            'title' => 'Leaves',
+            'route' => '/payroll/leaves',
+            'icon' => 'fas fa-calendar-check',
+            'permission' => 'view-leave',
+            'order' => 6,
+            'type' => 'menu',
+            'system_key' => 'hr.leaves',
+            'module_code' => 'payroll',
+        ]);
+
+        $leaveSubmenus = [
+            ['Leave List', '/payroll/leaves/list', 'list_alt', 'view-leave', 1],
+            ['Assign Leave', '/payroll/leaves/assign', 'event_available', 'leave-crud', 2],
+            ['Request Leave', '/payroll/leaves/request', 'add_task', 'view-leave', 3],
+            ['My Leave Usage', '/payroll/leaves/my-usage', 'pie_chart', 'view-leave', 4],
+            ['Leave Calendar', '/payroll/leaves/calendar', 'calendar_month', 'view-leave', 5],
+            ['Leave Entitlement', '/payroll/leaves/entitlement', 'card_membership', 'view-leave', 6],
+            ['Leave Types', '/payroll/leaves/types', 'event_busy', 'view-leave-types', 7],
+        ];
+
+        foreach ($leaveSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $leaves->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'module_code' => 'payroll',
+            ]);
+        }
+
+        $general = $this->ensureMenu([
+            'parent_id' => $settings->id,
+            'title' => 'General',
+            'route' => '/payroll/settings',
+            'icon' => 'fas fa-sliders-h',
+            'permission' => 'view-general',
+            'order' => 1,
+            'type' => 'submenu',
+            'system_key' => 'payroll.settings.general',
+            'module_code' => 'payroll',
+        ]);
+
+        $settingsSubmenus = [
+            ['Accounts', '/payroll/settings/accounts', 'fas fa-wallet', 'view-accounts', 3],
+            ['Account Mapping', '/payroll/settings/account-mapping', 'fas fa-project-diagram', 'view-account-mappings', 4],
+            ['Social Security', '/payroll/settings/social-security', 'fa-solid fa-city', 'manager-social-security', 6],
+            ['Personal Relief', '/payroll/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7],
+            ['Payroll Settings', '/payroll/settings/payroll-settings', 'fa-solid fa-percent', 'manager-tax', 8],
+            ['GST Calculator', '/payroll/settings/tax-calculator-accounts', 'fa-solid fa-file-invoice-dollar', 'view-tax-calculator', 9],
+        ];
+
+        foreach ($settingsSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $settings->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'module_code' => 'payroll',
+            ]);
+        }
+
+        $generalSubmenus = [
+            ['Bank Account Type', '/payroll/settings/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7],
+            ['Payroll Earning Codes', '/payroll/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8],
+            ['Pool Distribution', '/payroll/settings/pool-distribution-types', 'fas fa-chart-pie', 'view-pool-distribution-types', 9],
+            ['Timesheet Templates', '/payroll/settings/timesheet-templates', 'fas fa-clock', 'view-timesheet-templates', 9],
+            ['Attendance', '/payroll/settings/attendance', 'schedule', 'view-attendance-settings', 14],
+            ['Employee Groups', '/payroll/settings/employee-groups', 'groups', 'view-employee-groups', 15],
+            ['Department Heads', '/payroll/settings/department-heads', 'supervisor_account', 'view-department-heads', 16],
+            ['Scheduler Metrics', '/payroll/settings/scheduler-metrics', 'analytics', 'view-scheduler-metrics', 17],
+        ];
+
+        foreach ($generalSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $general->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'module_code' => 'payroll',
+            ]);
+        }
+
+        $payroll = $this->ensureMenu([
+            'title' => 'Payroll',
+            'route' => '/payroll',
+            'icon' => 'fas fa-money-check-alt',
+            'permission' => 'view-payroll',
+            'order' => 7,
+            'type' => 'menu',
+            'system_key' => 'payroll.root',
+            'module_code' => 'payroll',
+        ]);
+
+        $payrollSubmenus = [
+            ['Overview', '/payroll/overview', 'fas fa-chart-pie', 'view-overview', 1],
+            ['Pay Period', '/payroll/pay-period', 'fas fa-calendar', 'view-pay-period-groups', 2],
+            ['Payroll Run', '/payroll/payroll-run', 'fas fa-money-check-alt', 'view-payroll', 3],
+            ['Other Payments', '/payroll/allowances', 'fas fa-hand-holding-usd', 'view-payroll-allowances', 4],
+            ['Day / trip work', '/payroll/day-work', 'fas fa-route', 'view-employee-day-work', 5],
+            ['Generate Payslip', '/payroll/generate-payslip', 'fas fa-file-invoice-dollar', 'view-payroll', 6],
+            ['Taxes & Filing', '/payroll/taxes-filing', 'fas fa-file-invoice', 'view-taxes', 7],
+        ];
+
+        foreach ($payrollSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $this->ensureMenu([
+                'parent_id' => $payroll->id,
+                'title' => $title,
+                'route' => $route,
+                'icon' => $icon,
+                'permission' => $permission,
+                'order' => $order,
+                'type' => 'submenu',
+                'module_code' => 'payroll',
+            ]);
+        }
+
+        $this->ensureMenu([
+            'title' => 'Reports',
+            'route' => '/payroll/reports',
+            'icon' => 'fas fa-chart-bar',
+            'permission' => 'view-reports',
+            'order' => 8,
+            'type' => 'menu',
+            'system_key' => 'payroll.reports',
+            'module_code' => 'payroll',
+        ]);
+    }
+
+    private function ensureMenu(array $attributes): Menu
+    {
+        $systemKey = $attributes['system_key'] ?? null;
+        $route = $attributes['route'] ?? null;
+
+        $existing = null;
+        if ($systemKey) {
+            $existing = Menu::query()->where('system_key', $systemKey)->first();
+        }
+        if (! $existing && $route) {
+            // Prefer matching the same parent so a child that shares a route with its
+            // parent (e.g. Settings + General both use /payroll/settings) cannot
+            // overwrite the parent row and end up parented to itself.
+            $query = Menu::query()->where('route', $route);
+            if (array_key_exists('parent_id', $attributes)) {
+                if ($attributes['parent_id'] === null) {
+                    $query->whereNull('parent_id');
+                } else {
+                    $query->where('parent_id', $attributes['parent_id']);
+                }
+            }
+            // Shared routes (scheduler on payroll and employee) must not steal
+            // an existing system menu that already has a different system_key.
+            if ($systemKey) {
+                $query->where(function ($legacy) {
+                    $legacy->whereNull('system_key')->orWhere('system_key', '');
+                });
+            }
+            $existing = $query->first();
+        }
+
+        if (! array_key_exists('module_code', $attributes) || blank($attributes['module_code'])) {
+            $attributes['module_code'] = $this->resolveModuleCode($attributes);
+        }
+
+        $payload = array_merge([
+            'source' => 'system',
+            'is_active' => true,
+        ], $attributes);
+
+        if ($existing) {
+            $fill = [];
+            if (blank($existing->system_key) && filled($systemKey)) {
+                $fill['system_key'] = $systemKey;
+            }
+            if (blank($existing->module_code) && filled($payload['module_code'] ?? null)) {
+                $fill['module_code'] = $payload['module_code'];
+            }
+            if ($fill !== []) {
+                $existing->update($fill);
+            }
+
+            return $existing->fresh() ?? $existing;
+        }
+
+        return Menu::create($payload);
+    }
+
+    private function resolveModuleCode(array $attributes): string
+    {
+        $systemKey = $attributes['system_key'] ?? null;
+        if ($systemKey && isset(self::ROOT_MODULE_BY_SYSTEM_KEY[$systemKey])) {
+            return self::ROOT_MODULE_BY_SYSTEM_KEY[$systemKey];
+        }
+
+        $parentId = $attributes['parent_id'] ?? null;
+        if ($parentId) {
+            $parentModule = Menu::query()->where('id', $parentId)->value('module_code');
+            if ($parentModule) {
+                return $parentModule;
+            }
+        }
+
+        return config('modules.default_module', 'payroll');
+    }
+
+    private function createPermissions(): void
+    {
+        $permissions = [
+            'view-dashboard',
+            'view-employees',
+            'view-accounts',
+            'view-account-mappings',
+            'account-mapping-crud',
+            'view-database-backup',
+            'database-backup-crud',
+            'view-file-storage',
+            'file-storage-crud',
+            'view-biometric-devices',
+            'biometric-devices-crud',
+            'view-application-logs',
+            'application-logs-crud',
+            'view-email-settings',
+            'email-settings-crud',
+            'view-login-page',
+            'login-page-crud',
+            'view-vacancies',
+            'vacancies-crud',
+            'score-vacancies',
+            'form-templates-crud',
+            'view-appraisals',
+            'appraisals-crud',
+            'view-settings',
+            'view-reports',
+            'list-reports',
+            'list-settings',
+            'view-payroll',
+            'view-timesheets',
+            'view-organization',
+            'view-general',
+            'view-calendars',
+            'view-holidays',
+            'view-hr-settings',
+            'view-roles-menus',
+            'view-roles',
+            'view-menu',
+            'view-pay-items',
+            'view-leave',
+            'view-leave-types',
+            'employee-leave-crud',
+            'manager-users',
+            'reset-subordinate-passwords',
+            'manager-tax',
+            'manager-social-security',
+            'view-country',
+            'view-district',
+            'view-locality',
+            'view-institution',
+            'view-relationship',
+            'view-bank-account-type',
+            'view-payroll-earning-codes',
+            'view-pool-distribution-types',
+            'pool-distribution-type-crud',
+            'view-timesheet-templates',
+            'view-degree',
+            'view-job-title',
+            'view-department',
+            'view-worksite',
+            'view-pay-period-groups',
+            'country-crud',
+            'district-crud',
+            'locality-crud',
+            'institution-crud',
+            'honorific-crud',
+            'relationship-crud',
+            'bank-account-type-crud',
+            'payroll-earning-code-crud',
+            'calendar-crud',
+            'degree-crud',
+            'job-title-crud',
+            'department-crud',
+            'gender-crud',
+            'worksite-crud',
+            'public-holiday-crud',
+            'view-attendance-settings',
+            'attendance-settings-crud',
+            'view-department-heads',
+            'department-head-crud',
+            'view-employee-groups',
+            'employee-groups-crud',
+            'view-scheduler-metrics',
+            'scheduler-metrics-crud',
+            'scheduler-daily-metrics-crud',
+            'view-pipeline-templates',
+            'pipeline-templates-crud',
+            'view-overview',
+            'employees-crud',
+            'leave-crud',
+            'timesheets-crud',
+            'view-clocking-logs',
+            'import-clocking-logs',
+            'pay-employees-crud',
+            'view-payroll-allowances',
+            'payroll-allowances-crud',
+            'view-employee-day-work',
+            'employee-day-work-crud',
+            'view-taxes',
+            'view-tax-calculator',
+            'tax-calculator-crud',
+            'roles-crud',
+            'menu-crud',
+            'permissions-crud',
+            'manage-modules',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $role = Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
+        ]);
+        $role->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    }
+}

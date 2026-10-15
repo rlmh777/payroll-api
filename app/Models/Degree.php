@@ -3,19 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Degree extends Model
 {
     protected $table = 'degree';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name'
     ];
 
-    public function qualifications(): HasMany {
-        return $this->hasMany(Qualification::class);
+    public function qualifications(): HasMany
+    {
+        return $this->hasMany(Qualification::class, 'degreeId');
     }
 }
 

@@ -10,7 +10,7 @@ class EmployeeHoursWorked extends Model
     use HasUuids;
 
     protected $table = 'employee_hours_worked';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

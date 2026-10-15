@@ -11,7 +11,7 @@ class LogActivity extends Model
     use HasUuids;
 
     protected $table = 'log_activity';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 

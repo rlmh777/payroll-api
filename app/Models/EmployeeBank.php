@@ -3,19 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use ParagonIE\CipherSweet\BlindIndex;
-use Spatie\LaravelCipherSweet\Contracts\CipherSweetEncrypted;
-use ParagonIE\CipherSweet\EncryptedRow;
-use Spatie\LaravelCipherSweet\Concerns\UsesCipherSweet;
 
 class EmployeeBank extends Model
 {
     use HasUuids;
 
     protected $table = 'employee_bank';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -23,26 +19,67 @@ class EmployeeBank extends Model
         'employeeId',
         'bankId',
         'accountNumber',
-        'notes'
+        'isPrimary',
+        'notes',
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
-    }
+    protected $casts = [
+        'isPrimary' => 'boolean',
+    ];
 
-    public function bank(): BelongsTo {
-        return $this->belongsTo(Bank::class);
-    }
-
-    public static function configureCipherSweet(EncryptedRow $encryptedRow): void
+    protected static function booted(): void
     {
-        $encryptedRow
-            // add the columns you want to encrypt the values ​​for
-            ->addField('accountNumber')
+        static::saved(function (EmployeeBank $employeeBank) {
+            if ($employeeBank->isPrimary) {
+                static::query()
+                    ->where('employeeId', $employeeBank->employeeId)
+                    ->where('id', '!=', $employeeBank->id)
+                    ->update(['isPrimary' => false]);
+            }
+        });
 
-            // add a blind index for each column you want to search
-            ->addBlindIndex('accountNumber', new BlindIndex('accountNumberIndex'));
+        static::deleted(function (EmployeeBank $employeeBank) {
+            if (!$employeeBank->isPrimary) {
+                return;
+            }
 
+            $nextPrimary = static::query()
+                ->where('employeeId', $employeeBank->employeeId)
+                ->orderBy('created_at')
+                ->first();
+
+            if ($nextPrimary) {
+                $nextPrimary->update(['isPrimary' => true]);
+            }
+        });
     }
 
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
+    }
+
+    public function bank(): BelongsTo
+    {
+        return $this->belongsTo(Bank::class, 'bankId');
+    }
+
+    public static function resolvePrimaryForEmployee(string $employeeId): ?self
+    {
+        $primary = static::query()
+            ->with('bank')
+            ->where('employeeId', $employeeId)
+            ->where('isPrimary', true)
+            ->first();
+
+        if ($primary) {
+            return $primary;
+        }
+
+        return static::query()
+            ->with('bank')
+            ->where('employeeId', $employeeId)
+            ->orderBy('created_at')
+            ->first();
+    }
 }

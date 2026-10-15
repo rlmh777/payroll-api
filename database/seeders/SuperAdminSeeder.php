@@ -1,0 +1,177 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\User;
+use App\Models\UserRole;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+class SuperAdminSeeder extends Seeder
+{
+    /**
+     * Ensure support@dotdev.bz has the admin role with every permission (menus + API).
+     */
+    public function run(): void
+    {
+        $adminUser = User::query()->firstOrCreate(
+            ['email' => 'support@dotdev.bz'],
+            [
+                'name' => 'EZ Tech Support',
+                'username' => 'support',
+                'password' => Hash::make('Password123!'),
+            ]
+        );
+
+        $this->ensureCorePermissionsExist();
+
+        $adminRole = Role::firstOrCreate(
+            ['name' => 'admin', 'guard_name' => 'web']
+        );
+
+        $adminRole->syncPermissions(Permission::query()->where('guard_name', 'web')->get());
+
+        if (! $adminUser->hasRole($adminRole)) {
+            $adminUser->assignRole($adminRole);
+        }
+
+        $adminUser->givePermissionTo(Permission::query()->where('guard_name', 'web')->get());
+
+        UserRole::firstOrCreate(
+            [
+                'user_id' => $adminUser->id,
+                'role_id' => $adminRole->id,
+            ],
+            [
+                'id' => (string) Str::uuid(),
+            ]
+        );
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    }
+
+    private function ensureCorePermissionsExist(): void
+    {
+        $permissions = [
+            'view-dashboard',
+            'view-employees',
+            'employees-crud',
+            'view-leave',
+            'view-leave-types',
+            'leave-crud',
+            'employee-leave-crud',
+            'view-accounts',
+            'view-account-mappings',
+            'account-mapping-crud',
+            'view-database-backup',
+            'database-backup-crud',
+            'view-file-storage',
+            'file-storage-crud',
+            'view-biometric-devices',
+            'biometric-devices-crud',
+            'view-application-logs',
+            'application-logs-crud',
+            'view-email-settings',
+            'email-settings-crud',
+            'view-login-page',
+            'login-page-crud',
+            'view-vacancies',
+            'vacancies-crud',
+            'score-vacancies',
+            'form-templates-crud',
+            'view-appraisals',
+            'appraisals-crud',
+            'view-settings',
+            'view-reports',
+            'list-reports',
+            'list-settings',
+            'view-payroll',
+            'view-payroll-allowances',
+            'payroll-allowances-crud',
+            'view-employee-day-work',
+            'employee-day-work-crud',
+            'view-timesheets',
+            'timesheets-crud',
+            'view-organization',
+            'view-general',
+            'view-calendars',
+            'view-holidays',
+            'view-hr-settings',
+            'view-roles-menus',
+            'view-roles',
+            'view-menu',
+            'view-pay-items',
+            'manager-users',
+            'manager-tax',
+            'manager-social-security',
+            'view-country',
+            'view-district',
+            'view-locality',
+            'view-institution',
+            'view-relationship',
+            'view-bank-account-type',
+            'view-payroll-earning-codes',
+            'view-pool-distribution-types',
+            'pool-distribution-type-crud',
+            'view-timesheet-templates',
+            'view-degree',
+            'view-job-title',
+            'view-department',
+            'view-worksite',
+            'view-pay-period-groups',
+            'view-overview',
+            'view-taxes',
+            'view-tax-calculator',
+            'tax-calculator-crud',
+            'view-clocking-logs',
+            'import-clocking-logs',
+            'view-attendance-settings',
+            'view-department-heads',
+            'country-crud',
+            'district-crud',
+            'locality-crud',
+            'institution-crud',
+            'honorific-crud',
+            'relationship-crud',
+            'bank-account-type-crud',
+            'payroll-earning-code-crud',
+            'pool-distribution-type-crud',
+            'calendar-crud',
+            'degree-crud',
+            'job-title-crud',
+            'department-crud',
+            'gender-crud',
+            'worksite-crud',
+            'public-holiday-crud',
+            'attendance-settings-crud',
+            'department-head-crud',
+            'view-employee-groups',
+            'employee-groups-crud',
+            'view-pipeline-templates',
+            'pipeline-templates-crud',
+            'pay-employees-crud',
+            'roles-crud',
+            'menu-crud',
+            'permissions-crud',
+            'manage-modules',
+        ];
+
+        // Also ensure every permission referenced by menus exists.
+        $menuPermissions = \App\Models\Menu::query()
+            ->whereNotNull('permission')
+            ->pluck('permission')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        foreach (array_unique([...$permissions, ...$menuPermissions]) as $permission) {
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'web']
+            );
+        }
+    }
+}

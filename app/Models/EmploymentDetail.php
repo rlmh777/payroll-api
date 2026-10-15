@@ -4,14 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmploymentDetail extends Model
 {
     use HasUuids;
 
     protected $table = 'employment_detail';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
     protected $keyType = 'string';
     public $incrementing = false;
 
@@ -20,51 +20,62 @@ class EmploymentDetail extends Model
         'startDate',
         'endDate',
         'isActive',
-        'payscalePoint',
-        'hourlyRate',
-        'totalRate',
-        'payrateFrequencyId',
+        'jobTitleId',
+        'requiresClocking',
         'benefits',
-        'chartOfAccountId',
+        'accountId',
         'contractTypeId',
         'employmentPolicies',
         'contractAgreementPath',
-        'employmentStatusId',
         'departmentId',
-        'worksiteId'
+        'worksiteId',
+        'defaultPayPeriodGroupId',
     ];
 
-    public function employee(): BelongsTo {
-        return $this->belongsTo(Employee::class);
-    }
-    
-    public function payrateFrequency(): BelongsTo {
-        return $this->belongsTo(PayrateFrequency::class);
+    protected $casts = [
+        'startDate' => 'date:Y-m-d',
+        'endDate' => 'date:Y-m-d',
+        'isActive' => 'boolean',
+        'requiresClocking' => 'boolean',
+    ];
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employeeId');
     }
 
-    public function chartOfAccount(): BelongsTo {
-        return $this->belongsTo(ChartOfAccount::class);
+    public function chartOfAccount(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'accountId');
     }
 
-    public function contractType(): BelongsTo {
-        return $this->belongsTo(ContractType::class);
+    public function contractType(): BelongsTo
+    {
+        return $this->belongsTo(ContractType::class, 'contractTypeId');
     }
 
-    public function employmentStatus(): BelongsTo {
-        return $this->belongsTo(EmploymentStatus::class);
+    public function jobTitle(): BelongsTo
+    {
+        return $this->belongsTo(JobTitle::class, 'jobTitleId');
     }
 
-    public function department(): BelongsTo {
-        return $this->belongsTo(Department::class);
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'departmentId');
     }
 
-    public function worksite(): BelongsTo {
-        return $this->belongsTo(Worksite::class);
+    public function worksite(): BelongsTo
+    {
+        return $this->belongsTo(Worksite::class, 'worksiteId');
     }
 
-    public function employeeStatus(): BelongsTo {
-        return $this->belongsTo(EmployeeStatus::class);
+    public function defaultPayPeriodGroup(): BelongsTo
+    {
+        return $this->belongsTo(PayPeriodGroup::class, 'defaultPayPeriodGroupId');
     }
 
-    
+    public function leaveEntitlements(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(EmploymentLeaveEntitlement::class, 'employmentDetailId');
+    }
 }

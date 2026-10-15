@@ -3,31 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\BelongsTo;
-use Illuminate\Database\Eloquent\Relation\HasMany;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Worksite extends Model
 {
-    use HasUuids;
-
     protected $table = 'worksite';
-    protected $primarykey = 'id';
-    protected $keyType = 'string';
-    public $incrementing = false;
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name',
         'address1',
         'address2',
-        'localityId'
+        'localityId',
     ];
 
-    public function locality(): BelongsTo {
-        return $this->belongsTo(Locality::class);
+    public function locality(): BelongsTo
+    {
+        return $this->belongsTo(Locality::class, 'localityId');
     }
 
-    public function employmentDetails(): HasMany {
-        return $this->hasMany(EmploymentDetail::class);
+    public function employmentDetails(): HasMany
+    {
+        return $this->hasMany(EmploymentDetail::class, 'worksiteId');
     }
 }

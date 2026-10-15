@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('default_employee_allowance', function (Blueprint $table) {
+        Schema::create('employee_default_allowance', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('employeeId')->constrained('employee')->onDelete('cascade');
             $table->foreignUuid('allowanceId')->constrained('allowance')->onDelete('cascade');
             $table->foreignId('frequencyId')->constrained('payrate_frequency')->onDelete('cascade');
-            $table->foreignUuid('chartOfAccountId')->constrained('chart_of_account')->onDelete('cascade');
-            $table->string('note',1024);
+            $table->foreignUuid('accountId')->constrained('accounts')->onDelete('cascade');
+            $table->string('note',1024)->nullable();
             $table->decimal('amount', total: 12, places: 2);
             $table->timestamps();
         });
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('default_employee_allowance');
+        Schema::dropIfExists('employee_default_allowance');
     }
 };

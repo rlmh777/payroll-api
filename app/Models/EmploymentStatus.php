@@ -3,18 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relation\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmploymentStatus extends Model
 {
     protected $table = 'employment_status';
-    protected $primarykey = 'id';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name'
     ];
 
-    public function employmentDetails(): HasMany {
-        return $this->hasMany(EmploymentDetail::class);
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'employmentStatusId');
     }
 }

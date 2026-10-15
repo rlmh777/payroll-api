@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Menu;
+use App\Models\User;
+use Illuminate\Support\Collection;
+
+class MenuAuthorizationService
+{
+    public function menusForUser(User $user, ?Collection $enabledModuleCodes = null): Collection
+    {
+        $permissionNames = $user->getAllPermissions()->pluck('name');
+
+        return Menu::query()
+            ->active()
+            ->when($enabledModuleCodes !== null, function ($query) use ($enabledModuleCodes) {
+                $query->where(function ($moduleQuery) use ($enabledModuleCodes) {
+                    $moduleQuery->whereNull('module_code')
+                        ->orWhereIn('module_code', $enabledModuleCodes);
+                });
+            })
+            ->orderBy('order')
+            ->get()
+            ->filter(function (Menu $menu) use ($permissionNames) {
+                return $this->userHasMenuPermission($permissionNames, $menu->permission);
+            })
+            ->values();
+    }
+
+    /**
+     * Menu permission may be a single name or an OR-list separated by "|".
+     */
+    private function userHasMenuPermission(Collection $permissionNames, ?string $permission): bool
+    {
+        if ($permission === null || trim($permission) === '') {
+            return true;
+        }
+
+        $required = preg_split('/\s*\|\s*/', $permission) ?: [];
+
+        foreach ($required as $name) {
+            if ($name !== '' && $permissionNames->contains($name)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function menuTreeForUser(User $user, ?Collection $enabledModuleCodes = null): array
+    {
+        $menus = $this->menusForUser($user, $enabledModuleCodes);
+        $allowedIds = $menus->pluck('id');
+
+        $byId = $menus->keyBy('id');
+
+        foreach ($menus as $menu) {
+            if ($menu->parent_id && $allowedIds->contains($menu->parent_id)) {
+                continue;
+            }
+
+            if ($menu->parent_id && ! $allowedIds->contains($menu->parent_id)) {
+                $parent = Menu::query()->find($menu->parent_id);
+                if ($parent && $parent->is_active) {
+                    $byId->put($parent->id, $parent);
+                }
+            }
+        }
+
+        $items = $byId->values()->sortBy('order')->values();
+
+        return $this->buildTree($items);
+    }
+
+    private function buildTree(Collection $menus): array
+    {
+        $map = $menus->mapWithKeys(function (Menu $menu) {
+            return [
+                $menu->id => [
+                    'id' => $menu->id,
+                    'parent_id' => $menu->parent_id,
+                    'title' => $menu->title,
+                    'route' => $menu->route,
+                    'icon' => $menu->icon,
+                    'permission' => $menu->permission,
+                    'order' => $menu->order,
+                    'is_active' => $menu->is_active,
+                    'type' => $menu->type,
+                    'module_code' => $menu->module_code,
+                    'source' => $menu->source,
+                    'system_key' => $menu->system_key,
+                    'children' => [],
+                ],
+            ];
+        })->all();
+
+        $tree = [];
+
+        foreach ($map as $id => $item) {
+            if ($item['parent_id'] && isset($map[$item['parent_id']])) {
+                $map[$item['parent_id']]['children'][] = &$map[$id];
+            } else {
+                $tree[] = &$map[$id];
+            }
+        }
+
+        $this->sortTree($tree);
+
+        return $tree;
+    }
+
+    private function sortTree(array &$nodes): void
+    {
+        usort($nodes, fn ($a, $b) => $a['order'] <=> $b['order']);
+
+        foreach ($nodes as &$node) {
+            if (! empty($node['children'])) {
+                $this->sortTree($node['children']);
+            }
+        }
+    }
+}
