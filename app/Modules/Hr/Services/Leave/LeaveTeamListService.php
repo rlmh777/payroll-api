@@ -18,6 +18,7 @@ class LeaveTeamListService
     public function __construct(
         private readonly LeaveSupervisorAuthorizationService $authorization,
         private readonly LeaveEntitlementService $entitlementService,
+        private readonly LeaveWorkflowService $workflow,
     ) {
     }
 
@@ -199,7 +200,6 @@ class LeaveTeamListService
     {
         $employee = $leave->employee;
         $person = $employee?->person;
-        $statusCode = $leave->leaveStatus?->code;
         $activeEmployment = $employee?->employmentDetails
             ?->first(fn ($detail) => (bool) $detail->isActive)
             ?? $employee?->employmentDetails?->first();
@@ -241,7 +241,9 @@ class LeaveTeamListService
             }
         }
 
-        $canManage = $this->authorization->canManageLeave($user, $leave);
+        $stepActions = $this->workflow->actionsAvailableTo($user, $leave);
+        $leave->load('leaveStatus');
+        $statusCode = $leave->leaveStatus?->code;
         $pending = in_array($statusCode, array_map(
             fn (LeaveStatusCode $code) => $code->value,
             LeaveStatusCode::pendingActionStatuses(),
@@ -287,9 +289,10 @@ class LeaveTeamListService
                 'fileSize' => $attachment->fileSize,
                 'fileUrl' => $attachment->fileUrl,
             ])->values()->all() ?? [],
-            'canApprove' => $canManage && $pending,
-            'canReject' => $canManage && $pending,
-            'canCancel' => $this->authorization->canCancelLeave($user, $leave) && $cancellable,
+            'canApprove' => $pending && in_array('approve', $stepActions, true),
+            'canReject' => $pending && in_array('reject', $stepActions, true),
+            'canCancel' => ($cancellable && in_array('cancel', $stepActions, true))
+                || ($this->authorization->canCancelLeave($user, $leave) && $cancellable),
             'requiresPaymentConfirmation' => $requiresPaymentConfirmation,
             'duration' => $leave->duration,
             'approvalDate' => $leave->approvalDate?->format('Y-m-d'),

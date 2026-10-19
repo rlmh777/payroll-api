@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Hr\Models\Employee;
 use App\Modules\Hr\Models\HrTemplate;
 use App\Modules\Hr\Models\Vacancy;
 use App\Modules\Hr\Models\VacancyPanelMember;
@@ -29,16 +30,44 @@ class PanelInviteService
     /**
      * @return array{member: VacancyPanelMember, code: string}
      */
-    public function invite(Vacancy $vacancy, string $name, string $email, bool $sendEmail = true): array
-    {
+    public function invite(
+        Vacancy $vacancy,
+        string $name,
+        string $email,
+        bool $sendEmail = true,
+        string $memberType = VacancyPanelMember::TYPE_EXTERNAL,
+        ?string $employeeId = null,
+    ): array {
+        $memberType = $memberType === VacancyPanelMember::TYPE_INTERNAL
+            ? VacancyPanelMember::TYPE_INTERNAL
+            : VacancyPanelMember::TYPE_EXTERNAL;
+
+        if ($memberType === VacancyPanelMember::TYPE_INTERNAL) {
+            $employee = Employee::query()->find($employeeId);
+            if (! $employee) {
+                abort(response()->json(['message' => 'Choose an employee for an internal panel member.'], 422));
+            }
+            $email = mb_strtolower(trim((string) $employee->email));
+            $name = trim((string) $employee->firstName.' '.(string) $employee->lastName);
+            if ($email === '') {
+                abort(response()->json(['message' => 'That employee has no email address.'], 422));
+            }
+            $employeeId = (string) $employee->id;
+        }
+
         $email = mb_strtolower(trim($email));
         $name = trim($name) !== '' ? trim($name) : Str::before($email, '@');
+        if ($email === '') {
+            abort(response()->json(['message' => 'An email address is required.'], 422));
+        }
 
         $member = VacancyPanelMember::query()->firstOrNew([
             'vacancy_id' => $vacancy->id,
             'email' => $email,
         ]);
         $member->name = $name;
+        $member->member_type = $memberType;
+        $member->employee_id = $employeeId;
         $member->status = VacancyPanelMember::STATUS_INVITED;
         $member->user_id = $member->user_id ?: User::query()
             ->whereRaw('LOWER(email) = ?', [$email])
@@ -74,7 +103,48 @@ class PanelInviteService
             'status' => VacancyPanelMember::STATUS_REVOKED,
             'invite_code_hash' => null,
             'invite_code_expires_at' => null,
+            'access_token' => null,
         ]);
+    }
+
+    public function findByToken(string $token): ?VacancyPanelMember
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        return VacancyPanelMember::query()
+            ->where('access_token', $token)
+            ->first();
+    }
+
+    public function linkIsOpen(VacancyPanelMember $member): bool
+    {
+        return $member->isUsable()
+            && filled($member->access_token)
+            && filled($member->invite_code_hash)
+            && ! $member->codeIsExpired();
+    }
+
+    public function codeMatches(VacancyPanelMember $member, string $code): bool
+    {
+        $code = strtoupper(preg_replace('/\s+/', '', $code) ?? '');
+        if ($code === '' || ! $member->invite_code_hash || $member->codeIsExpired()) {
+            return false;
+        }
+
+        return Hash::check($code, $member->invite_code_hash);
+    }
+
+    public function activate(VacancyPanelMember $member): User
+    {
+        $user = $this->ensureUser($member);
+        $member->status = VacancyPanelMember::STATUS_ACTIVE;
+        $member->last_login_at = now();
+        $member->save();
+
+        return $user->fresh() ?? $user;
     }
 
     public function authenticate(string $email, string $code): ?User
@@ -167,6 +237,7 @@ class PanelInviteService
         $code = strtoupper(Str::password(8, letters: true, numbers: true, symbols: false, spaces: false));
         $member->invite_code_hash = Hash::make($code);
         $member->invite_code_expires_at = now()->addDays(30);
+        $member->access_token = Str::random(64);
         $member->invited_at = now();
 
         return $code;
@@ -213,16 +284,17 @@ class PanelInviteService
     public function tokens(Vacancy $vacancy, VacancyPanelMember $member, string $code): array
     {
         $company = Company::query()->first();
-        $frontend = (string) config('app.frontend_url', 'http://localhost:9000');
-        $loginUrl = $frontend.'/login?invite=1&email='.rawurlencode($member->email);
+        $frontend = rtrim((string) config('app.frontend_url', 'http://localhost:9000'), '/');
+        $scoreUrl = $frontend.'/#/panel/access/'.rawurlencode((string) $member->access_token);
 
         return [
             '{{recipient_name}}' => $member->name,
             '{{vacancy_title}}' => (string) $vacancy->title,
             '{{invite_code}}' => $code,
-            '{{login_url}}' => $loginUrl,
+            '{{score_url}}' => $scoreUrl,
+            '{{login_url}}' => $scoreUrl,
             '{{company_name}}' => (string) ($company?->legalName ?: $company?->alias ?: config('app.name')),
-            '{{panel_instructions}}' => 'After signing in, open Interview panel to review candidates and record scores.',
+            '{{panel_instructions}}' => 'Score each shortlisted candidate and recommend the best person for the position. A submitted score sheet cannot be opened again. HR makes the final hiring decision.',
             '{{current_date}}' => now()->toFormattedDateString(),
         ];
     }

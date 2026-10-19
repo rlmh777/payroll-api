@@ -105,6 +105,18 @@ class AppraisalAssigneeResolver
         return $this->canAct($actor, $appraisal, $instance);
     }
 
+    public function isSupervisorStep(?PipelineTemplateStep $step): bool
+    {
+        if (! $step || $this->isHrStep($step) || $this->isAccountsStep($step)) {
+            return false;
+        }
+
+        $key = strtolower((string) $step->key);
+
+        return $key === 'supervisor'
+            || $step->assignee_type === PipelineAssigneeType::Supervisor->value;
+    }
+
     public function isHrStep(?PipelineTemplateStep $step): bool
     {
         if (! $step) {

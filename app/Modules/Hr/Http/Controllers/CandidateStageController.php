@@ -35,6 +35,7 @@ class CandidateStageController extends Controller
                 'is_default' => (bool) ($validated['is_default'] ?? false),
                 'is_hired' => (bool) ($validated['is_hired'] ?? false),
                 'is_rejected' => (bool) ($validated['is_rejected'] ?? false),
+                'is_shortlist' => (bool) ($validated['is_shortlist'] ?? false),
             ]);
 
             $this->syncFlags($stage);

@@ -7,7 +7,10 @@ use App\Models\DepartmentHeadAssignment;
 use App\Models\Employee;
 use App\Models\EmployeeLeave;
 use App\Models\EmployeeReporting;
+use App\Models\PipelineAction;
+use App\Models\PipelineInstance;
 use App\Models\User;
+use App\Modules\Workflow\Services\PipelineEngine;
 use App\Support\Access;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -217,7 +220,47 @@ class LeaveSupervisorAuthorizationService
         }
 
         return $this->isOwnEmployee($user, $employeeId)
-            || $this->isDirectSupervisorOf($user, $employeeId);
+            || $this->isDirectSupervisorOf($user, $employeeId)
+            || $this->employeeIsInHeadedDepartment($user, $employeeId);
+    }
+
+    /**
+     * Assigned leave skips approval. Leave admins may assign anyone.
+     * Supervisors may assign direct reports, and department heads may assign
+     * employees in a department they currently head.
+     */
+    public function canAssignLeaveTo(?User $user, string $employeeId): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->isLeaveAdmin($user)) {
+            return true;
+        }
+
+        if ($this->isOwnEmployee($user, $employeeId) || ! Access::canWriteEmployeeLeave($user)) {
+            return false;
+        }
+
+        return $this->isDirectSupervisorOf($user, $employeeId)
+            || $this->employeeIsInHeadedDepartment($user, $employeeId);
+    }
+
+    public function employeeIsInHeadedDepartment(?User $user, string $employeeId): bool
+    {
+        $departmentIds = $this->headedDepartmentIds($user);
+        if ($departmentIds->isEmpty()) {
+            return false;
+        }
+
+        return Employee::query()
+            ->whereKey($employeeId)
+            ->whereHas('employmentDetails', function ($query) use ($departmentIds) {
+                $query->where('isActive', true)
+                    ->whereIn('departmentId', $departmentIds->all());
+            })
+            ->exists();
     }
 
     public function isUnapprovedLeave(EmployeeLeave $leave): bool
@@ -282,7 +325,27 @@ class LeaveSupervisorAuthorizationService
     {
         $leave->loadMissing('employee');
 
-        return filled($leave->employee?->supervisorId);
+        return $this->employeeRecordHasSupervisor($leave->employee);
+    }
+
+    /**
+     * A supervisor is assigned when employee.supervisorId is set or an active
+     * employee_reporting row exists. Either one owns the supervisor pipeline step.
+     */
+    public function employeeRecordHasSupervisor(?Employee $employee): bool
+    {
+        if (! $employee) {
+            return false;
+        }
+
+        if (filled($employee->supervisorId)) {
+            return true;
+        }
+
+        return EmployeeReporting::query()
+            ->where('subordinate_id', $employee->id)
+            ->where('is_active', true)
+            ->exists();
     }
 
     /**
@@ -399,6 +462,10 @@ class LeaveSupervisorAuthorizationService
         $leave->loadMissing(['leaveStatus', 'employee']);
         $status = $leave->leaveStatus?->codeEnum();
 
+        if ($this->unactedSupervisorGate($leave)) {
+            return $this->canActAsSupervisor($user, $leave);
+        }
+
         if ($status === LeaveStatusCode::PendingSupervisorApproval) {
             return $this->canActAsSupervisor($user, $leave);
         }
@@ -420,5 +487,37 @@ class LeaveSupervisorAuthorizationService
             || $this->canActAsDepartmentHead($user, $leave)
             || $this->canActAsHr($user, $leave)
             || $this->canActAsAccounts($user, $leave);
+    }
+
+    /**
+     * Submitted leave whose supervisor step was skipped because supervisorId
+     * was empty, even though an active reporting supervisor exists.
+     */
+    private function unactedSupervisorGate(EmployeeLeave $leave): bool
+    {
+        $status = $leave->leaveStatus?->codeEnum();
+        if (! in_array($status, [
+            LeaveStatusCode::PendingHrApproval,
+            LeaveStatusCode::PendingApproval,
+        ], true)) {
+            return false;
+        }
+
+        if (! $this->employeeRecordHasSupervisor($leave->employee)) {
+            return false;
+        }
+
+        $instanceIds = PipelineInstance::query()
+            ->where('subject_type', PipelineEngine::SUBJECT_LEAVE)
+            ->where('subject_id', (string) $leave->id)
+            ->pluck('id');
+
+        if ($instanceIds->isEmpty()) {
+            return true;
+        }
+
+        return ! PipelineAction::query()
+            ->whereIn('pipeline_instance_id', $instanceIds)
+            ->exists();
     }
 }

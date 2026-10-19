@@ -69,14 +69,10 @@ class ProfileChangeAssigneeResolver
 
         $step = $instance?->currentStep;
         if (! $step) {
-            return Access::canActAsHrForProfileChange($actor);
+            return Access::canConfirmHrProfileChange($actor);
         }
 
-        if ($this->isHrStep($step) && Access::canActAsHrForProfileChange($actor)) {
-            return true;
-        }
-
-        if (Access::canViewEmployeeDirectory($actor)) {
+        if ($this->isHrStep($step) && Access::canConfirmHrProfileChange($actor)) {
             return true;
         }
 
@@ -99,7 +95,7 @@ class ProfileChangeAssigneeResolver
             return true;
         }
 
-        return Access::canActAsHrForProfileChange($actor);
+        return Access::canConfirmHrProfileChange($actor);
     }
 
     public function isHrStep(?PipelineTemplateStep $step): bool
@@ -239,11 +235,10 @@ class ProfileChangeAssigneeResolver
      */
     private function hrUsers(): Collection
     {
-        return $this->usersWithPermissions([
-            'employees-crud',
-            'view-employees',
-            'view-hr-settings',
-        ]);
+        return $this->usersWithPermissions(['employees-crud', 'view-hr-settings'])
+            ->merge($this->usersWithRoles(['admin', 'hr']))
+            ->unique('id')
+            ->values();
     }
 
     /**

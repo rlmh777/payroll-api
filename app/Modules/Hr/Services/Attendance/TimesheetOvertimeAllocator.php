@@ -505,7 +505,11 @@ class TimesheetOvertimeAllocator
 
     private function persistHolidayHours(Timesheet $timesheet, float $hoursWorked, float $payMultiplier): void
     {
-        $holidayHours = round($hoursWorked * max(0, $payMultiplier), 2);
+        $holidayHours = HolidayTimesheetClassifier::storedHolidayHours(
+            $hoursWorked,
+            $payMultiplier,
+            $timesheet->payType,
+        );
 
         $timesheet->hoursWorked = $hoursWorked;
 
@@ -541,7 +545,11 @@ class TimesheetOvertimeAllocator
         $payableHours = round(max(0.0, $payableHours), 2);
         $unpaidHours = round(max(0.0, $unpaidHours), 2);
         $holidayHours = $holidayPayMultiplier !== null
-            ? round($payableHours * max(0, $holidayPayMultiplier), 2)
+            ? HolidayTimesheetClassifier::storedHolidayHours(
+                $payableHours,
+                $holidayPayMultiplier,
+                $timesheet->payType,
+            )
             : 0.0;
         $regularHours = $holidayPayMultiplier !== null ? 0.0 : $payableHours;
         $paidHours = round($regularHours + $holidayHours, 2);

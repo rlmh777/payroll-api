@@ -23,6 +23,11 @@ Schedule::command('hr:send-contract-expiry-reminders')
     ->withoutOverlapping()
     ->onOneServer();
 
+Schedule::command('hr:start-due-appraisals')
+    ->dailyAt('07:30')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 Schedule::command('hr:send-appraisal-reminders')
     ->dailyAt('08:00')
     ->withoutOverlapping()

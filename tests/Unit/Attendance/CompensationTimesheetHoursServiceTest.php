@@ -114,6 +114,45 @@ class CompensationTimesheetHoursServiceTest extends TestCase
         $this->assertSame(10.0, $result['paidHours']);
     }
 
+    public function test_base_salary_holiday_uses_daily_hours_not_double_time(): void
+    {
+        $result = $this->service->buildNoPunchDay(
+            CompensationMethod::BaseNoOt,
+            true,
+            8.0,
+            2.0,
+            false,
+        );
+
+        $this->assertSame(8.0, $result['hoursWorked']);
+        $this->assertSame(8.0, $result['holidayHours']);
+        $this->assertSame(0.0, $result['regularHours']);
+        $this->assertSame('HOLIDAY', $result['workingStatus']);
+    }
+
+    public function test_hourly_holiday_stores_multiplied_hours(): void
+    {
+        $slot = [
+            'clockInTime' => '2024-01-01 08:00:00',
+            'clockOutTime' => '2024-01-01 16:00:00',
+            'clockedHoursWorked' => 8.0,
+            'hoursWorked' => 8.0,
+        ];
+
+        $result = $this->service->applyToSlot(
+            $slot,
+            CompensationMethod::HourlyOt,
+            true,
+            8.0,
+            2.0,
+            false,
+        );
+
+        $this->assertSame(8.0, $result['hoursWorked']);
+        $this->assertSame(16.0, $result['holidayHours']);
+        $this->assertSame('HOLIDAY', $result['workingStatus']);
+    }
+
     public function test_hourly_no_ot_puts_all_clocked_hours_in_regular(): void
     {
         $slot = [

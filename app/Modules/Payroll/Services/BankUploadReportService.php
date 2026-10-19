@@ -26,28 +26,29 @@ class BankUploadReportService
         }
 
         $company = Company::query()->orderBy('id')->first();
-        $branchNumber = trim((string) ($company?->bankBranchNumber ?? ''));
-        if ($branchNumber === '') {
-            $branchNumber = '000';
-        }
+        $companyBranch = trim((string) ($company?->bankBranchNumber ?? ''));
 
         $payrollNumberFormatted = $payrollRun->payrollNumberFormatted;
         $payrollNumberLabel = 'PAYROLL # '.$payrollNumberFormatted;
 
         $rows = Payroll::query()
-            ->with(['employee.person'])
+            ->with(['employee.person', 'bank'])
             ->where('payroll_run_id', $payrollRun->id)
             ->whereNotNull('accountNumber')
             ->where('accountNumber', '!=', '')
             ->where('netSalary', '>', 0)
             ->get()
-            ->map(function (Payroll $payroll) use ($branchNumber, $payrollNumberLabel) {
+            ->map(function (Payroll $payroll) use ($companyBranch, $payrollNumberLabel) {
                 $employee = $payroll->employee;
                 $firstName = trim((string) ($employee?->firstName ?? ''));
                 $lastName = trim((string) ($employee?->lastName ?? ''));
                 $name = trim(implode(' ', array_filter([$firstName, $lastName]))) ?: 'Unknown employee';
                 $accountNumber = preg_replace('/\s+/', '', (string) $payroll->accountNumber) ?? '';
                 $netPay = round((float) $payroll->netSalary, 2);
+                $branchNumber = trim((string) ($payroll->bank?->code ?? ''));
+                if ($branchNumber === '') {
+                    $branchNumber = $companyBranch !== '' ? $companyBranch : '000';
+                }
 
                 return [
                     'transactionType' => 'CR',
@@ -70,7 +71,6 @@ class BankUploadReportService
                         $accountNumber,
                         $this->escapeCsvField($name),
                         number_format($netPay, 2, '.', ''),
-                        $payrollNumberLabel,
                     ]),
                 ];
             })
@@ -82,11 +82,10 @@ class BankUploadReportService
         $rowCount = count($rows);
         $totalNetPay = round(array_sum(array_column($rows, 'netPay')), 2);
         $companyName = trim((string) ($company?->legalName ?? $company?->alias ?? ''));
-        $generatedOn = now()->format('Y-m-d');
+        $generatedOn = ($schedule?->pay_date ?? now())->format('Ymd');
 
         $csvLines = [
             $this->escapeCsvField($companyName),
-            '',
             implode(',', [
                 $generatedOn,
                 '',
@@ -109,7 +108,7 @@ class BankUploadReportService
             'payPeriodEndDate' => optional($schedule?->end_date)?->toDateString(),
             'companyName' => $companyName,
             'generatedOn' => $generatedOn,
-            'branchNumber' => $branchNumber,
+            'branchNumber' => $companyBranch,
             'rows' => $rows,
             'totals' => [
                 'rowCount' => $rowCount,

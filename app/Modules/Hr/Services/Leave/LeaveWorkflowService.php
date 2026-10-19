@@ -8,6 +8,7 @@ use App\Enums\PipelineAssigneeType;
 use App\Models\Employee;
 use App\Models\EmployeeLeave;
 use App\Models\LeaveStatus;
+use App\Models\PipelineTemplateStep;
 use App\Models\User;
 use App\Modules\Workflow\Services\PipelineEngine;
 use Carbon\Carbon;
@@ -37,7 +38,7 @@ class LeaveWorkflowService
             }
         }
 
-        if ($employee?->supervisorId) {
+        if ($this->authorization->employeeRecordHasSupervisor($employee)) {
             return LeaveStatus::idForCode(LeaveStatusCode::PendingSupervisorApproval);
         }
 
@@ -60,6 +61,7 @@ class LeaveWorkflowService
     public function ensurePipelineStarted(EmployeeLeave $leave, ?User $actor = null): void
     {
         $leave->loadMissing(['employee', 'leaveStatus']);
+        $this->restoreSupervisorGateIfUnacted($leave);
 
         $code = $leave->leaveStatus?->codeEnum();
         if ($code && in_array($code, [
@@ -270,6 +272,91 @@ class LeaveWorkflowService
         return $this->applyTransition($leave, $target, $actor, $note, $treatment);
     }
 
+    /**
+     * Actions the user may take on the leave's current pipeline step.
+     *
+     * @return list<string>
+     */
+    public function actionsAvailableTo(?User $user, EmployeeLeave $leave): array
+    {
+        if (! $user) {
+            return [];
+        }
+
+        $this->restoreSupervisorGateIfUnacted($leave);
+        $leave->loadMissing(['leaveStatus', 'employee']);
+
+        $step = $this->actionableStep($leave);
+        if (! $step) {
+            return $this->authorization->canManageLeave($user, $leave)
+                ? ['approve', 'reject', 'cancel']
+                : [];
+        }
+
+        if (! $this->authorization->isLeaveAdmin($user) && ! $this->actorMatchesStep($user, $leave, $step)) {
+            return [];
+        }
+
+        return collect($step->actions ?? ['approve', 'reject'])
+            ->map(fn ($value) => strtolower(trim((string) $value)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Put an unacted leave back on the supervisor step when a reporting
+     * supervisor exists but the request was opened on the HR step.
+     */
+    public function restoreSupervisorGateIfUnacted(EmployeeLeave $leave): void
+    {
+        $leave->loadMissing(['employee', 'leaveStatus']);
+        if (! $this->authorization->employeeRecordHasSupervisor($leave->employee)) {
+            return;
+        }
+
+        if ($this->pipelineHasActions($leave)) {
+            return;
+        }
+
+        $supervisorStep = $this->openingSupervisorStep();
+        if ($this->hasLeavePipelineTemplate() && ! $supervisorStep) {
+            return;
+        }
+
+        $target = LeaveStatusCode::PendingSupervisorApproval;
+        if ($supervisorStep?->domain_status) {
+            $target = LeaveStatusCode::fromStored($supervisorStep->domain_status) ?? $target;
+        }
+
+        $current = $leave->leaveStatus?->codeEnum();
+        $skippedAhead = $current !== $target && in_array($current, [
+            LeaveStatusCode::PendingHrApproval,
+            LeaveStatusCode::PendingApproval,
+        ], true);
+
+        if ($skippedAhead) {
+            $leave->leaveStatusId = LeaveStatus::idForCode($target);
+            $leave->save();
+            $leave->unsetRelation('leaveStatus');
+            $leave->load('leaveStatus');
+        }
+
+        if (! $supervisorStep || (! $skippedAhead && $current !== $target)) {
+            return;
+        }
+
+        $instance = $this->pipelineEngine->activeInstance(
+            PipelineEngine::SUBJECT_LEAVE,
+            (string) $leave->id,
+        );
+        if ($instance && (string) $instance->current_step_id !== (string) $supervisorStep->id) {
+            $instance->current_step_id = $supervisorStep->id;
+            $instance->save();
+        }
+    }
+
     private function resolveInitialDomainStatus(?Employee $employee): ?string
     {
         try {
@@ -283,7 +370,7 @@ class LeaveWorkflowService
             return null;
         }
 
-        if ($employee?->supervisorId) {
+        if ($this->authorization->employeeRecordHasSupervisor($employee)) {
             return $steps->first()?->domain_status;
         }
 
@@ -297,7 +384,7 @@ class LeaveWorkflowService
 
     private function skipSupervisorStepIfNeeded($instance, ?Employee $employee): void
     {
-        if ($employee?->supervisorId) {
+        if ($this->authorization->employeeRecordHasSupervisor($employee)) {
             return;
         }
 
@@ -317,6 +404,87 @@ class LeaveWorkflowService
 
         $instance->current_step_id = $nextStep->id;
         $instance->save();
+    }
+
+    private function actionableStep(EmployeeLeave $leave): ?PipelineTemplateStep
+    {
+        $instance = $this->pipelineEngine->activeInstance(
+            PipelineEngine::SUBJECT_LEAVE,
+            (string) $leave->id,
+        );
+        if ($instance?->currentStep) {
+            return $instance->currentStep;
+        }
+
+        try {
+            $template = $this->pipelineEngine->resolveTemplate(PipelineEngine::SUBJECT_LEAVE, 'leave_approval');
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+
+        $code = $leave->leaveStatus?->codeEnum();
+        if ($code) {
+            $matched = $template->steps->firstWhere('domain_status', $code->value);
+            if ($matched) {
+                return $matched;
+            }
+        }
+
+        return $template->steps->first();
+    }
+
+    private function actorMatchesStep(?User $user, EmployeeLeave $leave, PipelineTemplateStep $step): bool
+    {
+        $assignee = PipelineAssigneeType::tryFrom((string) $step->assignee_type);
+
+        return match ($assignee) {
+            PipelineAssigneeType::Supervisor => $this->authorization->canActAsSupervisor($user, $leave),
+            PipelineAssigneeType::DepartmentHead => $this->authorization->canActAsDepartmentHead($user, $leave),
+            PipelineAssigneeType::Admin => $this->authorization->canActAsHr($user, $leave),
+            PipelineAssigneeType::Role => $this->authorization->canActAsRole($user, $leave, $step->assignee_role),
+            default => $this->authorization->canManageLeave($user, $leave),
+        };
+    }
+
+    private function hasLeavePipelineTemplate(): bool
+    {
+        try {
+            $this->pipelineEngine->resolveTemplate(PipelineEngine::SUBJECT_LEAVE, 'leave_approval');
+
+            return true;
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+    }
+
+    private function openingSupervisorStep(): ?PipelineTemplateStep
+    {
+        try {
+            $template = $this->pipelineEngine->resolveTemplate(PipelineEngine::SUBJECT_LEAVE, 'leave_approval');
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+
+        $first = $template->steps->first();
+        if (! $first) {
+            return null;
+        }
+
+        if ($first->assignee_type !== PipelineAssigneeType::Supervisor->value && $first->key !== 'supervisor') {
+            return null;
+        }
+
+        return $first;
+    }
+
+    private function pipelineHasActions(EmployeeLeave $leave): bool
+    {
+        $instance = $this->pipelineEngine->latestInstance(
+            PipelineEngine::SUBJECT_LEAVE,
+            (string) $leave->id,
+        );
+
+        return $instance !== null && $instance->actions->isNotEmpty();
     }
 
     /**

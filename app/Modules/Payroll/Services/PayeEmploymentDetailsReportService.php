@@ -64,7 +64,7 @@ class PayeEmploymentDetailsReportService
             ->orderBy('id')
             ->first();
 
-        $rows = $this->aggregateEmployeeRows($startDate, $endDate);
+        $rows = $this->aggregateEmployeeRows($startDate, $endDate, $month);
 
         $totals = [
             'totalEmoluments' => round((float) $rows->sum('totalEmoluments'), 2),
@@ -114,7 +114,7 @@ class PayeEmploymentDetailsReportService
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function aggregateEmployeeRows(Carbon $startDate, Carbon $endDate): Collection
+    private function aggregateEmployeeRows(Carbon $startDate, Carbon $endDate, ?int $month): Collection
     {
         $payrollRows = Payroll::query()
             ->join('payroll_runs', 'payroll_runs.id', '=', 'payroll.payroll_run_id')
@@ -150,7 +150,7 @@ class PayeEmploymentDetailsReportService
 
         return $payrollRows
             ->groupBy('employee_id')
-            ->map(function (Collection $employeePayrolls) use ($startDate, $endDate) {
+            ->map(function (Collection $employeePayrolls) use ($startDate, $endDate, $month) {
                 $first = $employeePayrolls->first();
                 $employeeName = trim((string) ($first->employee_name ?? ''));
                 if ($employeeName === '') {
@@ -167,8 +167,9 @@ class PayeEmploymentDetailsReportService
                     (float) $employeePayrolls->sum('tips_amount') + (float) $employeePayrolls->sum('bonus_amount'),
                     2
                 );
-                // Keep wages and commissions as separate PAYE columns when tips/bonus are tracked.
-                $totalEmoluments = round(max(0, $taxableGross - $commissions), 2);
+                $taxableBenefits = 0.0;
+                // The BTS form requires Total Emoluments to include taxable benefits and commissions.
+                $totalEmoluments = round(max($taxableGross, $commissions + $taxableBenefits), 2);
 
                 $weeks = $this->countWeeksEmployed(
                     $startDate,
@@ -182,9 +183,9 @@ class PayeEmploymentDetailsReportService
                     'taxpayerName' => $employeeName,
                     'socialSecurityNumber' => $this->formatSocialSecurity($first->social_security_number),
                     'passport' => $this->nullableTrim($first->passport_number),
-                    'numberOfWeeksEmployed' => $weeks,
+                    'numberOfWeeksEmployed' => $month === null ? $weeks : max(1, min(5, $weeks)),
                     'totalEmoluments' => $totalEmoluments,
-                    'taxableBenefits' => 0.0,
+                    'taxableBenefits' => $taxableBenefits,
                     'commissions' => $commissions,
                     'taxWithheld' => round((float) $employeePayrolls->sum('income_tax_amount'), 2),
                 ];

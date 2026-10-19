@@ -3,10 +3,13 @@
 namespace App\Modules\Hr\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmploymentDetail;
 use App\Models\PipelineTemplate;
+use App\Modules\Hr\Models\Employee;
 use App\Modules\Hr\Models\EmployeeAppraisal;
 use App\Modules\Hr\Models\FormTemplate;
 use App\Modules\Hr\Services\Appraisal\AppraisalWorkflowService;
+use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Modules\Workflow\Services\PipelineEngine;
 use App\Support\Access;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +22,7 @@ class EmployeeAppraisalController extends Controller
     public function __construct(
         private readonly AppraisalWorkflowService $workflow,
         private readonly PipelineEngine $pipelineEngine,
+        private readonly LeaveSupervisorAuthorizationService $supervisors,
     ) {}
 
     public function options(): JsonResponse
@@ -81,10 +85,35 @@ class EmployeeAppraisalController extends Controller
         ]);
     }
 
+    public function candidates(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = Employee::query()->with(['person']);
+        if (! Access::canManageAppraisals($user)) {
+            $ids = $this->supervisors->subordinateEmployeeIds($user);
+            $query->whereIn('id', $ids->all());
+        } else {
+            $query->whereHas('employmentDetails', fn ($employment) => $employment->where('isActive', true));
+        }
+
+        $rows = $query->orderBy('id')->limit(200)->get();
+
+        return response()->json([
+            'data' => $rows->map(fn (Employee $employee) => $this->candidatePayload($employee))->values(),
+        ]);
+    }
+
+    public function contract(Request $request, Employee $employee): JsonResponse
+    {
+        abort_unless($this->workflow->canStartFor($request->user(), (string) $employee->id), 403);
+
+        return response()->json([
+            'data' => $this->candidatePayload($employee),
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
-        abort_unless(Access::canManageAppraisals($request->user()), 403);
-
         $validated = $request->validate([
             'employee_id' => ['required', 'uuid', 'exists:employee,id'],
             'form_template_id' => ['nullable', 'uuid', 'exists:form_templates,id'],
@@ -134,6 +163,7 @@ class EmployeeAppraisalController extends Controller
             'action' => ['required', 'string', Rule::in(['approve', 'reject', 'return', 'cancel'])],
             'note' => ['nullable', 'string', 'max:4000'],
             'hr_renew_contract' => ['sometimes', 'boolean'],
+            'next_appraisal_date' => ['nullable', 'date'],
             'hr_increment_approved' => ['sometimes', 'boolean'],
             'hr_increment_type' => ['nullable', 'string', Rule::in(['percent', 'amount'])],
             'hr_increment_value' => ['nullable', 'numeric', 'min:0'],
@@ -153,5 +183,36 @@ class EmployeeAppraisalController extends Controller
             'message' => 'Appraisal updated.',
             'data' => $appraisal->present($this->pipelineEngine, $this->workflow->flags($appraisal, $request->user())),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function candidatePayload(Employee $employee): array
+    {
+        $contract = EmploymentDetail::query()
+            ->with('appraisalForm')
+            ->where('employeeId', $employee->id)
+            ->where('isActive', true)
+            ->orderByDesc('startDate')
+            ->first();
+        $form = $contract?->appraisalForm;
+        $usableForm = $form && $form->is_active && $form->purpose === FormTemplate::PURPOSE_APPRAISAL
+            ? $form
+            : null;
+
+        $name = trim((string) $employee->firstName.' '.(string) $employee->lastName);
+
+        return [
+            'id' => $employee->id,
+            'code' => $employee->code,
+            'name' => $name !== '' ? $name : (string) ($employee->code ?: 'Employee'),
+            'appraisal_form' => $usableForm ? [
+                'id' => $usableForm->id,
+                'name' => $usableForm->name,
+            ] : null,
+            'appraisal_date' => $contract?->appraisalDate?->toDateString(),
+            'contract_end_date' => $contract?->endDate?->toDateString(),
+        ];
     }
 }

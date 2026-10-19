@@ -12,6 +12,8 @@ return [
     'public' => [
         'POST login',
         'POST login/invite-code',
+        'GET panel/access/{token}',
+        'POST panel/access/{token}/verify',
         'POST login/passkey/options',
         'POST login/passkey',
         'POST login/two-factor/verify',
@@ -59,6 +61,7 @@ return [
         'POST two-factor/confirm',
         'DELETE two-factor',
         'GET employee-dashboard',
+        'GET employee-dashboard/leaves',
         'GET employee-dashboard/payslips/{payrollRun}',
         'GET employees/me',
         'GET my-forms',
@@ -66,6 +69,9 @@ return [
         'PUT my-forms/{formAssignment}',
         'POST my-forms/{formAssignment}',
         'GET appraisals/inbox',
+        'GET appraisals/candidates',
+        'GET appraisals/contracts/{employee}',
+        'POST appraisals',
         'GET appraisals/{appraisal}',
         'PUT appraisals/{appraisal}/form',
         'POST appraisals/{appraisal}/form',
@@ -165,6 +171,7 @@ return [
         'payroll-earning-lines' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'payroll-runs' => ['view' => 'view-payroll', 'write' => 'pay-employees-crud'],
         'payroll-settings' => ['view' => 'manager-tax', 'write' => 'manager-tax'],
+        'report-document-headers' => ['view' => 'view-reports', 'write' => 'view-settings'],
         'tax-calculator-rates' => ['view' => 'view-tax-calculator', 'write' => 'tax-calculator-crud'],
         'tax-calculator-accounts' => ['view' => 'view-tax-calculator', 'write' => 'tax-calculator-crud'],
         'tax-calculator-runs' => ['view' => 'view-reports', 'write' => 'tax-calculator-crud'],
@@ -297,6 +304,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'overrides' => [
+        'GET vacancies/panel-employees' => 'vacancies-crud',
         'POST social-security/calculate-contribution' => 'manager-social-security',
         'GET employees/by-user/{userId}' => 'view-employees',
         'GET employees/{employeeId}/subordinates' => 'view-employees',

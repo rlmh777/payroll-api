@@ -31,6 +31,17 @@ class AppraisalNotificationService
         private readonly EmployeeCompensationResolver $compensationResolver,
     ) {}
 
+    public function notifyEmployee(EmployeeAppraisal $appraisal): void
+    {
+        $appraisal->loadMissing('employee.user');
+        $user = $appraisal->employee?->user;
+        if (! $user) {
+            return;
+        }
+
+        $this->sendToUsers($appraisal, collect([$user]), self::PENDING_KEY, 'Your appraisal');
+    }
+
     public function notifyCurrentStep(EmployeeAppraisal $appraisal): void
     {
         $instance = $this->pipelineEngine->activeInstance(PipelineEngine::SUBJECT_APPRAISAL, (string) $appraisal->id);

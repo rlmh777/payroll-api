@@ -164,6 +164,32 @@ class TimesheetOvertimeAllocatorTest extends TestCase
         $this->assertSame('HOLIDAY', $timesheet->workingStatus);
     }
 
+    public function test_base_salary_holiday_does_not_store_double_time_hours(): void
+    {
+        $holidayResolver = $this->createMock(PublicHolidayPayResolver::class);
+        $holidayResolver->method('payMultiplierForDate')->willReturn(2.0);
+        $holidayResolver->method('isHoliday')->willReturn(true);
+
+        $allocator = $this->makeAllocator($holidayResolver);
+        $timesheet = $this->makeTimesheetWithoutDbSave([
+            'employeeId' => 'emp-1',
+            'date' => '2026-06-24',
+            'slotIndex' => 0,
+            'departmentId' => 1,
+            'payType' => CompensationMethod::BaseNoOt->value,
+            'hoursWorked' => 8.0,
+            'isPaid' => true,
+        ]);
+
+        $method = new \ReflectionMethod($allocator, 'persistHolidayHours');
+        $method->setAccessible(true);
+        $method->invoke($allocator, $timesheet, 8.0, 2.0);
+
+        $this->assertSame(8.0, (float) $timesheet->holidayHours);
+        $this->assertSame(0.0, (float) $timesheet->regularHours);
+        $this->assertSame('HOLIDAY', $timesheet->workingStatus);
+    }
+
     public function test_hourly_daily_mode_subtracts_lunch_before_overtime(): void
     {
         $holidayResolver = $this->createMock(PublicHolidayPayResolver::class);

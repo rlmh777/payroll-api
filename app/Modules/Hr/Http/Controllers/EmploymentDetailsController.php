@@ -17,6 +17,7 @@ class EmploymentDetailsController extends Controller
         'worksite',
         'contractType',
         'jobTitle',
+        'appraisalForm',
         'chartOfAccount',
         'defaultPayPeriodGroup',
     ];

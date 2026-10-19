@@ -65,6 +65,7 @@ use App\Modules\Hr\Http\Controllers\FormTemplateController;
 use App\Modules\Hr\Http\Controllers\HrSettingController;
 use App\Modules\Hr\Http\Controllers\HrTemplateController;
 use App\Modules\Hr\Http\Controllers\InterviewPanelController;
+use App\Modules\Hr\Http\Controllers\PanelAccessController;
 use App\Modules\Hr\Http\Controllers\LeaveStatusController;
 use App\Modules\Hr\Http\Controllers\LeaveTypeController;
 use App\Modules\Hr\Http\Controllers\MyFormsController;
@@ -155,6 +156,10 @@ Route::delete('/tokens/{tokenId}', [AuthController::class, 'revokeSpecificToken'
 Route::get('/tokens', [AuthController::class, 'listTokens'])->middleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'authenticate'])->middleware('throttle:login');
 Route::post('/login/invite-code', [InviteCodeLoginController::class, 'store'])->middleware('throttle:login');
+Route::get('/panel/access/{token}', [PanelAccessController::class, 'show'])->where('token', '[A-Za-z0-9]+');
+Route::post('/panel/access/{token}/verify', [PanelAccessController::class, 'verify'])
+    ->middleware('throttle:login')
+    ->where('token', '[A-Za-z0-9]+');
 Route::post('/login/passkey/options', [\App\Http\Controllers\PasskeyController::class, 'loginOptions']);
 Route::post('/login/passkey', [\App\Http\Controllers\PasskeyController::class, 'login'])->middleware('throttle:login');
 Route::post('/login/two-factor/verify', [\App\Http\Controllers\TwoFactorController::class, 'verifyLogin'])->middleware('throttle:login');
@@ -252,6 +257,13 @@ Route::prefix('payroll-settings')->middleware('auth:sanctum')->group(function ()
     Route::put('/', [PayrollSettingController::class, 'update']);
 });
 
+Route::prefix('report-document-headers')->group(function () {
+    Route::get('/', [\App\Modules\Payroll\Http\Controllers\ReportDocumentHeaderController::class, 'index']);
+    Route::post('/', [\App\Modules\Payroll\Http\Controllers\ReportDocumentHeaderController::class, 'store']);
+    Route::put('/{reportDocumentHeader}', [\App\Modules\Payroll\Http\Controllers\ReportDocumentHeaderController::class, 'update']);
+    Route::delete('/{reportDocumentHeader}', [\App\Modules\Payroll\Http\Controllers\ReportDocumentHeaderController::class, 'destroy']);
+});
+
 Route::post('roles', [RoleController::class, 'store']);
 
 // Employee reporting relationships
@@ -335,6 +347,7 @@ Route::prefix('employee-day-works')->group(function () {
 
 Route::get('dashboard', [DashboardController::class, 'show']);
 Route::get('employee-dashboard', [EmployeeDashboardController::class, 'show']);
+Route::get('employee-dashboard/leaves', [EmployeeDashboardController::class, 'leaves']);
 Route::get('employee-dashboard/payslips/{payrollRun}', [EmployeeDashboardController::class, 'payslip']);
 
 Route::prefix('hr-settings')->middleware('auth:sanctum')->group(function () {
@@ -530,6 +543,7 @@ Route::prefix('vacancy-applications')->group(function () {
 });
 
 Route::prefix('vacancies')->group(function () {
+    Route::get('/panel-employees', [VacancyPanelController::class, 'employeeOptions']);
     Route::get('/board', [VacancyController::class, 'board']);
     Route::get('/', [VacancyController::class, 'index']);
     Route::post('/', [VacancyController::class, 'store']);
@@ -540,6 +554,8 @@ Route::prefix('vacancies')->group(function () {
     Route::post('/{vacancy}/applications/{application}/convert-to-employee', [VacancyApplicationController::class, 'convert']);
     Route::get('/{vacancy}/applications/{application}/scores', [VacancyPanelController::class, 'scores']);
     Route::match(['put', 'post'], '/{vacancy}/applications/{application}/scores', [VacancyPanelController::class, 'upsertScore']);
+    Route::get('/{vacancy}/interview', [VacancyPanelController::class, 'interview']);
+    Route::post('/{vacancy}/score-sheet', [VacancyPanelController::class, 'assignScoreSheet']);
     Route::get('/{vacancy}/panel-members', [VacancyPanelController::class, 'index']);
     Route::post('/{vacancy}/panel-members', [VacancyPanelController::class, 'store']);
     Route::post('/{vacancy}/panel-members/{panelMember}/resend', [VacancyPanelController::class, 'resend']);
@@ -573,6 +589,8 @@ Route::prefix('my-forms')->middleware('auth:sanctum')->group(function () {
 
 Route::prefix('appraisals')->middleware('auth:sanctum')->group(function () {
     Route::get('/options', [EmployeeAppraisalController::class, 'options']);
+    Route::get('/candidates', [EmployeeAppraisalController::class, 'candidates']);
+    Route::get('/contracts/{employee}', [EmployeeAppraisalController::class, 'contract']);
     Route::get('/inbox', [EmployeeAppraisalController::class, 'inbox']);
     Route::get('/', [EmployeeAppraisalController::class, 'index']);
     Route::post('/', [EmployeeAppraisalController::class, 'store']);
@@ -591,6 +609,7 @@ Route::prefix('employee-profile-changes')->middleware('auth:sanctum')->group(fun
 
 Route::prefix('panel')->middleware('auth:sanctum')->group(function () {
     Route::get('/assignments', [InterviewPanelController::class, 'assignments']);
+    Route::post('/vacancies/{vacancy}/recommendation', [InterviewPanelController::class, 'recommend']);
     Route::get('/vacancies/{vacancy}/applications/{application}/score', [InterviewPanelController::class, 'showScore']);
     Route::match(['put', 'post'], '/vacancies/{vacancy}/applications/{application}/score', [InterviewPanelController::class, 'saveScore']);
 });
@@ -1091,10 +1110,27 @@ Route::prefix('reports')->group(function () {
     Route::get('/scheduled-vs-worked-hours', [ReportController::class, 'scheduledVsWorkedHours']);
     Route::get('/paye-employment-details', [ReportController::class, 'payeEmploymentDetails']);
     Route::get('/paye-employment-details/periods', [ReportController::class, 'payeEmploymentDetailsPeriods']);
+    Route::get('/paye-reconciliation-employee-details', [ReportController::class, 'payeReconciliationEmployeeDetails']);
+    Route::get('/paye-reconciliation-employee-details/periods', [ReportController::class, 'payeReconciliationEmployeeDetailsPeriods']);
     Route::get('/social-security-payments-by-month', [ReportController::class, 'socialSecurityPaymentsByMonth']);
     Route::get('/social-security-payments-by-month/periods', [ReportController::class, 'socialSecurityPaymentsByMonthPeriods']);
     Route::post('/social-security-payments-by-month/recalculate', [ReportController::class, 'recalculateSocialSecurityPaymentsByMonth']);
     Route::get('/bank-upload', [ReportController::class, 'bankUpload']);
+    Route::get('/labor-cost-to-date', [ReportController::class, 'laborCostToDate']);
+    Route::get('/department-hours-and-pay', [ReportController::class, 'departmentHoursAndPay']);
+    Route::get('/company-payroll-analysis-by-department', [ReportController::class, 'companyPayrollAnalysisByDepartment']);
+    Route::get('/payroll-master-sheet', [ReportController::class, 'payrollMasterSheet']);
+    Route::get('/salary-payments', [ReportController::class, 'salaryPayments']);
+    Route::get('/payroll-registry', [ReportController::class, 'payrollRegistry']);
+    Route::get('/registry-summary-by-office-department', [ReportController::class, 'registrySummaryByOfficeDepartment']);
+    Route::get('/paye', [ReportController::class, 'paye']);
+    Route::get('/emoluments-withheld-tax/years', [ReportController::class, 'emolumentsWithheldTaxYears']);
+    Route::get('/emoluments-withheld-tax', [ReportController::class, 'emolumentsWithheldTax']);
+    Route::get('/td4-summary/years', [ReportController::class, 'td4SummaryYears']);
+    Route::get('/td4-summary', [ReportController::class, 'td4Summary']);
+    Route::get('/td4-supplementary', [ReportController::class, 'td4Supplementary']);
+    Route::get('/social-security-contributions', [ReportController::class, 'socialSecurityContributions']);
+    Route::get('/social-security-deduction', [ReportController::class, 'socialSecurityDeduction']);
 });
 
 Route::prefix('payroll-runs')->group(function () {
