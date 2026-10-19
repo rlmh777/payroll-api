@@ -83,6 +83,7 @@ class LoginPageSetting extends Model
                     'cardBorderWidth' => 0,
                     'cardRadius' => 12,
                     'cardShadow' => 2,
+                    'cardTransparency' => 60,
                 ],
                 [
                     'id' => 'form-default',
@@ -108,6 +109,7 @@ class LoginPageSetting extends Model
                     'cardBorderWidth' => 0,
                     'cardRadius' => 12,
                     'cardShadow' => 2,
+                    'cardTransparency' => 60,
                 ],
             ],
         ];
@@ -234,6 +236,7 @@ class LoginPageSetting extends Model
                 'cardBorderWidth' => (int) self::clamp((float) ($block['cardBorderWidth'] ?? 0), 0, 12),
                 'cardRadius' => (int) self::clamp((float) ($block['cardRadius'] ?? 12), 0, 48),
                 'cardShadow' => (int) self::clamp((float) ($block['cardShadow'] ?? 2), 0, 3),
+                'cardTransparency' => (int) self::clamp((float) ($block['cardTransparency'] ?? 60), 0, 100),
             ];
         }
 

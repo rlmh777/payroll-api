@@ -69,6 +69,7 @@ class LoginPageSettingController extends Controller
             'blocks.*.cardBorderWidth' => ['sometimes', 'numeric', 'min:0', 'max:12'],
             'blocks.*.cardRadius' => ['sometimes', 'numeric', 'min:0', 'max:48'],
             'blocks.*.cardShadow' => ['sometimes', 'integer', 'min:0', 'max:3'],
+            'blocks.*.cardTransparency' => ['sometimes', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $settings = LoginPageSetting::current();

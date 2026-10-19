@@ -149,7 +149,9 @@ class PasskeyService
                 $allowCredentials = $user->webAuthnCredentials->map(fn (WebAuthnCredential $credential) => [
                     'type' => 'public-key',
                     'id' => $this->toBase64Url($this->decodeBinary($credential->credential_id)),
-                    'transports' => $credential->transports ?? [],
+                    // Registration only creates a platform authenticator. Advertising
+                    // hybrid/empty transports makes the browser show a device QR scan.
+                    'transports' => ['internal'],
                 ])->values()->all();
                 $hasPasskeys = $allowCredentials !== [];
             }

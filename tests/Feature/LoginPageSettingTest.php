@@ -178,6 +178,7 @@ class LoginPageSettingTest extends TestCase
                     'cardBorderWidth' => 2,
                     'cardRadius' => 16,
                     'cardShadow' => 3,
+                    'cardTransparency' => 40,
                     'align' => 'center',
                 ],
             ],
@@ -188,6 +189,7 @@ class LoginPageSettingTest extends TestCase
             ->assertJsonPath('blocks.1.cardBackground', '#f8fafc')
             ->assertJsonPath('blocks.1.cardBorderWidth', 2)
             ->assertJsonPath('blocks.1.cardShadow', 3)
+            ->assertJsonPath('blocks.1.cardTransparency', 40)
             ->assertJsonPath('blocks.1.color', '#111827');
     }
 
