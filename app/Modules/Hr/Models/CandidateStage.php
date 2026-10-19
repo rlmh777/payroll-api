@@ -14,6 +14,7 @@ class CandidateStage extends Model
         'is_default',
         'is_hired',
         'is_rejected',
+        'is_shortlist',
     ];
 
     protected $casts = [
@@ -21,6 +22,7 @@ class CandidateStage extends Model
         'is_default' => 'boolean',
         'is_hired' => 'boolean',
         'is_rejected' => 'boolean',
+        'is_shortlist' => 'boolean',
     ];
 
     public function applications(): HasMany
@@ -41,6 +43,11 @@ class CandidateStage extends Model
         return static::query()->where('is_hired', true)->orderBy('sort_order')->first();
     }
 
+    public static function shortlistStage(): ?self
+    {
+        return static::query()->where('is_shortlist', true)->orderBy('sort_order')->first();
+    }
+
     public function present(): array
     {
         return [
@@ -51,6 +58,7 @@ class CandidateStage extends Model
             'is_default' => $this->is_default,
             'is_hired' => $this->is_hired,
             'is_rejected' => $this->is_rejected,
+            'is_shortlist' => (bool) $this->is_shortlist,
         ];
     }
 }

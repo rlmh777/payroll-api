@@ -33,6 +33,14 @@ class HrSettingContractExpiryTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.contractExpiryOffsets.0.value', 2)
             ->assertJsonPath('data.contractExpiryOffsets.0.unit', 'months')
+            ->assertJsonPath('data.birthdayVisibility', 'company')
+            ->assertJsonPath('data.profileChangeApproval', 'hr');
+
+        $this->putJson('/api/hr-settings', [
+            'profileChangeApproval' => 'supervisor',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.profileChangeApproval', 'supervisor')
             ->assertJsonPath('data.birthdayVisibility', 'company');
     }
 

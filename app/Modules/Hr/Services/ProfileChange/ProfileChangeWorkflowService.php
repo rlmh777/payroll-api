@@ -2,6 +2,8 @@
 
 namespace App\Modules\Hr\Services\ProfileChange;
 
+use App\Enums\PipelineAssigneeType;
+use App\Models\HrSetting;
 use App\Models\Locality;
 use App\Models\PipelineTemplate;
 use App\Models\User;

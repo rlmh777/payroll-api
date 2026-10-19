@@ -23,7 +23,8 @@ class HrSettingController extends Controller
         $hasAppraisalFields = $request->exists('appraisalReminderEnabled')
             || $request->exists('appraisalReminderIntervalValue')
             || $request->exists('appraisalReminderIntervalUnit');
-        $partialUpdate = $hasContractFields || $hasAppraisalFields;
+        $hasProfileChange = $request->exists('profileChangeApproval');
+        $partialUpdate = $hasContractFields || $hasAppraisalFields || $hasProfileChange;
 
         $validated = $request->validate([
             'birthdayVisibility' => [

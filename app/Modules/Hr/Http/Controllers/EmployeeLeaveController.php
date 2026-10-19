@@ -238,7 +238,12 @@ class EmployeeLeaveController extends Controller
         $sortDirection = $request->input('sortDirection', 'desc');
         $query->orderBy($sortField, $sortDirection);
 
-        return response()->json($query->paginate((int) $request->input('per_page', 15)));
+        $paginator = $query->paginate((int) $request->input('per_page', 15));
+        $paginator->getCollection()->each(function (EmployeeLeave $leave) {
+            $this->workflowService->restoreSupervisorGateIfUnacted($leave);
+        });
+
+        return response()->json($paginator);
     }
 
     public function store(Request $request): JsonResponse
@@ -268,8 +273,8 @@ class EmployeeLeaveController extends Controller
             return $this->leaveForbidden('You can only create leave for yourself, or for employees who report to you.');
         }
 
-        if ($request->boolean('assigned') && ! $this->authorization->isLeaveAdmin($request->user())) {
-            return $this->leaveForbidden('Only leave administrators can assign leave that skips approval.');
+        if ($request->boolean('assigned') && ! $this->authorization->canAssignLeaveTo($request->user(), (string) $request->input('employeeId'))) {
+            return $this->leaveForbidden('You can only assign leave to employees who report to you or work in a department you head.');
         }
 
         $balanceError = $this->entitlementService->assertSufficientBalance(

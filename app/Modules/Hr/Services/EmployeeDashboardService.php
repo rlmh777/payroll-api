@@ -75,6 +75,56 @@ class EmployeeDashboardService
     }
 
     /**
+     * Leave the signed-in employee has already taken.
+     *
+     * @param array{leave_type_id?: int|null, from_date?: string|null, to_date?: string|null} $filters
+     * @return list<array<string, mixed>>
+     */
+    public function takenLeaves(User $user, array $filters = []): array
+    {
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        if (! $employee) {
+            return [];
+        }
+
+        $query = EmployeeLeave::query()
+            ->with(['leaveType', 'leaveStatus'])
+            ->where('employeeId', $employee->id)
+            ->whereHas('leaveStatus', fn ($builder) => $builder->where('code', LeaveStatusCode::Taken->value))
+            ->orderByDesc('startDate')
+            ->orderByDesc('endDate');
+
+        if (! empty($filters['leave_type_id'])) {
+            $query->where('leaveTypeId', (int) $filters['leave_type_id']);
+        }
+
+        if (! empty($filters['from_date'])) {
+            $query->whereDate('endDate', '>=', $filters['from_date']);
+        }
+
+        if (! empty($filters['to_date'])) {
+            $query->whereDate('startDate', '<=', $filters['to_date']);
+        }
+
+        return $query
+            ->limit(500)
+            ->get()
+            ->map(fn (EmployeeLeave $leave) => [
+                'id' => $leave->id,
+                'leaveTypeId' => $leave->leaveTypeId,
+                'leaveTypeName' => $leave->leaveType?->name ?? 'Leave',
+                'status' => $leave->leaveStatus?->code,
+                'statusName' => $leave->leaveStatus?->name,
+                'startDate' => Carbon::parse($leave->startDate)->toDateString(),
+                'endDate' => Carbon::parse($leave->endDate)->toDateString(),
+                'totalDays' => (float) ($leave->totalDays ?? 0),
+                'duration' => $leave->duration,
+                'notes' => $leave->notes,
+            ])
+            ->all();
+    }
+
+    /**
      * @return array{start: Carbon, end: Carbon}
      */
     private function resolveWeek(?string $weekStart): array

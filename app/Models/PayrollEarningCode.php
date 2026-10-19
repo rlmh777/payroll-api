@@ -33,6 +33,7 @@ class PayrollEarningCode extends Model
         'name',
         'account_id',
         'source',
+        'pay_multiplier',
         'post_to_department_account',
         'is_taxable',
         'is_ss_subject',

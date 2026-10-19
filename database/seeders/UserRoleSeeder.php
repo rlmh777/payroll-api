@@ -59,8 +59,6 @@ class UserRoleSeeder extends Seeder
 
         $employeePermissions = [
             'view-dashboard',
-            'view-leave',
-            'view-leave-types',
             'employee-leave-crud',
         ];
 

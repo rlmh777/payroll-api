@@ -35,6 +35,34 @@ class EmployeeDashboardController extends Controller
         );
     }
 
+    public function leaves(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $validated = $request->validate([
+            'leave_type_id' => ['nullable', 'integer'],
+            'from_date' => ['nullable', 'date'],
+            'to_date' => ['nullable', 'date'],
+        ]);
+
+        if (
+            ! empty($validated['from_date'])
+            && ! empty($validated['to_date'])
+            && $validated['to_date'] < $validated['from_date']
+        ) {
+            return response()->json([
+                'message' => 'The end date must be on or after the start date.',
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => $this->employeeDashboardService->takenLeaves($user, $validated),
+        ]);
+    }
+
     public function payslip(Request $request, PayrollRun $payrollRun)
     {
         $user = $request->user();

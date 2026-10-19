@@ -60,6 +60,20 @@ class Access
     }
 
     /**
+     * Confirms a profile change when the company requires HR approval.
+     * Directory viewers such as supervisors are not included.
+     */
+    public static function canConfirmHrProfileChange(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return self::canAny($user, ['employees-crud', 'view-hr-settings'])
+            || $user->hasAnyRole(['admin', 'hr']);
+    }
+
+    /**
      * Unrestricted leave administration (typically HR/admin via employees-crud).
      */
     public static function canManageAllLeave(?User $user): bool

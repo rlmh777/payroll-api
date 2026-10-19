@@ -6,13 +6,16 @@ use App\Enums\LeaveStatusCode;
 use App\Models\Country;
 use App\Models\District;
 use App\Models\EmployeeLeave;
+use App\Models\EmployeeReporting;
 use App\Models\Gender;
 use App\Models\LeaveStatus;
 use App\Models\LeaveType;
 use App\Models\Locality;
 use App\Models\PaymentMethod;
 use App\Models\Permission;
+use App\Models\PipelineInstance;
 use App\Models\User;
+use Database\Seeders\PipelineTemplateSeeder;
 use App\Modules\Hr\Services\EmployeePersonSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -130,6 +133,104 @@ class EmployeeLeaveAccessTest extends TestCase
     }
 
     #[Test]
+    public function reporting_supervisor_can_approve_submitted_leave_when_pipeline_allows_it(): void
+    {
+        $this->seed(PipelineTemplateSeeder::class);
+
+        [$employeeUser, $employeeId] = $this->employeeActor(
+            'report-pipeline@example.com',
+            'Report',
+            'Pipeline',
+        );
+        [$supervisorUser, $supervisorId] = $this->employeeActor(
+            'boss-pipeline@example.com',
+            'Boss',
+            'Pipeline',
+            ['view-leave', 'employee-leave-crud', 'leave-crud'],
+        );
+
+        EmployeeReporting::query()->create([
+            'supervisor_id' => $supervisorId,
+            'subordinate_id' => $employeeId,
+            'reporting_method' => 'direct',
+            'is_active' => true,
+        ]);
+
+        $leaveTypeId = $this->leaveTypeId();
+        Sanctum::actingAs($employeeUser);
+
+        $leaveId = $this->postJson(
+            '/api/employee-leaves',
+            $this->leavePayload($employeeId, $leaveTypeId),
+        )->assertCreated()->json('id');
+
+        $submitted = EmployeeLeave::query()->with('leaveStatus')->findOrFail($leaveId);
+        $this->assertSame(
+            LeaveStatusCode::PendingSupervisorApproval->value,
+            $submitted->leaveStatus?->code,
+        );
+
+        $stuck = $this->createLeave($employeeId, $leaveTypeId, LeaveStatusCode::PendingHrApproval);
+        $stuck->update([
+            'leaveStatusId' => LeaveStatus::idForCode(LeaveStatusCode::PendingHrApproval),
+        ]);
+        $stuckInstance = PipelineInstance::query()->where('subject_id', $stuck->id)->firstOrFail();
+        $hrStepId = $stuckInstance->template()->firstOrFail()->steps()->where('key', 'hr')->value('id');
+        $stuckInstance->update(['current_step_id' => $hrStepId]);
+
+        Sanctum::actingAs($supervisorUser);
+
+        $team = $this->getJson('/api/employee-leaves/team')->assertOk()->json('data');
+        $submittedRow = collect($team)->firstWhere('id', $leaveId);
+        $stuckRow = collect($team)->firstWhere('id', $stuck->id);
+
+        $this->assertNotNull($submittedRow);
+        $this->assertTrue($submittedRow['canApprove']);
+        $this->assertTrue($submittedRow['canReject']);
+        $this->assertTrue($submittedRow['canCancel']);
+        $this->assertSame(LeaveStatusCode::PendingSupervisorApproval->value, $submittedRow['statusCode']);
+
+        $this->assertNotNull($stuckRow);
+        $this->assertTrue($stuckRow['canApprove']);
+        $this->assertSame(LeaveStatusCode::PendingSupervisorApproval->value, $stuckRow['statusCode']);
+
+        $this->patchJson('/api/employee-leaves/'.$leaveId.'/approve', [
+            'status' => 'approved',
+        ])->assertOk();
+
+        $submitted->refresh()->load('leaveStatus');
+        $this->assertSame(
+            LeaveStatusCode::PendingHrApproval->value,
+            $submitted->leaveStatus?->code,
+        );
+
+        $this->patchJson('/api/employee-leaves/'.$leaveId.'/approve', [
+            'status' => 'approved',
+        ])->assertForbidden();
+    }
+
+    #[Test]
+    public function employee_dashboard_lists_taken_leave_for_the_signed_in_employee(): void
+    {
+        [$employeeUser, $employeeId] = $this->employeeActor('dash-leave@example.com', 'Dash', 'Leave');
+        $leaveTypeId = $this->leaveTypeId();
+        $taken = $this->createLeave($employeeId, $leaveTypeId, LeaveStatusCode::Taken, '2026-03-02', '2026-03-03');
+        $this->createLeave($employeeId, $leaveTypeId, LeaveStatusCode::Scheduled, '2026-04-06', '2026-04-06');
+        $this->createLeave($employeeId, $leaveTypeId, LeaveStatusCode::Taken, '2025-12-15', '2025-12-16');
+
+        Sanctum::actingAs($employeeUser);
+
+        $this->getJson('/api/employee-dashboard/leaves?from_date=2026-01-01&to_date=2026-12-31')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $taken->id)
+            ->assertJsonPath('data.0.status', LeaveStatusCode::Taken->value);
+
+        $this->getJson('/api/employee-dashboard/leaves?from_date=2026-06-01&to_date=2026-01-01')
+            ->assertStatus(422);
+    }
+
+    #[Test]
     public function employee_cannot_assign_leave_that_skips_approval(): void
     {
         [$employeeUser, $employeeId] = $this->employeeActor('assign-block@example.com', 'Assign', 'Block');
@@ -137,6 +238,43 @@ class EmployeeLeaveAccessTest extends TestCase
 
         $this->postJson('/api/employee-leaves', $this->leavePayload($employeeId, $this->leaveTypeId(), [
             'assigned' => true,
+        ]))->assertForbidden();
+    }
+
+    #[Test]
+    public function supervisor_can_assign_leave_for_a_direct_report(): void
+    {
+        [$supervisorUser, $supervisorId] = $this->employeeActor(
+            'assign-boss@example.com',
+            'Assign',
+            'Boss',
+            ['view-leave', 'employee-leave-crud', 'leave-crud'],
+        );
+        $report = $this->createEmployee('assign-report@example.com', 'Assign', 'Report');
+        $stranger = $this->createEmployee('assign-stranger@example.com', 'Assign', 'Stranger');
+        EmployeeReporting::query()->create([
+            'supervisor_id' => $supervisorId,
+            'subordinate_id' => $report->id,
+            'reporting_method' => 'direct',
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($supervisorUser);
+        $leaveTypeId = $this->leaveTypeId();
+
+        $created = $this->postJson('/api/employee-leaves', $this->leavePayload((string) $report->id, $leaveTypeId, [
+            'assigned' => true,
+            'startDate' => '2027-01-04',
+            'endDate' => '2027-01-04',
+        ]))->assertCreated();
+
+        $leave = EmployeeLeave::query()->with('leaveStatus')->findOrFail($created->json('id'));
+        $this->assertSame(LeaveStatusCode::Scheduled->value, $leave->leaveStatus?->code);
+
+        $this->postJson('/api/employee-leaves', $this->leavePayload((string) $stranger->id, $leaveTypeId, [
+            'assigned' => true,
+            'startDate' => '2027-01-05',
+            'endDate' => '2027-01-05',
         ]))->assertForbidden();
     }
 
@@ -222,16 +360,21 @@ class EmployeeLeaveAccessTest extends TestCase
         ], $overrides);
     }
 
-    private function createLeave(string $employeeId, int $leaveTypeId, LeaveStatusCode $status): EmployeeLeave
-    {
+    private function createLeave(
+        string $employeeId,
+        int $leaveTypeId,
+        LeaveStatusCode $status,
+        string $startDate = '2026-10-19',
+        string $endDate = '2026-10-19',
+    ): EmployeeLeave {
         LeaveStatus::clearCache();
 
         return EmployeeLeave::query()->create([
             'employeeId' => $employeeId,
             'leaveTypeId' => $leaveTypeId,
             'leaveStatusId' => LeaveStatus::idForCode($status),
-            'startDate' => '2026-10-19',
-            'endDate' => '2026-10-19',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
             'duration' => 'Full Day',
             'totalDays' => 1,
             'fromTime' => '08:00:00',

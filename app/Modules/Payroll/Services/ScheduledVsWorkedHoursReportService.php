@@ -2,121 +2,181 @@
 
 namespace App\Modules\Payroll\Services;
 
-use App\Models\Payroll;
+use App\Enums\CompensationMethod;
+use App\Models\Department;
+use App\Models\Employee;
+use App\Models\EmployeeCompensation;
+use App\Models\EmploymentDetail;
 use App\Models\PayrollEarningCode;
 use App\Models\PayrollEarningLine;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunPoolDistribution;
+use App\Models\Timesheet;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 class ScheduledVsWorkedHoursReportService
 {
+    public const SCOPE_COMPANY = 'company';
+
+    public const SCOPE_DEPARTMENT = 'department';
+
+    public const PERIOD_DATES = 'dates';
+
+    public const PERIOD_PAYROLL_RUN = 'payroll_run';
+
+    public const SORT_DEPARTMENT = 'department';
+
+    public const SORT_NAME = 'name';
+
+    public const SORT_POSITION = 'position';
+
     /**
+     * @return list<string>
+     */
+    public static function sortKeys(): array
+    {
+        return [self::SORT_DEPARTMENT, self::SORT_NAME, self::SORT_POSITION];
+    }
+
+    public function __construct(
+        private readonly EmployeeCompensationResolver $compensationResolver,
+    ) {
+    }
+
+    /**
+     * @param list<string> $sortBy
      * @return array<string, mixed>
      */
-    public function build(PayrollRun $payrollRun): array
-    {
-        if (strtolower((string) $payrollRun->status) !== 'posted') {
-            throw new InvalidArgumentException('Scheduled vs worked hours report is only available for processed payroll runs.');
-        }
-
+    public function buildFromPayrollRun(
+        PayrollRun $payrollRun,
+        string $scope,
+        ?int $departmentId = null,
+        array $sortBy = [],
+    ): array {
         $payrollRun->load(['payPeriodSchedule.payPeriodGroup']);
         $schedule = $payrollRun->payPeriodSchedule;
 
-        if (!$schedule?->start_date || !$schedule?->end_date) {
+        if (! $schedule?->start_date || ! $schedule?->end_date) {
             throw new InvalidArgumentException('Pay period schedule is missing for this payroll run.');
         }
 
-        $payrolls = Payroll::query()
-            ->with(['employee.person'])
-            ->where('payroll_run_id', $payrollRun->id)
-            ->orderBy('employeeId')
-            ->get(['id', 'employeeId']);
+        return $this->build(
+            Carbon::parse($schedule->start_date)->startOfDay(),
+            Carbon::parse($schedule->end_date)->startOfDay(),
+            $scope,
+            $departmentId,
+            $sortBy,
+            (string) $payrollRun->id,
+            $schedule->payPeriodGroup?->name,
+        );
+    }
 
-        if ($payrolls->isEmpty()) {
-            throw new InvalidArgumentException('No payroll data is available for this payroll run.');
+    /**
+     * @param list<string> $sortBy
+     * @return array<string, mixed>
+     */
+    public function build(
+        Carbon $startDate,
+        Carbon $endDate,
+        string $scope,
+        ?int $departmentId = null,
+        array $sortBy = [],
+        ?string $payrollRunId = null,
+        ?string $payPeriodGroupName = null,
+    ): array {
+        $scope = strtolower(trim($scope));
+        if (! in_array($scope, [self::SCOPE_COMPANY, self::SCOPE_DEPARTMENT], true)) {
+            throw new InvalidArgumentException('Scope must be company or department.');
+        }
+        if ($endDate->lt($startDate)) {
+            throw new InvalidArgumentException('End date must be on or after the start date.');
+        }
+        if ($scope === self::SCOPE_DEPARTMENT && ($departmentId === null || $departmentId <= 0)) {
+            throw new InvalidArgumentException('Department is required when generating by department.');
         }
 
-        $employeeIds = $payrolls->pluck('employeeId')->map(fn ($id) => (string) $id)->values();
-        $payrollIds = $payrolls->pluck('id')->map(fn ($id) => (string) $id)->values();
+        $sortBy = $this->normalizeSortBy($sortBy);
+        $timesheets = $this->loadTimesheets($startDate, $endDate, $scope, $departmentId);
+        $employeeIds = $timesheets->pluck('employeeId')->map(fn ($id) => (string) $id)->unique()->values();
 
-        $timesheetAggByEmployee = $this->loadTimesheetAggregates(
-            $employeeIds,
-            $schedule->start_date->toDateString(),
-            $schedule->end_date->toDateString(),
-        );
-        $earningAggByEmployee = $this->loadEarningAggregates($payrollRun->id);
-        $poolAggByEmployee = $this->loadPoolAggregates($payrollRun->id);
+        $employees = $employeeIds->isEmpty()
+            ? collect()
+            : Employee::query()
+                ->with(['person', 'employmentDetails.jobTitle', 'employmentDetails.department'])
+                ->whereIn('id', $employeeIds)
+                ->get()
+                ->keyBy('id');
 
-        $rows = $payrolls->map(function (Payroll $payroll) use ($timesheetAggByEmployee, $earningAggByEmployee, $poolAggByEmployee) {
-            $employeeId = (string) $payroll->employeeId;
-            $employee = $payroll->employee;
-            $person = $employee?->person;
+        $compensationsByEmployee = $employeeIds->isEmpty()
+            ? collect()
+            : EmployeeCompensation::query()
+                ->whereIn('employeeId', $employeeIds)
+                ->orderByDesc('effectiveDate')
+                ->get()
+                ->groupBy('employeeId');
 
-            $employeeName = trim((string) implode(' ', array_filter([
-                $person?->firstName ?? null,
-                $person?->middleName ?? null,
-                $person?->lastName ?? null,
-            ])));
-            if ($employeeName === '') {
-                $employeeName = 'Unknown employee';
+        $payrollRunIds = filled($payrollRunId)
+            ? collect([(string) $payrollRunId])
+            : $this->overlappingPostedPayrollRunIds($startDate, $endDate);
+        $earningAggByEmployee = $this->loadEarningAggregates($payrollRunIds);
+        $poolAggByEmployee = $this->loadPoolAggregates($payrollRunIds);
+        $otMultiplier = (float) config('payroll.overtime_multiplier', 1.5);
+
+        $rows = [];
+        foreach ($employeeIds as $employeeId) {
+            $employee = $employees->get($employeeId);
+            if (! $employee) {
+                continue;
             }
 
-            $timesheet = $timesheetAggByEmployee->get($employeeId, [
-                'scheduledHours' => 0.0,
-                'workedHours' => 0.0,
-                'overtimeHours' => 0.0,
-            ]);
-            $earnings = $earningAggByEmployee->get($employeeId, [
-                'workedAmount' => 0.0,
-                'overtimeAmount' => 0.0,
-                'otherEarningsAmount' => 0.0,
-            ]);
-            $pools = $poolAggByEmployee->get($employeeId, [
-                'tips' => 0.0,
-                'shares' => 0.0,
-                'specialAssignments' => 0.0,
-            ]);
+            $employeeTimesheets = $timesheets
+                ->filter(fn (Timesheet $timesheet) => (string) $timesheet->employeeId === $employeeId)
+                ->values();
 
-            // Keep scheduled amount as a practical pay estimate based on worked pay over scheduled hours.
-            $scheduledHours = round((float) ($timesheet['scheduledHours'] ?? 0), 2);
-            $workedHours = round((float) ($timesheet['workedHours'] ?? 0), 2);
-            $workedAmount = round((float) ($earnings['workedAmount'] ?? 0), 2);
-            $scheduledAmount = $scheduledHours > 0
-                ? round(($workedAmount / max(0.01, $workedHours)) * $scheduledHours, 2)
-                : 0.0;
-
-            $specialAssignments = round(
-                (float) ($pools['specialAssignments'] ?? 0)
-                + (float) ($earnings['otherEarningsAmount'] ?? 0),
-                2,
+            $rows[] = $this->buildEmployeeRow(
+                $employee,
+                $employeeTimesheets,
+                $compensationsByEmployee->get($employeeId, collect()),
+                $earningAggByEmployee->get($employeeId, [
+                    'workedAmount' => 0.0,
+                    'overtimeAmount' => 0.0,
+                    'otherEarningsAmount' => 0.0,
+                ]),
+                $poolAggByEmployee->get($employeeId, [
+                    'tips' => 0.0,
+                    'shares' => 0.0,
+                    'specialAssignments' => 0.0,
+                ]),
+                $endDate,
+                $otMultiplier,
             );
+        }
 
-            return [
-                'employeeId' => $employeeId,
-                'employeeCode' => $employee?->code,
-                'employeeName' => $employeeName,
-                'scheduledHours' => $scheduledHours,
-                'scheduledAmount' => $scheduledAmount,
-                'workedHours' => $workedHours,
-                'workedAmount' => $workedAmount,
-                'overtimeHours' => round((float) ($timesheet['overtimeHours'] ?? 0), 2),
-                'overtimeAmount' => round((float) ($earnings['overtimeAmount'] ?? 0), 2),
-                'tips' => round((float) ($pools['tips'] ?? 0), 2),
-                'shares' => round((float) ($pools['shares'] ?? 0), 2),
-                'specialAssignments' => $specialAssignments,
-            ];
-        })->sortBy([
-            ['employeeCode', 'asc'],
-            ['employeeName', 'asc'],
-        ])->values();
+        $rows = collect($rows)->sort(function (array $left, array $right) use ($sortBy): int {
+            foreach ($sortBy as $key) {
+                $comparison = $this->sortValue($left, $key) <=> $this->sortValue($right, $key);
+                if ($comparison !== 0) {
+                    return $comparison;
+                }
+            }
+
+            return [(string) ($left['employeeCode'] ?? ''), (string) $left['employeeName']]
+                <=> [(string) ($right['employeeCode'] ?? ''), (string) $right['employeeName']];
+        })->values();
 
         return [
-            'payrollRunId' => (string) $payrollRun->id,
-            'payPeriodGroupName' => $schedule->payPeriodGroup?->name,
-            'payPeriodStartDate' => $schedule->start_date->toDateString(),
-            'payPeriodEndDate' => $schedule->end_date->toDateString(),
+            'period' => filled($payrollRunId) ? self::PERIOD_PAYROLL_RUN : self::PERIOD_DATES,
+            'payrollRunId' => $payrollRunId,
+            'payPeriodGroupName' => $payPeriodGroupName,
+            'startDate' => $startDate->toDateString(),
+            'endDate' => $endDate->toDateString(),
+            'scope' => $scope,
+            'scopeLabel' => $this->scopeLabel($scope, $departmentId),
+            'departmentId' => $departmentId,
+            'sortBy' => $sortBy,
             'rows' => $rows->all(),
             'totals' => [
                 'scheduledHours' => round((float) $rows->sum('scheduledHours'), 2),
@@ -129,51 +189,249 @@ class ScheduledVsWorkedHoursReportService
                 'shares' => round((float) $rows->sum('shares'), 2),
                 'specialAssignments' => round((float) $rows->sum('specialAssignments'), 2),
             ],
+            'employeeCount' => $rows->count(),
         ];
     }
 
     /**
-     * @param Collection<int, string> $employeeIds
-     * @return Collection<string, array<string, float>>
+     * @param list<string> $sortBy
+     * @return list<string>
      */
-    private function loadTimesheetAggregates(Collection $employeeIds, string $startDate, string $endDate): Collection
+    private function normalizeSortBy(array $sortBy): array
     {
-        if ($employeeIds->isEmpty()) {
-            return collect();
+        $allowed = array_flip(self::sortKeys());
+        $normalized = [];
+        foreach ($sortBy as $key) {
+            $key = strtolower(trim((string) $key));
+            if (! isset($allowed[$key]) || in_array($key, $normalized, true)) {
+                continue;
+            }
+            $normalized[] = $key;
         }
 
-        return \App\Models\Timesheet::query()
-            ->whereIn('employeeId', $employeeIds)
-            ->whereDate('date', '>=', $startDate)
-            ->whereDate('date', '<=', $endDate)
-            ->selectRaw(
-                '"employeeId", '.
-                'SUM(COALESCE("hoursWorked", 0) + COALESCE("unpaidHours", 0)) as scheduled_hours, '.
-                'SUM(COALESCE("hoursWorked", 0)) as worked_hours, '.
-                'SUM(COALESCE("overtimeHours", 0)) as overtime_hours'
-            )
-            ->groupBy('employeeId')
-            ->get()
-            ->mapWithKeys(fn ($row) => [
-                (string) $row->employeeId => [
-                    'scheduledHours' => round((float) ($row->scheduled_hours ?? 0), 2),
-                    'workedHours' => round((float) ($row->worked_hours ?? 0), 2),
-                    'overtimeHours' => round((float) ($row->overtime_hours ?? 0), 2),
-                ],
-            ]);
+        return $normalized !== [] ? $normalized : [self::SORT_DEPARTMENT, self::SORT_NAME];
     }
 
     /**
+     * @return Collection<int, Timesheet>
+     */
+    private function loadTimesheets(
+        Carbon $startDate,
+        Carbon $endDate,
+        string $scope,
+        ?int $departmentId,
+    ): Collection {
+        $query = Timesheet::query()
+            ->with(['department:id,name'])
+            ->whereDate('date', '>=', $startDate->toDateString())
+            ->whereDate('date', '<=', $endDate->toDateString())
+            ->whereRaw("UPPER(COALESCE(\"approvalStatus\", '')) NOT IN (?, ?, ?)", ['REJECTED', 'DENIED', 'CANCELLED']);
+
+        if ($scope === self::SCOPE_DEPARTMENT && $departmentId !== null) {
+            $query->where('departmentId', $departmentId);
+        }
+
+        return $query->orderBy('date')->get();
+    }
+
+    /**
+     * @param Collection<int, Timesheet> $timesheets
+     * @param Collection<int, EmployeeCompensation> $compensations
+     * @param array<string, float> $earnings
+     * @param array<string, float> $pools
+     * @return array<string, mixed>
+     */
+    private function buildEmployeeRow(
+        Employee $employee,
+        Collection $timesheets,
+        Collection $compensations,
+        array $earnings,
+        array $pools,
+        Carbon $asOfDate,
+        float $otMultiplier,
+    ): array {
+        $scheduledHours = 0.0;
+        $scheduledAmount = 0.0;
+        $workedHours = 0.0;
+        $workedAmountFromTimesheets = 0.0;
+        $overtimeHours = 0.0;
+        $overtimeAmountFromTimesheets = 0.0;
+        $departmentNames = [];
+
+        foreach ($timesheets as $timesheet) {
+            $name = trim((string) ($timesheet->department?->name ?? ''));
+            if ($name !== '') {
+                $departmentNames[$name] = true;
+            }
+
+            $slotScheduled = $this->scheduledHoursForTimesheet($timesheet);
+            $rate = $this->hourlyRateForTimesheet($timesheet, $compensations);
+            $scheduledHours += $slotScheduled;
+            $scheduledAmount += round($slotScheduled * $rate, 2);
+
+            $workedHours += (float) ($timesheet->hoursWorked ?? 0);
+            $overtimeHours += (float) ($timesheet->overtimeHours ?? 0);
+
+            if (! (bool) $timesheet->isPaid) {
+                continue;
+            }
+
+            $method = CompensationMethod::fromStored($timesheet->payType);
+            $regular = round((float) $timesheet->regularHours * $rate, 2);
+            $holiday = round((float) $timesheet->holidayHours * $rate, 2);
+            $overtime = $method->allowsOvertime()
+                ? round((float) $timesheet->overtimeHours * $rate * $otMultiplier, 2)
+                : 0.0;
+            $workedAmountFromTimesheets += $regular + $holiday;
+            $overtimeAmountFromTimesheets += $overtime;
+        }
+
+        $postedWorkedAmount = round((float) ($earnings['workedAmount'] ?? 0), 2);
+        $postedOvertimeAmount = round((float) ($earnings['overtimeAmount'] ?? 0), 2);
+        $workedAmount = $postedWorkedAmount > 0 ? $postedWorkedAmount : round($workedAmountFromTimesheets, 2);
+        $overtimeAmount = $postedOvertimeAmount > 0 ? $postedOvertimeAmount : round($overtimeAmountFromTimesheets, 2);
+
+        $specialAssignments = round(
+            (float) ($pools['specialAssignments'] ?? 0)
+            + (float) ($earnings['otherEarningsAmount'] ?? 0),
+            2,
+        );
+
+        $employmentDetail = $this->employmentDetailForDate($employee->employmentDetails, $asOfDate);
+        $position = trim((string) ($employmentDetail?->jobTitle?->name ?? ''));
+        $department = implode(', ', array_keys($departmentNames));
+        if ($department === '') {
+            $department = trim((string) ($employmentDetail?->department?->name ?? ''));
+        }
+
+        $person = $employee->person;
+        $employeeName = trim((string) implode(' ', array_filter([
+            $person?->firstName ?? null,
+            $person?->middleName ?? null,
+            $person?->lastName ?? null,
+        ])));
+
+        return [
+            'employeeId' => (string) $employee->id,
+            'employeeCode' => $employee->code,
+            'employeeName' => $employeeName !== '' ? $employeeName : 'Unknown employee',
+            'department' => $department,
+            'position' => $position,
+            'scheduledHours' => round($scheduledHours, 2),
+            'scheduledAmount' => round($scheduledAmount, 2),
+            'workedHours' => round($workedHours, 2),
+            'workedAmount' => $workedAmount,
+            'overtimeHours' => round($overtimeHours, 2),
+            'overtimeAmount' => $overtimeAmount,
+            'tips' => round((float) ($pools['tips'] ?? 0), 2),
+            'shares' => round((float) ($pools['shares'] ?? 0), 2),
+            'specialAssignments' => $specialAssignments,
+        ];
+    }
+
+    private function scheduledHoursForTimesheet(Timesheet $timesheet): float
+    {
+        $scheduled = round(
+            (float) ($timesheet->regularHours ?? 0)
+            + (float) ($timesheet->unpaidHours ?? 0)
+            + (float) ($timesheet->holidayHours ?? 0),
+            2,
+        );
+        if ($scheduled > 0) {
+            return $scheduled;
+        }
+
+        return round(max(
+            0.0,
+            (float) ($timesheet->hoursWorked ?? 0) - (float) ($timesheet->overtimeHours ?? 0),
+        ), 2);
+    }
+
+    /**
+     * @param Collection<int, EmployeeCompensation> $compensations
+     */
+    private function hourlyRateForTimesheet(Timesheet $timesheet, Collection $compensations): float
+    {
+        $hourlyRate = (float) ($timesheet->hourlyRate ?? 0);
+        if ($hourlyRate > 0) {
+            return $hourlyRate;
+        }
+
+        $baseSalary = (float) ($timesheet->baseSalary ?? 0);
+        if ($baseSalary > 0) {
+            return $this->compensationResolver->hourlyRateFromBaseSalary($baseSalary);
+        }
+
+        $date = $timesheet->date ? Carbon::parse($timesheet->date) : Carbon::today();
+        $compensation = $this->compensationResolver->compensationForDate(
+            $compensations,
+            $date,
+            $timesheet->employmentDetailId ? (string) $timesheet->employmentDetailId : null,
+        );
+
+        return (float) ($this->compensationResolver->effectiveHourlyRate($compensation) ?? 0);
+    }
+
+    /**
+     * @param Collection<int, EmploymentDetail>|mixed $details
+     */
+    private function employmentDetailForDate(mixed $details, Carbon $date): ?EmploymentDetail
+    {
+        $collection = $details instanceof Collection ? $details : collect();
+        $matching = $collection->filter(function (EmploymentDetail $detail) use ($date) {
+            if (! $detail->startDate) {
+                return false;
+            }
+            $startDate = Carbon::parse($detail->startDate)->startOfDay();
+            $endDate = $detail->endDate ? Carbon::parse($detail->endDate)->startOfDay() : null;
+
+            return $startDate->lte($date) && (! $endDate || $endDate->gte($date));
+        });
+
+        return $matching
+            ->sort(function (EmploymentDetail $left, EmploymentDetail $right) {
+                if ($left->isActive !== $right->isActive) {
+                    return $right->isActive <=> $left->isActive;
+                }
+
+                return Carbon::parse($right->startDate)->timestamp <=> Carbon::parse($left->startDate)->timestamp;
+            })
+            ->first();
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    private function overlappingPostedPayrollRunIds(Carbon $startDate, Carbon $endDate): Collection
+    {
+        return PayrollRun::query()
+            ->whereRaw('LOWER(COALESCE(status, \'\')) = ?', ['posted'])
+            ->whereHas('payPeriodSchedule', function ($query) use ($startDate, $endDate) {
+                $query
+                    ->whereDate('start_date', '<=', $endDate->toDateString())
+                    ->whereDate('end_date', '>=', $startDate->toDateString());
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->values();
+    }
+
+    /**
+     * @param Collection<int, string> $payrollRunIds
      * @return Collection<string, array<string, float>>
      */
-    private function loadEarningAggregates(string $payrollRunId): Collection
+    private function loadEarningAggregates(Collection $payrollRunIds): Collection
     {
+        if ($payrollRunIds->isEmpty()) {
+            return collect();
+        }
+
         $codesById = PayrollEarningCode::query()
             ->get(['id', 'source'])
             ->keyBy('id');
 
         $rows = PayrollEarningLine::query()
-            ->where('payroll_run_id', $payrollRunId)
+            ->whereIn('payroll_run_id', $payrollRunIds)
             ->selectRaw('"employeeId", payroll_earning_code_id, source_type, SUM(amount) as total_amount')
             ->groupBy('employeeId', 'payroll_earning_code_id', 'source_type')
             ->get();
@@ -216,13 +474,18 @@ class ScheduledVsWorkedHoursReportService
     }
 
     /**
+     * @param Collection<int, string> $payrollRunIds
      * @return Collection<string, array<string, float>>
      */
-    private function loadPoolAggregates(string $payrollRunId): Collection
+    private function loadPoolAggregates(Collection $payrollRunIds): Collection
     {
+        if ($payrollRunIds->isEmpty()) {
+            return collect();
+        }
+
         $rows = PayrollRunPoolDistribution::query()
             ->with('poolDistributionType:id,code')
-            ->where('payroll_run_id', $payrollRunId)
+            ->whereIn('payroll_run_id', $payrollRunIds)
             ->where('amount', '>', 0)
             ->get();
 
@@ -249,5 +512,27 @@ class ScheduledVsWorkedHoursReportService
 
         return collect($byEmployee);
     }
-}
 
+    /**
+     * @param array<string, mixed> $row
+     */
+    private function sortValue(array $row, string $key): string
+    {
+        return mb_strtolower(trim(match ($key) {
+            self::SORT_DEPARTMENT => (string) ($row['department'] ?? ''),
+            self::SORT_POSITION => (string) ($row['position'] ?? ''),
+            default => (string) ($row['employeeName'] ?? ''),
+        }));
+    }
+
+    private function scopeLabel(string $scope, ?int $departmentId): string
+    {
+        if ($scope === self::SCOPE_DEPARTMENT) {
+            $name = Department::query()->whereKey($departmentId)->value('name');
+
+            return $name ? "Department — {$name}" : 'Department';
+        }
+
+        return 'Entire company';
+    }
+}

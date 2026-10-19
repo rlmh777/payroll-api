@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Modules\Hr\Models\FormTemplate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,11 +31,14 @@ class EmploymentDetail extends Model
         'departmentId',
         'worksiteId',
         'defaultPayPeriodGroupId',
+        'appraisalDate',
+        'appraisalFormTemplateId',
     ];
 
     protected $casts = [
         'startDate' => 'date:Y-m-d',
         'endDate' => 'date:Y-m-d',
+        'appraisalDate' => 'date:Y-m-d',
         'isActive' => 'boolean',
         'requiresClocking' => 'boolean',
     ];
@@ -77,5 +81,10 @@ class EmploymentDetail extends Model
     public function leaveEntitlements(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(EmploymentLeaveEntitlement::class, 'employmentDetailId');
+    }
+
+    public function appraisalForm(): BelongsTo
+    {
+        return $this->belongsTo(FormTemplate::class, 'appraisalFormTemplateId');
     }
 }

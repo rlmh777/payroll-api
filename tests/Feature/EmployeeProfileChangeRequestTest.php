@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\PipelineAssigneeType;
 use App\Models\Country;
+use App\Models\HrSetting;
 use App\Models\District;
 use App\Models\Gender;
 use App\Models\Locality;
@@ -129,6 +130,75 @@ class EmployeeProfileChangeRequestTest extends TestCase
             ->assertJsonPath('data.status', 'approved');
 
         $this->assertSame('615-4242', $subject->employee->fresh()->load('person')->phone);
+    }
+
+    public function test_supervisor_approval_applies_the_change_when_that_setting_is_selected(): void
+    {
+        $setting = HrSetting::current();
+        $setting->update(['profile_change_approval' => HrSetting::PROFILE_CHANGE_SUPERVISOR]);
+        HrSetting::clearCurrentCache();
+
+        $supervisor = $this->employeeUser('sam.final@example.com', 'Sam', 'Boss');
+        $subject = $this->employeeUser('alex.final@example.com', 'Alex', 'River');
+        $subjectEmployee = $subject->fresh()->employee;
+        $subjectEmployee->supervisorId = $supervisor->employee->id;
+        $subjectEmployee->save();
+
+        Sanctum::actingAs($subject);
+        $id = $this->postJson('/api/employee-profile-changes', [
+            'phone' => '615-4242',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.pipeline.currentStep.key', 'supervisor')
+            ->json('data.id');
+
+        $this->assertSame('615-0003', $subject->employee->fresh()->load('person')->phone);
+
+        Sanctum::actingAs($supervisor);
+        $this->postJson("/api/employee-profile-changes/{$id}/actions", ['action' => 'approve'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved')
+            ->assertJsonPath('data.applied_at', fn ($value) => filled($value));
+
+        $this->assertSame('615-4242', $subject->employee->fresh()->load('person')->phone);
+    }
+
+    public function test_supervisor_cannot_confirm_a_change_when_hr_approval_is_required(): void
+    {
+        $setting = HrSetting::current();
+        $setting->update(['profile_change_approval' => HrSetting::PROFILE_CHANGE_HR]);
+        HrSetting::clearCurrentCache();
+
+        $supervisor = $this->employeeUser('sam.hr@example.com', 'Sam', 'Boss');
+        $supervisor->givePermissionTo(Permission::query()->firstOrCreate([
+            'name' => 'view-employees',
+            'guard_name' => 'web',
+        ]));
+        $subject = $this->employeeUser('alex.hr@example.com', 'Alex', 'River');
+        $subjectEmployee = $subject->fresh()->employee;
+        $subjectEmployee->supervisorId = $supervisor->employee->id;
+        $subjectEmployee->save();
+        $hr = $this->userWithPermissions(['employees-crud']);
+
+        Sanctum::actingAs($subject);
+        $id = $this->postJson('/api/employee-profile-changes', [
+            'phone' => '615-5151',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.pipeline.currentStep.key', 'hr')
+            ->json('data.id');
+
+        Sanctum::actingAs($supervisor);
+        $this->postJson("/api/employee-profile-changes/{$id}/actions", ['action' => 'approve'])
+            ->assertForbidden();
+        $this->assertSame('615-0003', $subject->employee->fresh()->load('person')->phone);
+
+        Sanctum::actingAs($hr);
+        $this->postJson("/api/employee-profile-changes/{$id}/actions", ['action' => 'approve'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved');
+
+        $this->assertSame('615-5151', $subject->employee->fresh()->load('person')->phone);
     }
 
     public function test_employee_cannot_read_another_persons_profile_change(): void

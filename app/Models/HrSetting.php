@@ -9,6 +9,10 @@ class HrSetting extends Model
 {
     protected $table = 'hr_setting';
 
+    public const PROFILE_CHANGE_SUPERVISOR = 'supervisor';
+
+    public const PROFILE_CHANGE_HR = 'hr';
+
     protected $fillable = [
         'birthday_visibility',
         'contract_expiry_enabled',
@@ -16,6 +20,7 @@ class HrSetting extends Model
         'appraisal_reminder_enabled',
         'appraisal_reminder_interval_value',
         'appraisal_reminder_interval_unit',
+        'profile_change_approval',
     ];
 
     protected $casts = [
@@ -71,6 +76,20 @@ class HrSetting extends Model
     }
 
     /**
+    public function profileChangeApproval(): string
+    {
+        $value = (string) $this->profile_change_approval;
+
+        return in_array($value, [self::PROFILE_CHANGE_SUPERVISOR, self::PROFILE_CHANGE_HR], true)
+            ? $value
+            : self::PROFILE_CHANGE_HR;
+    }
+
+    public function profileChangeRequiresHr(): bool
+    {
+        return $this->profileChangeApproval() === self::PROFILE_CHANGE_HR;
+    }
+
      * @return array{value: int, unit: string}
      */
     public function appraisalReminderInterval(): array

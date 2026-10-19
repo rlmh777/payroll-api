@@ -18,6 +18,10 @@ class VacancyPanelMember extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
+    public const TYPE_INTERNAL = 'internal';
+
+    public const TYPE_EXTERNAL = 'external';
+
     protected $primaryKey = 'id';
 
     protected $keyType = 'string';
@@ -40,6 +44,11 @@ class VacancyPanelMember extends Model
         'invite_code_expires_at' => 'datetime',
         'invited_at' => 'datetime',
         'last_login_at' => 'datetime',
+    protected $hidden = [
+        'invite_code_hash',
+        'access_token',
+    ];
+
     ];
 
     public function vacancy(): BelongsTo
@@ -50,6 +59,20 @@ class VacancyPanelMember extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function responses(): HasMany
+    {
+        return $this->hasMany(FormResponse::class, 'panel_member_id');
+    }
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function recommendedApplication(): BelongsTo
+    {
+        return $this->belongsTo(VacancyApplication::class, 'recommended_application_id');
     }
 
     public function responses(): HasMany
@@ -78,11 +101,8 @@ class VacancyPanelMember extends Model
             'vacancy_id' => $this->vacancy_id,
             'name' => $this->name,
             'email' => $this->email,
+            'member_type' => $this->member_type ?: self::TYPE_EXTERNAL,
+            'employee_id' => $this->employee_id,
             'user_id' => $this->user_id,
             'status' => $this->status,
-            'invited_at' => $this->invited_at?->toIso8601String(),
-            'last_login_at' => $this->last_login_at?->toIso8601String(),
-            'invite_expires_at' => $this->invite_code_expires_at?->toIso8601String(),
-        ];
-    }
-}
+            'recommended_application_id' => $this->recommended_application_id,

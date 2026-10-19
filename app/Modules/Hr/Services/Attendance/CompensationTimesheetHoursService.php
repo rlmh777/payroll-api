@@ -52,7 +52,11 @@ class CompensationTimesheetHoursService
         if ($holidayPayMultiplier !== null) {
             $payable = $method->isBaseBased() ? $scheduledHours : 0.0;
             $hoursWorked = $payable;
-            $holidayHours = round($payable * $holidayPayMultiplier, 2);
+            $holidayHours = HolidayTimesheetClassifier::storedHolidayHours(
+                $payable,
+                $holidayPayMultiplier,
+                $method->value,
+            );
             $workingStatus = 'HOLIDAY';
 
             return TimesheetPayFields::apply(compact('hoursWorked', 'regularHours', 'overtimeHours', 'holidayHours', 'unpaidHours', 'workingStatus'), $isUnpaidLeave);
@@ -101,7 +105,11 @@ class CompensationTimesheetHoursService
             $slot['hoursWorked'] = $payableHours;
             $slot['regularHours'] = 0.0;
             $slot['overtimeHours'] = 0.0;
-            $slot['holidayHours'] = round($payableHours * $holidayPayMultiplier, 2);
+            $slot['holidayHours'] = HolidayTimesheetClassifier::storedHolidayHours(
+                $payableHours,
+                $holidayPayMultiplier,
+                $method->value,
+            );
             $slot['unpaidHours'] = $unpaidHours;
             $slot['workingStatus'] = 'HOLIDAY';
             $slot['clockedHoursWorked'] = $hasClockTimes ? $clockedHours : 0.0;
@@ -167,7 +175,11 @@ class CompensationTimesheetHoursService
             $slot['hoursWorked'] = $hoursWorked;
             $slot['regularHours'] = 0.0;
             $slot['overtimeHours'] = 0.0;
-            $slot['holidayHours'] = round($hoursWorked * $holidayPayMultiplier, 2);
+            $slot['holidayHours'] = HolidayTimesheetClassifier::storedHolidayHours(
+                $hoursWorked,
+                $holidayPayMultiplier,
+                $method->value,
+            );
             $slot['unpaidHours'] = 0.0;
             $slot['workingStatus'] = 'HOLIDAY';
 

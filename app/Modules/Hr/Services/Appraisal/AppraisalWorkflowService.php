@@ -2,15 +2,18 @@
 
 namespace App\Modules\Hr\Services\Appraisal;
 
+use App\Models\EmploymentDetail;
 use App\Models\PipelineTemplate;
 use App\Models\User;
 use App\Modules\Hr\Models\Employee;
 use App\Modules\Hr\Models\EmployeeAppraisal;
 use App\Modules\Hr\Models\FormResponse;
 use App\Modules\Hr\Models\FormTemplate;
+use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Modules\Hr\Support\FormSchema;
 use App\Modules\Workflow\Services\PipelineEngine;
 use App\Support\Access;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -27,6 +30,7 @@ class AppraisalWorkflowService
      * @param  array<string, mixed>  $payload
      */
     public function start(array $payload, User $actor): EmployeeAppraisal
+    public function start(array $payload, ?User $actor): EmployeeAppraisal
     {
         $employee = Employee::query()->with(['person', 'user'])->find($payload['employee_id'] ?? null);
         if (! $employee) {
@@ -35,23 +39,13 @@ class AppraisalWorkflowService
             ]);
         }
 
-        $template = FormTemplate::query()
-            ->where('id', $payload['form_template_id'] ?? null)
-            ->where('is_active', true)
-            ->first();
-        if (! $template || $template->purpose !== FormTemplate::PURPOSE_APPRAISAL) {
-            $template = FormTemplate::query()
-                ->where('purpose', FormTemplate::PURPOSE_APPRAISAL)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->first();
-        }
-        if (! $template) {
-            throw ValidationException::withMessages([
-                'form_template_id' => 'Create an appraisal form template before starting a review.',
-            ]);
+        $system = (bool) ($payload['system'] ?? false);
+        if (! $system && ! $this->canStartFor($actor, (string) $employee->id)) {
+            abort(403, 'You can only start appraisals for employees who report to you.');
         }
 
+        $contract = $this->activeContract($employee);
+        $template = $this->resolveFormTemplate($contract, $actor, $payload, $system);
         $pipelineKey = null;
         $pipelineId = $payload['pipeline_template_id'] ?? null;
         if ($pipelineId) {
@@ -80,10 +74,10 @@ class AppraisalWorkflowService
         }
 
         $appraisal = DB::transaction(function () use ($payload, $actor, $employee, $template, $pipelineId, $pipelineKey) {
-            $response = FormResponse::query()->create([
+        $appraisal = DB::transaction(function () use ($payload, $actor, $employee, $template, $pipelineId, $pipelineKey, $contract) {
                 'form_template_id' => $template->id,
                 'user_id' => $actor->id,
-                'schema_snapshot' => $template->normalizedSchema(),
+                'user_id' => $actor?->id ?? $employee->user_id,
                 'answers' => [],
             ]);
 
@@ -93,10 +87,12 @@ class AppraisalWorkflowService
                 'form_response_id' => $response->id,
                 'pipeline_template_id' => $pipelineId,
                 'initiated_by_user_id' => $actor->id,
+                'initiated_by_user_id' => $actor?->id,
                 'period_label' => trim((string) ($payload['period_label'] ?? now()->year.' appraisal')),
                 'period_start' => $payload['period_start'] ?? null,
                 'period_end' => $payload['period_end'] ?? null,
-                'status' => EmployeeAppraisal::STATUS_PENDING,
+                'employment_detail_id' => $payload['employment_detail_id'] ?? $contract?->id,
+                'scheduled_for' => $payload['scheduled_for'] ?? null,
             ]);
 
             $this->pipelineEngine->start(
@@ -112,7 +108,23 @@ class AppraisalWorkflowService
 
         $this->notifications->notifyCurrentStep($appraisal);
 
+        $this->notifications->notifyEmployee($appraisal);
+
         return $appraisal->fresh(['employee.person', 'formTemplate', 'formResponse']);
+    }
+
+    public function canStartFor(?User $actor, string $employeeId): bool
+    {
+        if (! $actor) {
+            return false;
+        }
+
+        if (Access::canManageAppraisals($actor)) {
+            return true;
+        }
+
+        return $this->supervisors->subordinateEmployeeIds($actor)
+            ->contains(fn ($id) => (string) $id === $employeeId);
     }
 
     /**
@@ -170,7 +182,9 @@ class AppraisalWorkflowService
         }
 
         $step = $instance?->currentStep;
-        if ($action === 'approve' && $this->assignees->isHrStep($step)) {
+        if ($action === 'approve' && $this->assignees->isSupervisorStep($step)) {
+            $this->applyNextAppraisalDate($appraisal, $payload);
+        }
             $this->applyHrDecision($appraisal, $payload);
         }
         if ($action === 'approve' && $this->assignees->isAccountsStep($step) && array_key_exists('accounts_notes', $payload)) {
@@ -228,6 +242,7 @@ class AppraisalWorkflowService
             'can_edit_form' => $this->assignees->canEditForm($actor, $appraisal, $instance),
             'can_manage' => Access::canManageAppraisals($actor),
             'is_hr_step' => $this->assignees->isHrStep($step),
+            'is_supervisor_step' => $this->assignees->isSupervisorStep($step),
             'is_accounts_step' => $this->assignees->isAccountsStep($step),
         ];
     }
@@ -285,6 +300,102 @@ class AppraisalWorkflowService
     }
 
     private function applyHrDecision(EmployeeAppraisal $appraisal, array $payload): void
+    private function activeContract(Employee $employee): ?EmploymentDetail
+    {
+        return EmploymentDetail::query()
+            ->where('employeeId', $employee->id)
+            ->where('isActive', true)
+            ->orderByDesc('startDate')
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function resolveFormTemplate(?EmploymentDetail $contract, ?User $actor, array $payload, bool $system): FormTemplate
+    {
+        $contractTemplate = null;
+        if ($contract?->appraisalFormTemplateId) {
+            $contractTemplate = FormTemplate::query()
+                ->whereKey($contract->appraisalFormTemplateId)
+                ->where('purpose', FormTemplate::PURPOSE_APPRAISAL)
+                ->where('is_active', true)
+                ->first();
+        }
+
+        if ($contractTemplate) {
+            return $contractTemplate;
+        }
+
+        if ($system || ! Access::canManageAppraisals($actor)) {
+            throw ValidationException::withMessages([
+                'form_template_id' => 'Set an appraisal form on the employee’s active contract before starting a review.',
+            ]);
+        }
+
+        $template = FormTemplate::query()
+            ->where('id', $payload['form_template_id'] ?? null)
+            ->where('is_active', true)
+            ->first();
+        if (! $template || $template->purpose !== FormTemplate::PURPOSE_APPRAISAL) {
+            $template = FormTemplate::query()
+                ->where('purpose', FormTemplate::PURPOSE_APPRAISAL)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->first();
+        }
+        if (! $template) {
+            throw ValidationException::withMessages([
+                'form_template_id' => 'Create an appraisal form template before starting a review.',
+            ]);
+        }
+
+        return $template;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function applyNextAppraisalDate(EmployeeAppraisal $appraisal, array $payload): void
+    {
+        $raw = $payload['next_appraisal_date'] ?? null;
+        if (! is_string($raw) || trim($raw) === '') {
+            throw ValidationException::withMessages([
+                'next_appraisal_date' => 'Choose the date of the next appraisal.',
+            ]);
+        }
+
+        try {
+            $date = Carbon::parse($raw)->startOfDay();
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([
+                'next_appraisal_date' => 'Choose a valid date for the next appraisal.',
+            ]);
+        }
+
+        if ($date->lte(now()->startOfDay())) {
+            throw ValidationException::withMessages([
+                'next_appraisal_date' => 'The next appraisal date must be after today.',
+            ]);
+        }
+
+        $appraisal->next_appraisal_date = $date->toDateString();
+        $appraisal->save();
+        $appraisal->loadMissing('employee');
+
+        $contract = null;
+        if ($appraisal->employment_detail_id) {
+            $contract = EmploymentDetail::query()->find($appraisal->employment_detail_id);
+        }
+        $contract ??= $appraisal->employee
+            ? $this->activeContract($appraisal->employee)
+            : null;
+        if ($contract) {
+            $contract->appraisalDate = $date->toDateString();
+            $contract->save();
+        }
+    }
+
     {
         if (! array_key_exists('hr_renew_contract', $payload) || ! array_key_exists('hr_increment_approved', $payload)) {
             throw ValidationException::withMessages([

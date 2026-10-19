@@ -28,6 +28,7 @@ class MenuSeeder extends Seeder
         'hr.appraisals' => 'hr',
         'hr.settings.appraisals' => 'hr',
         'hr.settings.employee_fields' => 'hr',
+        'hr.settings.profile_changes' => 'hr',
         'hr.settings.form_templates' => 'hr',
         'hr.settings' => 'hr',
         'hr.settings.vacancy_stages' => 'hr',
@@ -45,7 +46,7 @@ class MenuSeeder extends Seeder
         'payroll.employees' => 'payroll',
         'hr.scheduler' => 'payroll',
         'hr.timesheet' => 'payroll',
-        'hr.leaves' => 'payroll',
+        'hr.leaves' => 'hr',
         'payroll.root' => 'payroll',
         'payroll.settings' => 'payroll',
         'admin.modules' => 'admin',
@@ -250,6 +251,7 @@ class MenuSeeder extends Seeder
             ['Form templates', '/hr/settings/form-templates', 'dynamic_form', 'view-vacancies', 16, 'hr.settings.form_templates'],
             ['Appraisals', '/hr/settings/appraisals', 'notifications_active', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 17, 'hr.settings.appraisals'],
             ['Employee fields', '/hr/settings/employee-fields', 'tune', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 18, 'hr.settings.employee_fields'],
+            ['Profile changes', '/hr/settings/profile-changes', 'edit_location_alt', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 19, 'hr.settings.profile_changes'],
         ];
 
         foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {
@@ -503,26 +505,47 @@ class MenuSeeder extends Seeder
 
         $leaves = $this->ensureMenu([
             'title' => 'Leaves',
-            'route' => '/payroll/leaves',
+            'route' => '/hr/leaves',
             'icon' => 'fas fa-calendar-check',
             'permission' => 'view-leave',
             'order' => 6,
             'type' => 'menu',
             'system_key' => 'hr.leaves',
-            'module_code' => 'payroll',
+            'module_code' => 'hr',
+        ]);
+        $leaves->update([
+            'route' => '/hr/leaves',
+            'module_code' => 'hr',
+            'permission' => 'view-leave',
         ]);
 
         $leaveSubmenus = [
-            ['Leave List', '/payroll/leaves/list', 'list_alt', 'view-leave', 1],
-            ['Assign Leave', '/payroll/leaves/assign', 'event_available', 'leave-crud', 2],
-            ['Request Leave', '/payroll/leaves/request', 'add_task', 'view-leave', 3],
-            ['My Leave Usage', '/payroll/leaves/my-usage', 'pie_chart', 'view-leave', 4],
-            ['Leave Calendar', '/payroll/leaves/calendar', 'calendar_month', 'view-leave', 5],
-            ['Leave Entitlement', '/payroll/leaves/entitlement', 'card_membership', 'view-leave', 6],
-            ['Leave Types', '/payroll/leaves/types', 'event_busy', 'view-leave-types', 7],
+            ['Leave List', '/hr/leaves/list', 'list_alt', 'view-leave', 1],
+            ['Assign Leave', '/hr/leaves/assign', 'event_available', 'leave-crud', 2],
+            ['Request Leave', '/hr/leaves/request', 'add_task', 'view-leave', 3],
+            ['My Leave Usage', '/hr/leaves/my-usage', 'pie_chart', 'view-leave', 4],
+            ['Leave Calendar', '/hr/leaves/calendar', 'calendar_month', 'view-leave', 5],
+            ['Leave Entitlement', '/hr/leaves/entitlement', 'card_membership', 'view-leave', 6],
+            ['Leave Types', '/hr/leaves/types', 'event_busy', 'view-leave-types', 7],
         ];
 
         foreach ($leaveSubmenus as [$title, $route, $icon, $permission, $order]) {
+            $existing = Menu::query()
+                ->where('parent_id', $leaves->id)
+                ->where('title', $title)
+                ->first();
+            if ($existing) {
+                $existing->update([
+                    'route' => $route,
+                    'icon' => $icon,
+                    'permission' => $permission,
+                    'order' => $order,
+                    'module_code' => 'hr',
+                ]);
+
+                continue;
+            }
+
             $this->ensureMenu([
                 'parent_id' => $leaves->id,
                 'title' => $title,
@@ -531,7 +554,7 @@ class MenuSeeder extends Seeder
                 'permission' => $permission,
                 'order' => $order,
                 'type' => 'submenu',
-                'module_code' => 'payroll',
+                'module_code' => 'hr',
             ]);
         }
 
@@ -554,6 +577,7 @@ class MenuSeeder extends Seeder
             ['Personal Relief', '/payroll/settings/personal-relief', 'fa-solid fa-dollar-sign', 'manager-tax', 7],
             ['Payroll Settings', '/payroll/settings/payroll-settings', 'fa-solid fa-percent', 'manager-tax', 8],
             ['GST Calculator', '/payroll/settings/tax-calculator-accounts', 'fa-solid fa-file-invoice-dollar', 'view-tax-calculator', 9],
+            ['Document Headers', '/payroll/settings/document-headers', 'fas fa-heading', 'view-settings', 10],
         ];
 
         foreach ($settingsSubmenus as [$title, $route, $icon, $permission, $order]) {

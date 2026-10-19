@@ -2,13 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
+use App\Models\ContractType;
 use App\Models\Country;
+use App\Models\Department;
+use App\Models\EmploymentDetail;
 use App\Models\Gender;
 use App\Models\HrSetting;
 use App\Models\Locality;
+use App\Models\PayPeriodGroup;
 use App\Models\PaymentMethod;
 use App\Models\Permission;
 use App\Models\User;
+use App\Models\Worksite;
+use App\Modules\Hr\Services\Appraisal\AppraisalScheduleService;
 use App\Modules\Hr\Models\EmployeeAppraisal;
 use App\Modules\Hr\Models\FormTemplate;
 use App\Modules\Hr\Services\EmployeePersonSync;
@@ -79,6 +86,7 @@ class EmployeeAppraisalTest extends TestCase
         $this->postJson("/api/appraisals/{$id}/actions", [
             'action' => 'approve',
             'submit_form' => true,
+            'next_appraisal_date' => now()->addYear()->toDateString(),
             'answers' => [
                 'overall_performance' => 4,
                 'strengths' => 'Reliable delivery',
@@ -117,6 +125,80 @@ class EmployeeAppraisalTest extends TestCase
             ->assertJsonPath('data.accounts_notes', 'Increment loaded for next cycle.');
     }
 
+    public function test_supervisor_starts_an_appraisal_from_the_contract_form_and_sets_the_next_date(): void
+    {
+        $mail = $this->mock(ConfiguredMail::class);
+        $mail->shouldReceive('isReady')->andReturn(false);
+
+        $supervisor = $this->employeeUser('lead@example.com', 'Lea', 'Der');
+        $subject = $this->employeeUser('report@example.com', 'Re', 'Port');
+        $stranger = $this->employeeUser('other.report@example.com', 'Ot', 'Her');
+        $subject->fresh()->employee->update(['supervisorId' => $supervisor->employee->id]);
+
+        $formId = FormTemplate::query()->where('purpose', FormTemplate::PURPOSE_APPRAISAL)->value('id');
+        $otherForm = FormTemplate::query()->create([
+            'name' => 'Other appraisal',
+            'purpose' => FormTemplate::PURPOSE_APPRAISAL,
+            'schema' => ['fields' => []],
+            'is_active' => true,
+        ]);
+        $contract = $this->createContract($subject->employee->id, $formId, now()->addMonths(6)->toDateString());
+
+        Sanctum::actingAs($supervisor);
+        $this->postJson('/api/appraisals', [
+            'employee_id' => $stranger->employee->id,
+            'period_label' => 'Not my report',
+            'form_template_id' => $otherForm->id,
+        ])->assertForbidden();
+
+        $this->postJson('/api/appraisals', [
+            'employee_id' => $subject->employee->id,
+            'period_label' => '2026 review',
+            'form_template_id' => $otherForm->id,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.form_template.id', $formId)
+            ->assertJsonPath('data.pipeline.currentStep.key', 'supervisor');
+
+        $id = EmployeeAppraisal::query()->where('employee_id', $subject->employee->id)->value('id');
+        $next = now()->addMonths(12)->toDateString();
+        $this->postJson("/api/appraisals/{$id}/actions", [
+            'action' => 'approve',
+            'next_appraisal_date' => $next,
+            'answers' => [
+                'overall_performance' => 4,
+                'strengths' => 'Reliable delivery',
+                'development' => 'Delegation',
+                'goals' => 'Lead a project',
+            ],
+        ])->assertOk();
+
+        $this->assertSame($next, $contract->fresh()->appraisalDate->toDateString());
+    }
+
+    public function test_due_appraisals_start_three_months_before_the_contract_date(): void
+    {
+        $mail = $this->mock(ConfiguredMail::class);
+        $mail->shouldReceive('isReady')->andReturn(false);
+
+        $soon = $this->employeeUser('soon@example.com', 'So', 'On');
+        $later = $this->employeeUser('later@example.com', 'La', 'Ter');
+        $formId = FormTemplate::query()->where('purpose', FormTemplate::PURPOSE_APPRAISAL)->value('id');
+
+        $this->createContract($soon->employee->id, $formId, now()->addMonths(3)->toDateString());
+        $this->createContract($later->employee->id, $formId, now()->addMonths(3)->addDay()->toDateString());
+
+        $stats = app(AppraisalScheduleService::class)->startDue();
+
+        $this->assertSame(1, $stats['started']);
+        $this->assertTrue(
+            EmployeeAppraisal::query()->where('employee_id', $soon->employee->id)->where('status', 'pending')->exists()
+        );
+        $this->assertFalse(
+            EmployeeAppraisal::query()->where('employee_id', $later->employee->id)->exists()
+        );
+    }
+
     public function test_reminder_command_emails_stale_pending_steps(): void
     {
         $mail = $this->mock(ConfiguredMail::class);
@@ -148,6 +230,43 @@ class EmployeeAppraisalTest extends TestCase
         HrSetting::clearCurrentCache();
 
         $this->artisan('hr:send-appraisal-reminders')->assertSuccessful();
+    }
+
+    private function createContract(string $employeeId, string $formId, ?string $appraisalDate): EmploymentDetail
+    {
+        $lookups = $this->employeeLookups();
+        $department = Department::query()->create(['name' => 'Ops '.uniqid()]);
+        $worksite = Worksite::query()->create([
+            'name' => 'Site '.uniqid(),
+            'address1' => '1 Main Street',
+            'localityId' => $lookups['locality']->id,
+        ]);
+        $account = Account::query()->create([
+            'name' => 'Wages '.uniqid(),
+            'description' => 'Wages',
+            'code1' => substr(uniqid(), 0, 8),
+        ]);
+        $contractType = ContractType::query()->firstOrCreate(['name' => 'Fixed term']);
+        $payGroup = PayPeriodGroup::query()->create([
+            'name' => 'Monthly '.uniqid(),
+            'status' => 'active',
+        ]);
+
+        return EmploymentDetail::query()->create([
+            'employeeId' => $employeeId,
+            'startDate' => now()->subYear()->toDateString(),
+            'endDate' => now()->addYear()->toDateString(),
+            'isActive' => true,
+            'benefits' => '',
+            'employmentPolicies' => '',
+            'accountId' => $account->id,
+            'contractTypeId' => $contractType->id,
+            'departmentId' => $department->id,
+            'worksiteId' => $worksite->id,
+            'defaultPayPeriodGroupId' => $payGroup->id,
+            'appraisalDate' => $appraisalDate,
+            'appraisalFormTemplateId' => $formId,
+        ]);
     }
 
     private function userWithPermissions(array $names): User
