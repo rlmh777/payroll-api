@@ -1049,6 +1049,7 @@ Route::prefix('bank-account-types')->group(function () {
 Route::prefix('menus')->group(function () {
     Route::get('/', [MenuController::class, 'index']);
     Route::post('/', [MenuController::class, 'store']);
+    Route::post('/reorder', [MenuController::class, 'reorder']);
     Route::get('/{menu}', [MenuController::class, 'show']);
     Route::put('/{menu}', [MenuController::class, 'update']);
     Route::delete('/{menu}', [MenuController::class, 'destroy']);

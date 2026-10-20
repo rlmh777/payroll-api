@@ -240,6 +240,17 @@ class ModuleMenuCatalog
                 'type' => 'submenu',
             ],
             [
+                'system_key' => 'hr.settings.gender',
+                'module_code' => 'hr',
+                'parent_system_key' => 'hr.settings',
+                'title' => 'Gender',
+                'route' => '/hr/settings/gender',
+                'icon' => 'wc',
+                'permission' => 'view-gender',
+                'order' => 8,
+                'type' => 'submenu',
+            ],
+            [
                 'system_key' => 'hr.settings.degree',
                 'module_code' => 'hr',
                 'parent_system_key' => 'hr.settings',
@@ -247,7 +258,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/degree',
                 'icon' => 'fas fa-graduation-cap',
                 'permission' => 'view-degree',
-                'order' => 8,
+                'order' => 9,
                 'type' => 'submenu',
             ],
             [
@@ -258,7 +269,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/country',
                 'icon' => 'fas fa-globe',
                 'permission' => 'view-country',
-                'order' => 9,
+                'order' => 10,
                 'type' => 'submenu',
             ],
             [
@@ -269,7 +280,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/district',
                 'icon' => 'fas fa-map-marker-alt',
                 'permission' => 'view-district',
-                'order' => 10,
+                'order' => 11,
                 'type' => 'submenu',
             ],
             [
@@ -280,7 +291,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/locality',
                 'icon' => 'fas fa-map-pin',
                 'permission' => 'view-locality',
-                'order' => 11,
+                'order' => 12,
                 'type' => 'submenu',
             ],
             [
@@ -291,7 +302,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/institution',
                 'icon' => 'fas fa-university',
                 'permission' => 'view-institution',
-                'order' => 12,
+                'order' => 13,
                 'type' => 'submenu',
             ],
             [
@@ -302,7 +313,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/birthdays',
                 'icon' => 'cake',
                 'permission' => self::HR_SETTINGS_PERMISSION,
-                'order' => 13,
+                'order' => 14,
                 'type' => 'submenu',
             ],
             [
@@ -313,7 +324,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/letter-templates',
                 'icon' => 'description',
                 'permission' => self::HR_SETTINGS_PERMISSION,
-                'order' => 14,
+                'order' => 15,
                 'type' => 'submenu',
             ],
             [
@@ -324,7 +335,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/email-templates',
                 'icon' => 'email',
                 'permission' => self::HR_SETTINGS_PERMISSION,
-                'order' => 15,
+                'order' => 16,
                 'type' => 'submenu',
             ],
             [
@@ -335,7 +346,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/form-templates',
                 'icon' => 'dynamic_form',
                 'permission' => 'view-vacancies',
-                'order' => 16,
+                'order' => 17,
                 'type' => 'submenu',
             ],
             [
@@ -346,7 +357,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/appraisals',
                 'icon' => 'notifications_active',
                 'permission' => self::HR_SETTINGS_PERMISSION,
-                'order' => 17,
+                'order' => 18,
                 'type' => 'submenu',
             ],
             [
@@ -357,7 +368,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/employee-fields',
                 'icon' => 'tune',
                 'permission' => self::HR_SETTINGS_PERMISSION,
-                'order' => 18,
+                'order' => 19,
                 'type' => 'submenu',
             ],
             [
@@ -368,7 +379,7 @@ class ModuleMenuCatalog
                 'route' => '/hr/settings/profile-changes',
                 'icon' => 'edit_location_alt',
                 'permission' => self::HR_SETTINGS_PERMISSION,
-                'order' => 19,
+                'order' => 20,
                 'type' => 'submenu',
             ],
             [

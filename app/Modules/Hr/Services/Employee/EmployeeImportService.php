@@ -14,6 +14,7 @@ use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\DeductionType;
 use App\Models\Department;
+use App\Models\District;
 use App\Models\EmployeeBank;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeContact;
@@ -54,8 +55,12 @@ use Throwable;
 
 class EmployeeImportService
 {
-    /** @var array<string, array<string, mixed>> */
+    /** @var array<string, mixed> */
     private array $lookupCache = [];
+
+    private ?string $defaultDistrictId = null;
+
+    private int $localitiesCreated = 0;
 
     public function __construct(
         private readonly EmployeeCompensationResolver $compensationResolver,
@@ -79,7 +84,8 @@ class EmployeeImportService
      *     deductions?: list<array<string, mixed>>,
      *     departmentHeads?: list<array<string, mixed>>,
      *     scheduledWork?: list<array<string, mixed>>,
-     *     clockingLogs?: list<array<string, mixed>>
+     *     clockingLogs?: list<array<string, mixed>>,
+     *     defaultDistrictId?: string|null
      * } $payload
      * @return array{
      *     summary: array{
@@ -99,6 +105,7 @@ class EmployeeImportService
      *         scheduledWorkCreated: int,
      *         clockingLogsCreated: int,
      *         timesheetsCreated: int,
+     *         localitiesCreated: int,
      *         failed: int
      *     },
      *     errors: list<array{sheet: string, row: int|null, code: string|null, message: string}>,
@@ -107,6 +114,12 @@ class EmployeeImportService
      */
     public function import(array $payload): array
     {
+        $this->lookupCache = [];
+        $this->localitiesCreated = 0;
+        $this->defaultDistrictId = $this->resolveDefaultDistrictId(
+            $this->stringValue($payload['defaultDistrictId'] ?? null),
+        );
+
         $summary = [
             'employeesCreated' => 0,
             'usersCreated' => 0,
@@ -124,10 +137,26 @@ class EmployeeImportService
             'scheduledWorkCreated' => 0,
             'clockingLogsCreated' => 0,
             'timesheetsCreated' => 0,
+            'localitiesCreated' => 0,
             'failed' => 0,
         ];
         $errors = [];
         $createdEmployeeIds = [];
+
+        try {
+            $this->ensureLocalitiesFromPayload($payload);
+            $summary['localitiesCreated'] = $this->localitiesCreated;
+        } catch (Throwable $e) {
+            $summary['localitiesCreated'] = $this->localitiesCreated;
+
+            return [
+                'summary' => $summary,
+                'errors' => [
+                    $this->error('Localities', null, null, $this->exceptionMessage($e)),
+                ],
+                'createdEmployeeIds' => [],
+            ];
+        }
 
         foreach ($payload['employees'] ?? [] as $index => $row) {
             if (!is_array($row) || $this->isBlankRow($row)) {
@@ -340,6 +369,8 @@ class EmployeeImportService
             }
         }
 
+        $summary['localitiesCreated'] = $this->localitiesCreated;
+
         return [
             'summary' => $summary,
             'errors' => $errors,
@@ -417,7 +448,7 @@ class EmployeeImportService
     }
 
     /**
-     * @param array<string, mixed> $row
+     * @param  array<string, mixed>  $row
      */
     private function createEmployeeFromRow(array $row): Employee
     {
@@ -427,10 +458,8 @@ class EmployeeImportService
             throw new \RuntimeException("Employee code already exists: {$code}");
         }
 
-        $localityId = $this->requireLookupId(
-            Locality::class,
+        $localityId = $this->findOrCreateLocalityId(
             $this->requireString($row, 'localityName', 'localityName is required.'),
-            'localityName',
         );
         $genderId = $this->requireLookupId(
             Gender::class,
@@ -881,11 +910,93 @@ class EmployeeImportService
             'email' => $this->requireString($row, 'email', 'email is required.'),
             'address1' => $this->requireString($row, 'address1', 'address1 is required.'),
             'address2' => $this->nullableString($row['address2'] ?? null),
-            'localityId' => $this->requireLookupId(Locality::class, $localityName, 'localityName'),
+            'localityId' => $this->findOrCreateLocalityId($localityName),
             'relationshipId' => $this->requireLookupId(Relationship::class, $relationshipName, 'relationshipName'),
             'isDependent' => $this->toBool($row['isDependent'] ?? false),
             'isProfessionalReference' => $this->toBool($row['isProfessionalReference'] ?? false),
         ]);
+    }
+
+    /**
+     * Create any missing localities from employee/contact rows before row imports.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function ensureLocalitiesFromPayload(array $payload): void
+    {
+        $names = [];
+
+        foreach ($payload['employees'] ?? [] as $row) {
+            if (!is_array($row) || $this->isBlankRow($row)) {
+                continue;
+            }
+
+            $name = $this->stringValue($row['localityName'] ?? null);
+            if ($name !== null) {
+                $names[mb_strtolower($name)] = $name;
+            }
+        }
+
+        foreach ($payload['contacts'] ?? [] as $row) {
+            if (!is_array($row) || $this->isBlankRow($row)) {
+                continue;
+            }
+
+            $name = $this->stringValue($row['localityName'] ?? null) ?? 'San Ignacio';
+            $names[mb_strtolower($name)] = $name;
+        }
+
+        foreach ($names as $name) {
+            $this->findOrCreateLocalityId($name);
+        }
+    }
+
+    private function findOrCreateLocalityId(string $name): mixed
+    {
+        $cacheKey = Locality::class.'|localityName|'.mb_strtolower($name);
+        if (array_key_exists($cacheKey, $this->lookupCache)) {
+            return $this->lookupCache[$cacheKey];
+        }
+
+        $existing = Locality::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            $this->lookupCache[$cacheKey] = $existing->getKey();
+
+            return $existing->getKey();
+        }
+
+        if ($this->defaultDistrictId === null) {
+            throw new \RuntimeException(
+                "Unknown localityName: {$name}. Set a default district to create missing localities.",
+            );
+        }
+
+        $locality = Locality::create([
+            'name' => $name,
+            'districtId' => $this->defaultDistrictId,
+        ]);
+
+        $this->localitiesCreated++;
+        $this->lookupCache[$cacheKey] = $locality->getKey();
+
+        return $locality->getKey();
+    }
+
+    private function resolveDefaultDistrictId(?string $districtId): ?string
+    {
+        if ($districtId === null || $districtId === '') {
+            return null;
+        }
+
+        $exists = District::query()->whereKey($districtId)->exists();
+        if (!$exists) {
+            throw new \RuntimeException('defaultDistrictId does not match an existing district.');
+        }
+
+        return $districtId;
     }
 
     /**
