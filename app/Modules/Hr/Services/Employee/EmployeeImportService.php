@@ -983,12 +983,29 @@ class EmployeeImportService
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
         $employee = $this->findEmployeeByCode($code);
+
+        $bankName = $this->stringValue($row['bankName'] ?? null);
+        $accountNumber = $this->stringValue($row['accountNumber'] ?? null);
+
+        // Cash / cheque (and any other non-bank method) do not require banking details.
+        if (! $this->employeeRequiresBankAccount($employee)) {
+            if ($bankName === null || $accountNumber === null) {
+                return 'skipped';
+            }
+        } else {
+            if ($bankName === null) {
+                throw new \RuntimeException('bankName is required.');
+            }
+            if ($accountNumber === null) {
+                throw new \RuntimeException('accountNumber is required.');
+            }
+        }
+
         $bank = $this->findOrCreateBank(
-            $this->requireString($row, 'bankName', 'bankName is required.'),
+            $bankName,
             $this->stringValue($row['bankCode'] ?? null),
         );
 
-        $accountNumber = $this->requireString($row, 'accountNumber', 'accountNumber is required.');
         $isPrimary = $this->toBool($row['isPrimary'] ?? true, true);
         $attributes = [
             'bankId' => $bank->id,
@@ -1017,6 +1034,24 @@ class EmployeeImportService
         ]));
 
         return 'created';
+    }
+
+    private function employeeRequiresBankAccount(Employee $employee): bool
+    {
+        $paymentMethod = $employee->paymentMethod()->first();
+        if (! $paymentMethod) {
+            return true;
+        }
+
+        if (isset($paymentMethod->requiresBankAccount)) {
+            return (bool) $paymentMethod->requiresBankAccount;
+        }
+
+        $name = mb_strtolower((string) $paymentMethod->name);
+
+        return ! (str_contains($name, 'cash')
+            || str_contains($name, 'cheque')
+            || str_contains($name, 'check'));
     }
 
     /**

@@ -33,13 +33,17 @@ class PaymentMethodController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:64', 'unique:payment_method,name'],
+            'requiresBankAccount' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $paymentMethod = PaymentMethod::create($request->all());
+        $paymentMethod = PaymentMethod::create([
+            'name' => $request->input('name'),
+            'requiresBankAccount' => $request->boolean('requiresBankAccount', true),
+        ]);
 
         return response()->json($paymentMethod, 201);
     }
@@ -59,13 +63,18 @@ class PaymentMethodController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => ['sometimes', 'string', 'max:64', 'unique:payment_method,name,' . $paymentMethod->id],
+            'requiresBankAccount' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $paymentMethod->update($request->all());
+        $paymentMethod->fill($request->only(['name', 'requiresBankAccount']));
+        if ($request->exists('requiresBankAccount')) {
+            $paymentMethod->requiresBankAccount = $request->boolean('requiresBankAccount');
+        }
+        $paymentMethod->save();
 
         return response()->json($paymentMethod);
     }

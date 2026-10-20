@@ -76,6 +76,7 @@ class PayrollRunCalculationService
         );
 
         $employees = Employee::query()
+            ->with('paymentMethod')
             ->whereIn('id', $employeeIds)
             ->get()
             ->keyBy('id');
@@ -190,6 +191,11 @@ class PayrollRunCalculationService
                 $deductions = $deductionsByEmployee[$employeeId];
                 $ytd = $ytdByEmployee[$employeeId] ?? null;
                 $employeeBank = $primaryBanksByEmployee->get($employeeId);
+                $paymentMethod = $employee?->paymentMethod;
+                $requiresBankAccount = $paymentMethod
+                    ? (bool) $paymentMethod->requiresBankAccount
+                    : true;
+                $hasBankAccount = $employeeBank !== null && filled($employeeBank->accountNumber);
 
                 $netPay = round(
                     $preTax['taxableGross']
@@ -229,7 +235,10 @@ class PayrollRunCalculationService
                     'bankId' => $employeeBank?->bankId,
                     'bankName' => $employeeBank?->bank?->name,
                     'accountNumber' => $employeeBank?->accountNumber,
-                    'paymentReady' => $employeeBank !== null && filled($employeeBank->accountNumber),
+                    'paymentMethodId' => $employee?->paymentMethodId,
+                    'paymentMethodName' => $paymentMethod?->name,
+                    'requiresBankAccount' => $requiresBankAccount,
+                    'paymentReady' => ! $requiresBankAccount || $hasBankAccount,
                     'employmentDetailId' => $timesheet['employmentDetailId'] ?? null,
                     'employeeCompensationId' => $timesheet['employeeCompensationId'] ?? null,
                     'departmentId' => $timesheet['departmentId'] ?? null,
