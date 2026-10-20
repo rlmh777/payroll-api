@@ -18,6 +18,8 @@ class PayrollRunEarningLineBuilderService
     public function __construct(
         private readonly PayrollRunFrequencyResolver $payrollRunFrequencyResolver,
         private readonly PayrollAccountMappingService $payrollAccountMappingService,
+        private readonly PayrollTimesheetScopeService $payrollTimesheetScopeService,
+        private readonly TimesheetDepartmentCostAllocator $timesheetDepartmentCostAllocator,
     ) {
     }
 
@@ -61,8 +63,24 @@ class PayrollRunEarningLineBuilderService
             ->get(['id', 'employeeId'])
             ->keyBy('employeeId');
 
+        $employeeIds = $rows
+            ->pluck('employeeId')
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+
+        $timesheets = $employeeIds->isEmpty()
+            ? collect()
+            : $this->payrollTimesheetScopeService
+                ->baseQuery($startDate, $endDate, $payPeriodGroupId, $frequencyId)
+                ->whereIn('employeeId', $employeeIds->all())
+                ->whereRaw('UPPER("approvalStatus") = ?', ['APPROVED'])
+                ->get(['employeeId', 'departmentId', 'regularHours', 'overtimeHours', 'holidayHours']);
+
         $departmentIds = $rows
             ->pluck('departmentId')
+            ->merge($timesheets->pluck('departmentId'))
             ->filter()
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -77,6 +95,7 @@ class PayrollRunEarningLineBuilderService
         foreach ($rows as $row) {
             $employeeId = (string) ($row['employeeId'] ?? '');
             $departmentId = isset($row['departmentId']) ? (int) $row['departmentId'] : null;
+            $employeeTimesheets = $timesheets->where('employeeId', $employeeId);
             $payrollId = $payrollsByEmployee->get($employeeId)?->id;
             $hourlyRate = $this->resolveHourlyRate(
                 $employeeId,
@@ -103,7 +122,7 @@ class PayrollRunEarningLineBuilderService
             $vacationCode = $codesBySource->get(PayrollEarningCode::SOURCE_VACATION);
             $allowanceFallback = $codesBySource->get(PayrollEarningCode::SOURCE_ALLOWANCE_FALLBACK);
 
-            $this->createLine(
+            $this->createDistributedLine(
                 $payrollRun,
                 $employeeId,
                 $payrollId,
@@ -113,9 +132,10 @@ class PayrollRunEarningLineBuilderService
                 null,
                 null,
                 $regularAmount,
+                $this->hoursByDepartment($employeeTimesheets, 'regularHours', $departmentId),
             );
 
-            $this->createLine(
+            $this->createDistributedLine(
                 $payrollRun,
                 $employeeId,
                 $payrollId,
@@ -125,9 +145,10 @@ class PayrollRunEarningLineBuilderService
                 $overtimeHours > 0 ? $overtimeHours : null,
                 $overtimeHours > 0 ? $hourlyRate * $otMultiplier : null,
                 $overtimeAmount,
+                $this->hoursByDepartment($employeeTimesheets, 'overtimeHours', $departmentId),
             );
 
-            $this->createLine(
+            $this->createDistributedLine(
                 $payrollRun,
                 $employeeId,
                 $payrollId,
@@ -137,6 +158,7 @@ class PayrollRunEarningLineBuilderService
                 $holidayHours > 0 ? $holidayHours : null,
                 $holidayHours > 0 ? $hourlyRate : null,
                 $holidayAmount,
+                $this->hoursByDepartment($employeeTimesheets, 'holidayHours', $departmentId),
             );
 
             $allowanceData = $row['_calculation']['allowances'] ?? [];
@@ -208,6 +230,79 @@ class PayrollRunEarningLineBuilderService
                 );
             }
         }
+    }
+
+    /**
+     * One earning line, or one line per timesheet department when the earning code opts in.
+     *
+     * @param Collection<int, Department> $departmentsById
+     * @param array<int, float> $hoursByDepartment
+     */
+    private function createDistributedLine(
+        PayrollRun $payrollRun,
+        string $employeeId,
+        ?string $payrollId,
+        ?int $fallbackDepartmentId,
+        ?PayrollEarningCode $earningCode,
+        Collection $departmentsById,
+        ?float $hours,
+        ?float $rate,
+        float $amount,
+        array $hoursByDepartment,
+    ): void {
+        if ($amount <= 0 || ! $earningCode) {
+            return;
+        }
+
+        $slices = $earningCode->splitsCostByTimesheetDepartment()
+            ? $this->timesheetDepartmentCostAllocator->allocate($amount, $hours, $hoursByDepartment, $fallbackDepartmentId)
+            : [[
+                'departmentId' => $fallbackDepartmentId,
+                'hours' => $hours,
+                'amount' => $amount,
+            ]];
+
+        foreach ($slices as $slice) {
+            $sliceHours = $slice['hours'];
+            $this->createLine(
+                $payrollRun,
+                $employeeId,
+                $payrollId,
+                $slice['departmentId'],
+                $earningCode,
+                $departmentsById,
+                $sliceHours,
+                $sliceHours !== null && $sliceHours > 0 ? $rate : null,
+                (float) $slice['amount'],
+            );
+        }
+    }
+
+    /**
+     * @param Collection<int, Timesheet> $timesheets
+     * @return array<int, float>
+     */
+    private function hoursByDepartment(Collection $timesheets, string $field, ?int $fallbackDepartmentId): array
+    {
+        $weights = [];
+
+        foreach ($timesheets as $timesheet) {
+            $hours = round((float) ($timesheet->{$field} ?? 0), 2);
+            if ($hours <= 0) {
+                continue;
+            }
+
+            $departmentId = $timesheet->departmentId !== null
+                ? (int) $timesheet->departmentId
+                : $fallbackDepartmentId;
+            if ($departmentId === null) {
+                continue;
+            }
+
+            $weights[$departmentId] = round(($weights[$departmentId] ?? 0) + $hours, 2);
+        }
+
+        return $weights;
     }
 
     /**

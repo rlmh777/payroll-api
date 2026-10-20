@@ -71,6 +71,62 @@ class CompanyModuleService
             ->exists();
     }
 
+    /**
+     * True when at least one of the given module codes is enabled for the tenant.
+     *
+     * @param  string|list<string>  $codes
+     */
+    public function isAnyModuleEnabled(string|array $codes): bool
+    {
+        foreach ((array) $codes as $code) {
+            if (is_string($code) && $code !== '' && $this->isModuleEnabled($code)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Module codes that must be enabled for an API path (relative to /api).
+     * Null means the path is not gated by module enablement.
+     *
+     * @return list<string>|null
+     */
+    public function requiredModulesForApiPath(string $path): ?array
+    {
+        $path = trim($path, '/');
+        if ($path === '') {
+            return null;
+        }
+
+        $segment = strtok($path, '/');
+        if (! is_string($segment) || $segment === '') {
+            return null;
+        }
+
+        $map = config('modules.api_resources', []);
+        if (! is_array($map) || ! array_key_exists($segment, $map)) {
+            return null;
+        }
+
+        $codes = $map[$segment];
+        if (is_string($codes) && $codes !== '') {
+            return [$codes];
+        }
+
+        if (! is_array($codes)) {
+            return null;
+        }
+
+        $normalized = array_values(array_filter(
+            $codes,
+            static fn ($code) => is_string($code) && $code !== '',
+        ));
+
+        return $normalized === [] ? null : $normalized;
+    }
+
     public function modulesForCompany(): Collection
     {
         if (! $this->isAvailable()) {
