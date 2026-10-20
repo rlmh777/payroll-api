@@ -65,8 +65,6 @@ class InterviewPanelController extends Controller
             return response()->json(['message' => 'Not found.'], 404);
         }
 
-        $template = $vacancy->formTemplate;
-        $mine = FormResponse::query()
         $application->loadMissing('candidateStage');
         if (! $application->candidateStage?->is_shortlist) {
             return response()->json([
@@ -74,19 +72,21 @@ class InterviewPanelController extends Controller
             ], 422);
         }
 
+        $template = $vacancy->formTemplate;
+        $mine = FormResponse::query()
             ->with(['panelMember', 'user'])
             ->where('vacancy_application_id', $application->id)
             ->where('user_id', $request->user()?->id)
             ->first();
 
-        return response()->json([
-            'vacancy' => $vacancy->load(Vacancy::defaultRelations())->present(),
         if ($mine?->submitted_at) {
             return response()->json([
                 'message' => 'This score sheet has been submitted and can no longer be opened.',
             ], 403);
         }
 
+        return response()->json([
+            'vacancy' => $vacancy->load(Vacancy::defaultRelations())->present(),
             'application' => $application->load(VacancyApplication::defaultRelations())->present(),
             'form_template' => $template?->present(),
             'data' => $mine?->present() ?? [
@@ -98,25 +98,6 @@ class InterviewPanelController extends Controller
                 'max_score' => $template ? FormSchema::score($template->normalizedSchema(), [])['max'] : null,
             ],
         ]);
-    }
-
-    private function assertAssigned(Request $request, Vacancy $vacancy): void
-    {
-        $user = $request->user();
-        $assigned = VacancyPanelMember::query()
-            ->where('vacancy_id', $vacancy->id)
-            ->where('status', '!=', VacancyPanelMember::STATUS_REVOKED)
-            ->where(function ($query) use ($user) {
-                $query->where('user_id', $user?->id)
-                    ->orWhereRaw('LOWER(email) = ?', [mb_strtolower((string) $user?->email)]);
-            })
-            ->exists();
-
-        if (! $assigned && ! $user?->can('view-vacancies')) {
-            abort(response()->json(['message' => 'You are not on this interview panel.'], 403));
-        if (! $assigned) {
-            abort(response()->json(['message' => 'You are not on this interview panel.'], 403));
-        }
     }
 
     public function recommend(Request $request, Vacancy $vacancy): JsonResponse
@@ -144,6 +125,30 @@ class InterviewPanelController extends Controller
         ]);
     }
 
+    public function saveScore(Request $request, Vacancy $vacancy, VacancyApplication $application): JsonResponse
+    {
+        $this->assertAssigned($request, $vacancy);
+
+        return app(VacancyPanelController::class)->upsertScore($request, $vacancy, $application);
+    }
+
+    private function assertAssigned(Request $request, Vacancy $vacancy): void
+    {
+        $user = $request->user();
+        $assigned = VacancyPanelMember::query()
+            ->where('vacancy_id', $vacancy->id)
+            ->where('status', '!=', VacancyPanelMember::STATUS_REVOKED)
+            ->where(function ($query) use ($user) {
+                $query->where('user_id', $user?->id)
+                    ->orWhereRaw('LOWER(email) = ?', [mb_strtolower((string) $user?->email)]);
+            })
+            ->exists();
+
+        if (! $assigned && ! $user?->can('view-vacancies')) {
+            abort(response()->json(['message' => 'You are not on this interview panel.'], 403));
+        }
+    }
+
     private function activeMember(Request $request, Vacancy $vacancy): VacancyPanelMember
     {
         $user = $request->user();
@@ -161,10 +166,5 @@ class InterviewPanelController extends Controller
         }
 
         return $member;
-    public function saveScore(Request $request, Vacancy $vacancy, VacancyApplication $application): JsonResponse
-    {
-        $this->assertAssigned($request, $vacancy);
-
-        return app(VacancyPanelController::class)->upsertScore($request, $vacancy, $application);
     }
 }

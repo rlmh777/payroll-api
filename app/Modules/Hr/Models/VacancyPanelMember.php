@@ -32,23 +32,27 @@ class VacancyPanelMember extends Model
         'vacancy_id',
         'name',
         'email',
+        'member_type',
+        'employee_id',
         'user_id',
         'invite_code_hash',
         'invite_code_expires_at',
+        'access_token',
         'invited_at',
         'last_login_at',
         'status',
+        'recommended_application_id',
+    ];
+
+    protected $hidden = [
+        'invite_code_hash',
+        'access_token',
     ];
 
     protected $casts = [
         'invite_code_expires_at' => 'datetime',
         'invited_at' => 'datetime',
         'last_login_at' => 'datetime',
-    protected $hidden = [
-        'invite_code_hash',
-        'access_token',
-    ];
-
     ];
 
     public function vacancy(): BelongsTo
@@ -61,10 +65,6 @@ class VacancyPanelMember extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function responses(): HasMany
-    {
-        return $this->hasMany(FormResponse::class, 'panel_member_id');
-    }
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'employee_id');
@@ -106,3 +106,9 @@ class VacancyPanelMember extends Model
             'user_id' => $this->user_id,
             'status' => $this->status,
             'recommended_application_id' => $this->recommended_application_id,
+            'invited_at' => $this->invited_at?->toIso8601String(),
+            'last_login_at' => $this->last_login_at?->toIso8601String(),
+            'invite_expires_at' => $this->invite_code_expires_at?->toIso8601String(),
+        ];
+    }
+}

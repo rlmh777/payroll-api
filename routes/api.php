@@ -1255,6 +1255,11 @@ Route::prefix('database-backups')->group(function () {
     Route::delete('/{databaseBackup}', [DatabaseBackupController::class, 'destroy']);
 });
 
+Route::prefix('application-logs')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [ApplicationLogController::class, 'index']);
+    Route::delete('/', [ApplicationLogController::class, 'destroy']);
+});
+
 Route::prefix('login-page-settings')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [\App\Http\Controllers\LoginPageSettingController::class, 'show']);
     Route::put('/', [\App\Http\Controllers\LoginPageSettingController::class, 'update']);
