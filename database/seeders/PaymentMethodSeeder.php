@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\PaymentMethod;
+use Illuminate\Database\Seeder;
 
 class PaymentMethodSeeder extends Seeder
 {
@@ -13,8 +12,17 @@ class PaymentMethodSeeder extends Seeder
      */
     public function run(): void
     {
-        PaymentMethod::create([
-            'name' => 'Bank Transfer'
-        ]);
+        $methods = [
+            ['name' => 'Bank Transfer', 'requiresBankAccount' => true],
+            ['name' => 'Cash', 'requiresBankAccount' => false],
+            ['name' => 'Cheque', 'requiresBankAccount' => false],
+        ];
+
+        foreach ($methods as $method) {
+            PaymentMethod::query()->updateOrCreate(
+                ['name' => $method['name']],
+                ['requiresBankAccount' => $method['requiresBankAccount']],
+            );
+        }
     }
 }
