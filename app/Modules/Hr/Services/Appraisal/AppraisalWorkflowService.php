@@ -24,12 +24,12 @@ class AppraisalWorkflowService
         private readonly PipelineEngine $pipelineEngine,
         private readonly AppraisalAssigneeResolver $assignees,
         private readonly AppraisalNotificationService $notifications,
+        private readonly LeaveSupervisorAuthorizationService $supervisors,
     ) {}
 
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function start(array $payload, User $actor): EmployeeAppraisal
     public function start(array $payload, ?User $actor): EmployeeAppraisal
     {
         $employee = Employee::query()->with(['person', 'user'])->find($payload['employee_id'] ?? null);
@@ -73,11 +73,11 @@ class AppraisalWorkflowService
             }
         }
 
-        $appraisal = DB::transaction(function () use ($payload, $actor, $employee, $template, $pipelineId, $pipelineKey) {
         $appraisal = DB::transaction(function () use ($payload, $actor, $employee, $template, $pipelineId, $pipelineKey, $contract) {
+            $response = FormResponse::query()->create([
                 'form_template_id' => $template->id,
-                'user_id' => $actor->id,
                 'user_id' => $actor?->id ?? $employee->user_id,
+                'schema_snapshot' => $template->normalizedSchema(),
                 'answers' => [],
             ]);
 
@@ -86,8 +86,8 @@ class AppraisalWorkflowService
                 'form_template_id' => $template->id,
                 'form_response_id' => $response->id,
                 'pipeline_template_id' => $pipelineId,
-                'initiated_by_user_id' => $actor->id,
                 'initiated_by_user_id' => $actor?->id,
+                'status' => EmployeeAppraisal::STATUS_PENDING,
                 'period_label' => trim((string) ($payload['period_label'] ?? now()->year.' appraisal')),
                 'period_start' => $payload['period_start'] ?? null,
                 'period_end' => $payload['period_end'] ?? null,
@@ -185,6 +185,7 @@ class AppraisalWorkflowService
         if ($action === 'approve' && $this->assignees->isSupervisorStep($step)) {
             $this->applyNextAppraisalDate($appraisal, $payload);
         }
+        if ($action === 'approve' && $this->assignees->isHrStep($step)) {
             $this->applyHrDecision($appraisal, $payload);
         }
         if ($action === 'approve' && $this->assignees->isAccountsStep($step) && array_key_exists('accounts_notes', $payload)) {
@@ -299,7 +300,6 @@ class AppraisalWorkflowService
             ->all();
     }
 
-    private function applyHrDecision(EmployeeAppraisal $appraisal, array $payload): void
     private function activeContract(Employee $employee): ?EmploymentDetail
     {
         return EmploymentDetail::query()
@@ -396,6 +396,10 @@ class AppraisalWorkflowService
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function applyHrDecision(EmployeeAppraisal $appraisal, array $payload): void
     {
         if (! array_key_exists('hr_renew_contract', $payload) || ! array_key_exists('hr_increment_approved', $payload)) {
             throw ValidationException::withMessages([

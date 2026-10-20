@@ -38,6 +38,7 @@ class MenuSeeder extends Seeder
         'hr.settings.worksite' => 'hr',
         'hr.settings.holidays' => 'hr',
         'hr.settings.relationship' => 'hr',
+        'hr.settings.gender' => 'hr',
         'hr.settings.degree' => 'hr',
         'hr.settings.country' => 'hr',
         'hr.settings.district' => 'hr',
@@ -240,18 +241,19 @@ class MenuSeeder extends Seeder
             ['Work Site', '/hr/settings/worksite', 'fas fa-map', 'view-worksite', 5, 'hr.settings.worksite'],
             ['Public Holidays', '/hr/settings/holidays', 'event', 'view-holidays', 6, 'hr.settings.holidays'],
             ['Relationship', '/hr/settings/relationship', 'fas fa-users', 'view-relationship', 7, 'hr.settings.relationship'],
-            ['Degree', '/hr/settings/degree', 'fas fa-graduation-cap', 'view-degree', 8, 'hr.settings.degree'],
-            ['Country', '/hr/settings/country', 'fas fa-globe', 'view-country', 9, 'hr.settings.country'],
-            ['District', '/hr/settings/district', 'fas fa-map-marker-alt', 'view-district', 10, 'hr.settings.district'],
-            ['Locality', '/hr/settings/locality', 'fas fa-map-pin', 'view-locality', 11, 'hr.settings.locality'],
-            ['Institution', '/hr/settings/institution', 'fas fa-university', 'view-institution', 12, 'hr.settings.institution'],
-            ['Birthdays', '/hr/settings/birthdays', 'cake', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 13, 'hr.settings.birthdays'],
-            ['Letter templates', '/hr/settings/letter-templates', 'description', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 14, 'hr.settings.letter_templates'],
-            ['Email templates', '/hr/settings/email-templates', 'email', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 15, 'hr.settings.email_templates'],
-            ['Form templates', '/hr/settings/form-templates', 'dynamic_form', 'view-vacancies', 16, 'hr.settings.form_templates'],
-            ['Appraisals', '/hr/settings/appraisals', 'notifications_active', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 17, 'hr.settings.appraisals'],
-            ['Employee fields', '/hr/settings/employee-fields', 'tune', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 18, 'hr.settings.employee_fields'],
-            ['Profile changes', '/hr/settings/profile-changes', 'edit_location_alt', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 19, 'hr.settings.profile_changes'],
+            ['Gender', '/hr/settings/gender', 'wc', 'view-gender', 8, 'hr.settings.gender'],
+            ['Degree', '/hr/settings/degree', 'fas fa-graduation-cap', 'view-degree', 9, 'hr.settings.degree'],
+            ['Country', '/hr/settings/country', 'fas fa-globe', 'view-country', 10, 'hr.settings.country'],
+            ['District', '/hr/settings/district', 'fas fa-map-marker-alt', 'view-district', 11, 'hr.settings.district'],
+            ['Locality', '/hr/settings/locality', 'fas fa-map-pin', 'view-locality', 12, 'hr.settings.locality'],
+            ['Institution', '/hr/settings/institution', 'fas fa-university', 'view-institution', 13, 'hr.settings.institution'],
+            ['Birthdays', '/hr/settings/birthdays', 'cake', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 14, 'hr.settings.birthdays'],
+            ['Letter templates', '/hr/settings/letter-templates', 'description', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 15, 'hr.settings.letter_templates'],
+            ['Email templates', '/hr/settings/email-templates', 'email', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 16, 'hr.settings.email_templates'],
+            ['Form templates', '/hr/settings/form-templates', 'dynamic_form', 'view-vacancies', 17, 'hr.settings.form_templates'],
+            ['Appraisals', '/hr/settings/appraisals', 'notifications_active', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 18, 'hr.settings.appraisals'],
+            ['Employee fields', '/hr/settings/employee-fields', 'tune', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 19, 'hr.settings.employee_fields'],
+            ['Profile changes', '/hr/settings/profile-changes', 'edit_location_alt', ModuleMenuCatalog::HR_SETTINGS_PERMISSION, 20, 'hr.settings.profile_changes'],
         ];
 
         foreach ($hrSettingsSubmenus as [$title, $route, $icon, $permission, $order, $systemKey]) {
@@ -594,6 +596,7 @@ class MenuSeeder extends Seeder
         }
 
         $generalSubmenus = [
+            ['Banks', '/payroll/settings/banks', 'fas fa-university', 'view-banks', 6],
             ['Bank Account Type', '/payroll/settings/bank-account-type', 'fas fa-credit-card', 'view-bank-account-type', 7],
             ['Payroll Earning Codes', '/payroll/settings/payroll-earning-codes', 'fas fa-coins', 'view-payroll-earning-codes', 8],
             ['Pool Distribution', '/payroll/settings/pool-distribution-types', 'fas fa-chart-pie', 'view-pool-distribution-types', 9],
@@ -605,7 +608,7 @@ class MenuSeeder extends Seeder
         ];
 
         foreach ($generalSubmenus as [$title, $route, $icon, $permission, $order]) {
-            $this->ensureMenu([
+            $attributes = [
                 'parent_id' => $general->id,
                 'title' => $title,
                 'route' => $route,
@@ -614,7 +617,11 @@ class MenuSeeder extends Seeder
                 'order' => $order,
                 'type' => 'submenu',
                 'module_code' => 'payroll',
-            ]);
+            ];
+            if ($route === '/payroll/settings/banks') {
+                $attributes['system_key'] = 'payroll.settings.banks';
+            }
+            $this->ensureMenu($attributes);
         }
 
         $payroll = $this->ensureMenu([
@@ -792,6 +799,8 @@ class MenuSeeder extends Seeder
             'view-locality',
             'view-institution',
             'view-relationship',
+            'view-gender',
+            'view-banks',
             'view-bank-account-type',
             'view-payroll-earning-codes',
             'view-pool-distribution-types',
@@ -808,6 +817,7 @@ class MenuSeeder extends Seeder
             'institution-crud',
             'honorific-crud',
             'relationship-crud',
+            'banks-crud',
             'bank-account-type-crud',
             'payroll-earning-code-crud',
             'calendar-crud',

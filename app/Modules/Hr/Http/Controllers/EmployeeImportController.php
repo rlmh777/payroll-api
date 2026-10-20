@@ -63,6 +63,7 @@ class EmployeeImportController extends Controller
             'scheduledWork.*' => ['array'],
             'clockingLogs' => ['nullable', 'array'],
             'clockingLogs.*' => ['array'],
+            'defaultDistrictId' => ['nullable', 'uuid', 'exists:district,id'],
         ]);
 
         $result = $this->importService->import($validated);

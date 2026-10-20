@@ -6,6 +6,7 @@ use App\Models\Menu;
 use App\Services\MenuAuthorizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class MenuController extends Controller
@@ -150,6 +151,36 @@ class MenuController extends Controller
         return response()->json([
             'message' => 'Menu updated successfully',
             'data' => $menu->load(['children', 'parent']),
+        ]);
+    }
+
+    /**
+     * Update display order for the given menus without reloading the rest of the tree.
+     */
+    public function reorder(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|uuid|exists:menus,id',
+            'items.*.order' => 'required|integer|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        /** @var list<array{id: string, order: int}> $items */
+        $items = $validator->validated()['items'];
+
+        DB::transaction(function () use ($items): void {
+            foreach ($items as $item) {
+                Menu::query()->whereKey($item['id'])->update(['order' => $item['order']]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Menu order updated',
+            'items' => $items,
         ]);
     }
 
