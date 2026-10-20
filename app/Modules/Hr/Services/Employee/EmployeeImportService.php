@@ -62,6 +62,11 @@ class EmployeeImportService
 
     private int $localitiesCreated = 0;
 
+    /** @var array<string, string> employeeCode (lower) => departmentName */
+    private array $departmentByEmployeeCode = [];
+
+    private bool $overwriteExisting = false;
+
     public function __construct(
         private readonly EmployeeCompensationResolver $compensationResolver,
         private readonly ScheduledWorkOverlapValidator $overlapValidator,
@@ -85,22 +90,30 @@ class EmployeeImportService
      *     departmentHeads?: list<array<string, mixed>>,
      *     scheduledWork?: list<array<string, mixed>>,
      *     clockingLogs?: list<array<string, mixed>>,
-     *     defaultDistrictId?: string|null
+     *     defaultDistrictId?: string|null,
+     *     overwriteExisting?: bool
      * } $payload
      * @return array{
      *     summary: array{
      *         employeesCreated: int,
+     *         employeesUpdated: int,
      *         usersCreated: int,
      *         supervisorsAssigned: int,
      *         employmentCreated: int,
+     *         employmentUpdated: int,
      *         compensationCreated: int,
+     *         compensationUpdated: int,
      *         banksCreated: int,
+     *         banksUpdated: int,
      *         contactsCreated: int,
+     *         contactsUpdated: int,
      *         leaveEntitlementsCreated: int,
      *         ssBenefitsCreated: int,
      *         poolPointsCreated: int,
      *         allowancesCreated: int,
+     *         allowancesUpdated: int,
      *         deductionsCreated: int,
+     *         deductionsUpdated: int,
      *         departmentHeadsCreated: int,
      *         scheduledWorkCreated: int,
      *         clockingLogsCreated: int,
@@ -116,23 +129,32 @@ class EmployeeImportService
     {
         $this->lookupCache = [];
         $this->localitiesCreated = 0;
+        $this->overwriteExisting = $this->toBool($payload['overwriteExisting'] ?? false);
+        $this->departmentByEmployeeCode = $this->buildDepartmentFallbackMap($payload['departmentHeads'] ?? []);
         $this->defaultDistrictId = $this->resolveDefaultDistrictId(
             $this->stringValue($payload['defaultDistrictId'] ?? null),
         );
 
         $summary = [
             'employeesCreated' => 0,
+            'employeesUpdated' => 0,
             'usersCreated' => 0,
             'supervisorsAssigned' => 0,
             'employmentCreated' => 0,
+            'employmentUpdated' => 0,
             'compensationCreated' => 0,
+            'compensationUpdated' => 0,
             'banksCreated' => 0,
+            'banksUpdated' => 0,
             'contactsCreated' => 0,
+            'contactsUpdated' => 0,
             'leaveEntitlementsCreated' => 0,
             'ssBenefitsCreated' => 0,
             'poolPointsCreated' => 0,
             'allowancesCreated' => 0,
+            'allowancesUpdated' => 0,
             'deductionsCreated' => 0,
+            'deductionsUpdated' => 0,
             'departmentHeadsCreated' => 0,
             'scheduledWorkCreated' => 0,
             'clockingLogsCreated' => 0,
@@ -167,14 +189,19 @@ class EmployeeImportService
             $code = $this->stringValue($row['code'] ?? null);
 
             try {
-                $employee = DB::transaction(function () use ($row) {
-                    return $this->createEmployeeFromRow($row);
+                $result = DB::transaction(function () use ($row) {
+                    return $this->upsertEmployeeFromRow($row);
                 });
-                $summary['employeesCreated']++;
-                if ($employee->user_id) {
-                    $summary['usersCreated']++;
+                $employee = $result['employee'];
+                if ($result['created']) {
+                    $summary['employeesCreated']++;
+                    if ($employee->user_id) {
+                        $summary['usersCreated']++;
+                    }
+                    $createdEmployeeIds[] = (string) $employee->id;
+                } else {
+                    $summary['employeesUpdated']++;
                 }
-                $createdEmployeeIds[] = (string) $employee->id;
             } catch (Throwable $e) {
                 $summary['failed']++;
                 $errors[] = $this->error('Employees', $rowNumber, $code, $this->exceptionMessage($e));
@@ -208,10 +235,14 @@ class EmployeeImportService
             $code = $this->stringValue($row['employeeCode'] ?? null);
 
             try {
-                DB::transaction(function () use ($row) {
-                    $this->createEmploymentFromRow($row);
+                $outcome = DB::transaction(function () use ($row) {
+                    return $this->upsertEmploymentFromRow($row);
                 });
-                $summary['employmentCreated']++;
+                if ($outcome === 'created') {
+                    $summary['employmentCreated']++;
+                } elseif ($outcome === 'updated') {
+                    $summary['employmentUpdated']++;
+                }
             } catch (Throwable $e) {
                 $summary['failed']++;
                 $errors[] = $this->error('Employment', $rowNumber, $code, $this->exceptionMessage($e));
@@ -227,10 +258,14 @@ class EmployeeImportService
             $code = $this->stringValue($row['employeeCode'] ?? null);
 
             try {
-                DB::transaction(function () use ($row) {
-                    $this->createCompensationFromRow($row);
+                $outcome = DB::transaction(function () use ($row) {
+                    return $this->upsertCompensationFromRow($row);
                 });
-                $summary['compensationCreated']++;
+                if ($outcome === 'created') {
+                    $summary['compensationCreated']++;
+                } elseif ($outcome === 'updated') {
+                    $summary['compensationUpdated']++;
+                }
             } catch (Throwable $e) {
                 $summary['failed']++;
                 $errors[] = $this->error('Compensation', $rowNumber, $code, $this->exceptionMessage($e));
@@ -242,18 +277,20 @@ class EmployeeImportService
             'Banks',
             'employeeCode',
             'banksCreated',
-            fn (array $row) => $this->createBankFromRow($row),
+            fn (array $row) => $this->upsertBankFromRow($row),
             $summary,
             $errors,
+            'banksUpdated',
         );
         $this->importKeyedRows(
             $payload['contacts'] ?? [],
             'Contacts',
             'employeeCode',
             'contactsCreated',
-            fn (array $row) => $this->createContactFromRow($row),
+            fn (array $row) => $this->upsertContactFromRow($row),
             $summary,
             $errors,
+            'contactsUpdated',
         );
         $this->importKeyedRows(
             $payload['leaveEntitlements'] ?? [],
@@ -287,18 +324,20 @@ class EmployeeImportService
             'Allowances',
             'employeeCode',
             'allowancesCreated',
-            fn (array $row) => $this->createAllowanceFromRow($row),
+            fn (array $row) => $this->upsertAllowanceFromRow($row),
             $summary,
             $errors,
+            'allowancesUpdated',
         );
         $this->importKeyedRows(
             $payload['deductions'] ?? [],
             'Deductions',
             'employeeCode',
             'deductionsCreated',
-            fn (array $row) => $this->createDeductionFromRow($row),
+            fn (array $row) => $this->upsertDeductionFromRow($row),
             $summary,
             $errors,
+            'deductionsUpdated',
         );
         $this->importKeyedRows(
             $payload['departmentHeads'] ?? [],
@@ -449,15 +488,50 @@ class EmployeeImportService
 
     /**
      * @param  array<string, mixed>  $row
+     * @return array{employee: Employee, created: bool}
      */
-    private function createEmployeeFromRow(array $row): Employee
+    private function upsertEmployeeFromRow(array $row): array
     {
         $code = $this->requireString($row, 'code', 'Employee code is required.');
+        $existing = Employee::query()->where('code', $code)->first();
 
-        if (Employee::query()->where('code', $code)->exists()) {
+        if ($existing && ! $this->overwriteExisting) {
             throw new \RuntimeException("Employee code already exists: {$code}");
         }
 
+        $attributes = $this->employeeAttributesFromRow($row, $code);
+
+        if ($existing) {
+            $employee = EmployeePersonSync::update($existing, $attributes);
+
+            return ['employee' => $employee, 'created' => false];
+        }
+
+        $employee = EmployeePersonSync::create($attributes);
+
+        if (!$employee->user_id) {
+            $user = app(EmployeeUserProvisioner::class)->provisionForEmployee(
+                $employee->fresh(['person']) ?? $employee,
+            );
+
+            if (!$user) {
+                throw new \RuntimeException(
+                    "Failed to create a linked user account for employee code: {$code}",
+                );
+            }
+
+            $employee = $employee->fresh() ?? $employee;
+        }
+
+        return ['employee' => $employee, 'created' => true];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function employeeAttributesFromRow(array $row, string $code): array
+    {
         $localityId = $this->findOrCreateLocalityId(
             $this->requireString($row, 'localityName', 'localityName is required.'),
         );
@@ -477,40 +551,13 @@ class EmployeeImportService
             'paymentMethodName',
         );
 
-        $honorificId = $this->optionalLookupId(
-            Honorific::class,
-            $this->stringValue($row['honorificName'] ?? null),
-            'honorificName',
-        );
-        $citizenshipStatusId = $this->optionalLookupId(
-            CitizenshipStatus::class,
-            $this->stringValue($row['citizenshipStatusName'] ?? null),
-            'citizenshipStatusName',
-        );
-        $nationalityId = $this->optionalLookupId(
-            Country::class,
-            $this->stringValue($row['nationalityName'] ?? null),
-            'nationalityName',
-        );
-        $employeeStatusId = $this->optionalLookupId(
-            EmployeeStatus::class,
-            $this->stringValue($row['employeeStatusName'] ?? null),
-            'employeeStatusName',
-        );
-        $employmentStatusId = $this->optionalLookupId(
-            EmploymentStatus::class,
-            $this->stringValue($row['employmentStatusName'] ?? null),
-            'employmentStatusName',
-        );
-        $timesheetTemplateId = $this->optionalLookupId(
-            TimesheetTemplate::class,
-            $this->stringValue($row['timesheetTemplateName'] ?? null),
-            'timesheetTemplateName',
-        );
-
-        $attributes = [
+        return [
             'code' => $code,
-            'honorificId' => $honorificId,
+            'honorificId' => $this->optionalLookupId(
+                Honorific::class,
+                $this->stringValue($row['honorificName'] ?? null),
+                'honorificName',
+            ),
             'firstName' => $this->requireString($row, 'firstName', 'firstName is required.'),
             'middleName' => $this->nullableString($row['middleName'] ?? null),
             'lastName' => $this->requireString($row, 'lastName', 'lastName is required.'),
@@ -527,52 +574,91 @@ class EmployeeImportService
             'taxIdentificationNumber' => $this->nullableString($row['taxIdentificationNumber'] ?? null),
             'passportNumber' => $this->nullableString($row['passportNumber'] ?? null),
             'votersId' => $this->nullableString($row['votersId'] ?? null),
-            'citizenshipStatusId' => $citizenshipStatusId,
-            'nationalityId' => $nationalityId,
+            'citizenshipStatusId' => $this->optionalLookupId(
+                CitizenshipStatus::class,
+                $this->stringValue($row['citizenshipStatusName'] ?? null),
+                'citizenshipStatusName',
+            ),
+            'nationalityId' => $this->optionalLookupId(
+                Country::class,
+                $this->stringValue($row['nationalityName'] ?? null),
+                'nationalityName',
+            ),
             'payrateFrequencyId' => $payrateFrequencyId,
             'paymentMethodId' => $paymentMethodId,
-            'employeeStatusId' => $employeeStatusId,
-            'employmentStatusId' => $employmentStatusId,
-            'timesheetTemplateId' => $timesheetTemplateId,
+            'employeeStatusId' => $this->optionalLookupId(
+                EmployeeStatus::class,
+                $this->stringValue($row['employeeStatusName'] ?? null),
+                'employeeStatusName',
+            ),
+            'employmentStatusId' => $this->optionalLookupId(
+                EmploymentStatus::class,
+                $this->stringValue($row['employmentStatusName'] ?? null),
+                'employmentStatusName',
+            ),
+            'timesheetTemplateId' => $this->optionalLookupId(
+                TimesheetTemplate::class,
+                $this->stringValue($row['timesheetTemplateName'] ?? null),
+                'timesheetTemplateName',
+            ),
             'internalId1' => $this->nullableString($row['internalId1'] ?? null),
             'internalId2' => $this->nullableString($row['internalId2'] ?? null),
             'notes' => $this->nullableString($row['notes'] ?? null),
             'health' => $this->nullableString($row['health'] ?? null),
             'unionMembership' => $this->nullableString($row['unionMembership'] ?? null),
         ];
-
-        $employee = EmployeePersonSync::create($attributes);
-
-        if (!$employee->user_id) {
-            $user = app(EmployeeUserProvisioner::class)->provisionForEmployee(
-                $employee->fresh(['person']) ?? $employee,
-            );
-
-            if (!$user) {
-                throw new \RuntimeException(
-                    "Failed to create a linked user account for employee code: {$code}",
-                );
-            }
-
-            $employee = $employee->fresh() ?? $employee;
-        }
-
-        return $employee;
     }
 
     /**
      * @param array<string, mixed> $row
+     * @return 'created'|'updated'|'skipped'
      */
-    private function createEmploymentFromRow(array $row): EmploymentDetail
+    private function upsertEmploymentFromRow(array $row): string
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
         $employee = $this->findEmployeeByCode($code);
 
+        $existing = EmploymentDetail::query()
+            ->where('employeeId', $employee->id)
+            ->where('isActive', true)
+            ->orderByDesc('startDate')
+            ->first();
+
+        $attributes = $this->employmentAttributesFromRow($row, $code);
+
+        if ($existing) {
+            if (! $this->overwriteExisting) {
+                return 'skipped';
+            }
+            $existing->update($attributes);
+
+            return 'updated';
+        }
+
+        EmploymentDetail::create(array_merge($attributes, [
+            'id' => (string) Str::uuid(),
+            'employeeId' => $employee->id,
+        ]));
+
+        return 'created';
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function employmentAttributesFromRow(array $row, string $code): array
+    {
         $departmentName = $this->resolveDepartmentName(
-            $this->requireString($row, 'departmentName', 'departmentName is required.'),
+            $this->stringValue($row['departmentName'] ?? null)
+                ?? ($this->departmentByEmployeeCode[mb_strtolower($code)] ?? null)
+                ?? $this->nullableString($row['jobTitle'] ?? null)
+                ?? 'General'
         );
         $department = Department::query()->firstOrCreate(['name' => $departmentName], ['parentId' => null]);
-        $worksiteName = $this->requireString($row, 'worksiteName', 'worksiteName is required.');
+        $worksiteName = $this->resolveWorksiteName(
+            $this->requireString($row, 'worksiteName', 'worksiteName is required.'),
+        );
         $worksite = Worksite::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($worksiteName)])->first();
         if (!$worksite) {
             $localityId = Locality::query()->whereRaw('LOWER(name) = ?', ['san ignacio'])->value('id')
@@ -606,9 +692,7 @@ class EmployeeImportService
             )->id;
         }
 
-        return EmploymentDetail::create([
-            'id' => (string) Str::uuid(),
-            'employeeId' => $employee->id,
+        return [
             'departmentId' => $department->id,
             'worksiteId' => $worksite->id,
             'accountId' => $accountId,
@@ -621,13 +705,14 @@ class EmployeeImportService
             'isActive' => $this->toBool($row['isActive'] ?? true, true),
             'benefits' => trim((string) ($row['benefits'] ?? '')),
             'employmentPolicies' => trim((string) ($row['employmentPolicies'] ?? '')),
-        ]);
+        ];
     }
 
     /**
      * @param array<string, mixed> $row
+     * @return 'created'|'updated'|'skipped'
      */
-    private function createCompensationFromRow(array $row): EmployeeCompensation
+    private function upsertCompensationFromRow(array $row): string
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
         $employee = $this->findEmployeeByCode($code);
@@ -646,6 +731,7 @@ class EmployeeImportService
         $methodAliases = [
             'BASE_YES_OT' => 'BASE_OT',
             'HOURLY_YES_OT' => 'HOURLY_OT',
+            'HOURLY_YNO_OT' => 'HOURLY_NO_OT',
             'HOURLY_NO' => 'HOURLY_NO_OT',
             'BASE_NO' => 'BASE_NO_OT',
         ];
@@ -669,15 +755,22 @@ class EmployeeImportService
         }
 
         $isActive = $this->toBool($row['isActive'] ?? true, true);
+        $existing = null;
         if ($isActive) {
-            $exists = EmployeeCompensation::query()
+            $existing = EmployeeCompensation::query()
                 ->where('employmentDetailId', $employmentDetail->id)
                 ->where('isActive', true)
-                ->exists();
+                ->first();
 
-            if ($exists) {
+            if ($existing && ! $this->overwriteExisting) {
                 throw new \RuntimeException('This employment contract already has active compensation.');
             }
+        }
+
+        $yearlyRate = $this->nullableFloat($row['yearlyRate'] ?? null);
+        $weeklyRate = $this->nullableFloat($row['weeklyRate'] ?? null);
+        if (($yearlyRate === null || $yearlyRate <= 0) && $weeklyRate !== null && $weeklyRate > 0) {
+            $yearlyRate = round($weeklyRate * 52, 2);
         }
 
         $payload = [
@@ -691,7 +784,7 @@ class EmployeeImportService
                 ? $this->toBool($row['requiresClocking'])
                 : $method->defaultRequiresClocking(),
             'hourlyRate' => $this->nullableFloat($row['hourlyRate'] ?? null),
-            'yearlyRate' => $this->nullableFloat($row['yearlyRate'] ?? null),
+            'yearlyRate' => $yearlyRate,
             'dailyRate' => $this->nullableFloat($row['dailyRate'] ?? null),
             'standardWeeklyHours' => $this->nullableFloat($row['standardWeeklyHours'] ?? null)
                 ?? EmployeeCompensationResolver::DEFAULT_STANDARD_WEEKLY_HOURS,
@@ -704,9 +797,17 @@ class EmployeeImportService
         $payload = $this->normalizeCompensationRates($payload, $method);
         $this->assertCompensationRates($payload, $method);
 
-        return EmployeeCompensation::create(array_merge($payload, [
+        if ($existing) {
+            $existing->update($payload);
+
+            return 'updated';
+        }
+
+        EmployeeCompensation::create(array_merge($payload, [
             'id' => (string) Str::uuid(),
         ]));
+
+        return 'created';
     }
 
     /**
@@ -799,7 +900,7 @@ class EmployeeImportService
 
     /**
      * @param  list<array<string, mixed>>  $rows
-     * @param  callable(array<string, mixed>): mixed  $handler
+     * @param  callable(array<string, mixed>): ('created'|'updated'|'skipped'|null|object)  $handler
      * @param  array<string, int>  $summary
      * @param  list<array{sheet: string, row: int|null, code: string|null, message: string}>  $errors
      */
@@ -811,6 +912,7 @@ class EmployeeImportService
         callable $handler,
         array &$summary,
         array &$errors,
+        ?string $updatedSummaryKey = null,
     ): void {
         foreach ($rows as $index => $row) {
             if (!is_array($row) || $this->isBlankRow($row)) {
@@ -821,9 +923,18 @@ class EmployeeImportService
             $code = $this->stringValue($row[$codeKey] ?? null);
 
             try {
-                DB::transaction(function () use ($row, $handler) {
-                    $handler($row);
+                $outcome = DB::transaction(function () use ($row, $handler) {
+                    return $handler($row);
                 });
+
+                if ($outcome === 'skipped' || $outcome === null) {
+                    continue;
+                }
+                if ($outcome === 'updated' && $updatedSummaryKey !== null) {
+                    $summary[$updatedSummaryKey]++;
+                    continue;
+                }
+
                 $summary[$summaryKey]++;
             } catch (Throwable $e) {
                 $summary['failed']++;
@@ -866,8 +977,9 @@ class EmployeeImportService
 
     /**
      * @param  array<string, mixed>  $row
+     * @return 'created'|'updated'|'skipped'
      */
-    private function createBankFromRow(array $row): EmployeeBank
+    private function upsertBankFromRow(array $row): string
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
         $employee = $this->findEmployeeByCode($code);
@@ -876,45 +988,90 @@ class EmployeeImportService
             $this->stringValue($row['bankCode'] ?? null),
         );
 
+        $accountNumber = $this->requireString($row, 'accountNumber', 'accountNumber is required.');
         $isPrimary = $this->toBool($row['isPrimary'] ?? true, true);
-        $account = EmployeeBank::create([
-            'id' => (string) Str::uuid(),
-            'employeeId' => $employee->id,
+        $attributes = [
             'bankId' => $bank->id,
-            'accountNumber' => $this->requireString($row, 'accountNumber', 'accountNumber is required.'),
+            'accountNumber' => $accountNumber,
             'isPrimary' => $isPrimary,
             'notes' => $this->nullableString($row['notes'] ?? null),
-        ]);
+        ];
 
-        return $account;
+        $existing = EmployeeBank::query()
+            ->where('employeeId', $employee->id)
+            ->where('accountNumber', $accountNumber)
+            ->first();
+
+        if ($existing) {
+            if (! $this->overwriteExisting) {
+                return 'skipped';
+            }
+            $existing->update($attributes);
+
+            return 'updated';
+        }
+
+        EmployeeBank::create(array_merge($attributes, [
+            'id' => (string) Str::uuid(),
+            'employeeId' => $employee->id,
+        ]));
+
+        return 'created';
     }
 
     /**
      * @param  array<string, mixed>  $row
+     * @return 'created'|'updated'|'skipped'|null
      */
-    private function createContactFromRow(array $row): EmployeeContact
+    private function upsertContactFromRow(array $row): ?string
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
+        $firstName = $this->stringValue($row['firstName'] ?? null);
+        $lastName = $this->stringValue($row['lastName'] ?? null);
+        // Placeholder contact rows with only an employee code are skipped.
+        if ($firstName === null && $lastName === null) {
+            return 'skipped';
+        }
+
         $employee = $this->findEmployeeByCode($code);
         $localityName = $this->stringValue($row['localityName'] ?? null) ?? 'San Ignacio';
         $relationshipName = $this->stringValue($row['relationshipName'] ?? null) ?? 'Other';
-
-        return EmployeeContact::create([
-            'id' => (string) Str::uuid(),
-            'employeeId' => $employee->id,
-            'firstName' => $this->requireString($row, 'firstName', 'firstName is required.'),
+        $attributes = [
+            'firstName' => $firstName ?? 'Unknown',
             'middleName' => $this->nullableString($row['middleName'] ?? null),
-            'lastName' => $this->requireString($row, 'lastName', 'lastName is required.'),
-            'phoneNumber1' => $this->requireString($row, 'phoneNumber1', 'phoneNumber1 is required.'),
+            'lastName' => $lastName ?? 'Unknown',
+            'phoneNumber1' => $this->stringValue($row['phoneNumber1'] ?? null) ?? 'N/A',
             'phoneNumber2' => $this->nullableString($row['phoneNumber2'] ?? null),
-            'email' => $this->requireString($row, 'email', 'email is required.'),
-            'address1' => $this->requireString($row, 'address1', 'address1 is required.'),
+            'email' => $this->stringValue($row['email'] ?? null) ?? strtolower($code).'@placeholder.local',
+            'address1' => $this->stringValue($row['address1'] ?? null) ?? 'N/A',
             'address2' => $this->nullableString($row['address2'] ?? null),
             'localityId' => $this->findOrCreateLocalityId($localityName),
             'relationshipId' => $this->requireLookupId(Relationship::class, $relationshipName, 'relationshipName'),
             'isDependent' => $this->toBool($row['isDependent'] ?? false),
             'isProfessionalReference' => $this->toBool($row['isProfessionalReference'] ?? false),
-        ]);
+        ];
+
+        $existing = EmployeeContact::query()
+            ->where('employeeId', $employee->id)
+            ->whereRaw('LOWER("firstName") = ?', [mb_strtolower($attributes['firstName'])])
+            ->whereRaw('LOWER("lastName") = ?', [mb_strtolower($attributes['lastName'])])
+            ->first();
+
+        if ($existing) {
+            if (! $this->overwriteExisting) {
+                return 'skipped';
+            }
+            $existing->update($attributes);
+
+            return 'updated';
+        }
+
+        EmployeeContact::create(array_merge($attributes, [
+            'id' => (string) Str::uuid(),
+            'employeeId' => $employee->id,
+        ]));
+
+        return 'created';
     }
 
     /**
@@ -1108,7 +1265,7 @@ class EmployeeImportService
             'employee_id' => $employee->id,
             'pool_distribution_type_id' => $type->id,
             'points' => $this->nullableFloat($row['points'] ?? null) ?? 0,
-            'weight' => $this->nullableFloat($row['weight'] ?? null) ?? 1,
+            'weight' => $this->optionalFloat($row['weight'] ?? null) ?? 1,
             'effective_date' => $effectiveDate,
             'end_date' => $this->nullableDate($row['endDate'] ?? null),
             'notes' => $this->nullableString($row['notes'] ?? null),
@@ -1117,8 +1274,9 @@ class EmployeeImportService
 
     /**
      * @param  array<string, mixed>  $row
+     * @return 'created'|'updated'
      */
-    private function createAllowanceFromRow(array $row): EmployeeDefaultAllowance
+    private function upsertAllowanceFromRow(array $row): string
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
         $employee = $this->findEmployeeByCode($code);
@@ -1139,9 +1297,7 @@ class EmployeeImportService
             $allowance->update(['accountId' => $accountId]);
         }
 
-        return EmployeeDefaultAllowance::create([
-            'id' => (string) Str::uuid(),
-            'employeeId' => $employee->id,
+        $attributes = [
             'allowanceId' => $allowance->id,
             'accountId' => null,
             'note' => $this->nullableString($row['note'] ?? null) ?? '',
@@ -1149,13 +1305,35 @@ class EmployeeImportService
             'unitAmount' => $unitAmount,
             'amount' => round($quantity * $unitAmount, 2),
             ...$this->occurrenceFieldsFromRow($row),
-        ]);
+        ];
+
+        $existing = EmployeeDefaultAllowance::query()
+            ->where('employeeId', $employee->id)
+            ->where('allowanceId', $allowance->id)
+            ->first();
+
+        if ($existing) {
+            if (! $this->overwriteExisting) {
+                throw new \RuntimeException("Allowance {$allowance->name} is already assigned to {$code}.");
+            }
+            $existing->update($attributes);
+
+            return 'updated';
+        }
+
+        EmployeeDefaultAllowance::create(array_merge($attributes, [
+            'id' => (string) Str::uuid(),
+            'employeeId' => $employee->id,
+        ]));
+
+        return 'created';
     }
 
     /**
      * @param  array<string, mixed>  $row
+     * @return 'created'|'updated'
      */
-    private function createDeductionFromRow(array $row): EmployeeDefaultDeduction
+    private function upsertDeductionFromRow(array $row): string
     {
         $code = $this->requireString($row, 'employeeCode', 'employeeCode is required.');
         $employee = $this->findEmployeeByCode($code);
@@ -1163,11 +1341,11 @@ class EmployeeImportService
             $this->requireString($row, 'deductionTypeName', 'deductionTypeName is required.'),
         );
 
-        $exists = EmployeeDefaultDeduction::query()
+        $existing = EmployeeDefaultDeduction::query()
             ->where('employeeId', $employee->id)
             ->where('deductionTypeId', $deductionType->id)
-            ->exists();
-        if ($exists) {
+            ->first();
+        if ($existing && ! $this->overwriteExisting) {
             throw new \RuntimeException("Deduction {$deductionType->name} is already assigned to {$code}.");
         }
 
@@ -1196,9 +1374,7 @@ class EmployeeImportService
             $deductionType->update(['accountId' => $accountId]);
         }
 
-        return EmployeeDefaultDeduction::create([
-            'id' => (string) Str::uuid(),
-            'employeeId' => $employee->id,
+        $attributes = [
             'deductionTypeId' => $deductionType->id,
             'bankId' => $bank->id,
             'accountNumber' => $accountNumber,
@@ -1209,7 +1385,20 @@ class EmployeeImportService
             'applicationRule' => $this->nullableString($row['applicationRule'] ?? null),
             'priority' => (int) ($this->nullableFloat($row['priority'] ?? null) ?? 0),
             ...$this->occurrenceFieldsFromRow($row),
-        ]);
+        ];
+
+        if ($existing) {
+            $existing->update($attributes);
+
+            return 'updated';
+        }
+
+        EmployeeDefaultDeduction::create(array_merge($attributes, [
+            'id' => (string) Str::uuid(),
+            'employeeId' => $employee->id,
+        ]));
+
+        return 'created';
     }
 
     /**
@@ -1338,8 +1527,18 @@ class EmployeeImportService
 
     private function findPoolType(string $name): PoolDistributionType
     {
+        $aliases = [
+            'gratuity shares' => 'Shares',
+            'gratuity share' => 'Shares',
+            'share' => 'Shares',
+            'shares' => 'Shares',
+            'tip' => 'Tips',
+            'tips' => 'Tips',
+        ];
+        $resolved = $aliases[mb_strtolower(trim($name))] ?? $name;
+
         $type = PoolDistributionType::query()
-            ->whereRaw('LOWER(name) = ? OR LOWER(code) = ?', [mb_strtolower($name), mb_strtolower($name)])
+            ->whereRaw('LOWER(name) = ? OR LOWER(code) = ?', [mb_strtolower($resolved), mb_strtolower($resolved)])
             ->first();
         if (!$type) {
             throw new \RuntimeException("Unknown poolTypeName: {$name}. Seeded types are Tips and Shares.");
@@ -1363,13 +1562,53 @@ class EmployeeImportService
     {
         $aliases = [
             'landscaping' => 'Gardeners',
+            'landscape & gardens' => 'Gardeners',
             'accounts' => 'Finance',
             'accounting' => 'Accounting',
-            'guava limb café' => 'Dining',
-            'guava limb cafe' => 'Dining',
+            'office & admin' => 'Administration',
         ];
 
         return $aliases[mb_strtolower(trim($name))] ?? $name;
+    }
+
+    private function resolveWorksiteName(string $name): string
+    {
+        $aliases = [
+            'guava limb cafe' => 'Guava Limb Café',
+            'guava limb café' => 'Guava Limb Café',
+            'central office' => 'Business Office',
+            'head office' => 'Head Office',
+        ];
+
+        return $aliases[mb_strtolower(trim($name))] ?? $name;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<string, string>
+     */
+    private function buildDepartmentFallbackMap(array $rows): array
+    {
+        $map = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row) || $this->isBlankRow($row)) {
+                continue;
+            }
+
+            $code = $this->stringValue($row['employeeCode'] ?? null);
+            $department = $this->stringValue($row['departmentName'] ?? null);
+            if ($code === null || $department === null) {
+                continue;
+            }
+
+            $key = mb_strtolower($code);
+            if (!isset($map[$key])) {
+                $map[$key] = $department;
+            }
+        }
+
+        return $map;
     }
 
     private function clockingLogsAvailable(): bool
@@ -1526,13 +1765,32 @@ class EmployeeImportService
             return (string) $cached;
         }
 
+        $normalizedCode = preg_replace('/\s+/', '', $code) ?? $code;
+
         $account = Account::query()
-            ->whereRaw('LOWER(code1) = ?', [mb_strtolower($code)])
+            ->where(function ($query) use ($normalizedCode) {
+                $query->whereRaw('LOWER(code1) = ?', [mb_strtolower($normalizedCode)])
+                    ->orWhereRaw("LOWER(REPLACE(code1, ' ', '')) = ?", [mb_strtolower($normalizedCode)]);
+            })
             ->first();
 
         if (!$account) {
-            $this->lookupCache[$cacheKey] = null;
-            throw new \RuntimeException("Unknown accountCode: {$code}");
+            $expenseTypeId = \App\Models\AccountType::query()
+                ->whereRaw('LOWER(name) = ?', ['expense'])
+                ->value('id')
+                ?? \App\Models\AccountType::query()->value('id');
+
+            $account = Account::query()->create([
+                'id' => (string) Str::uuid(),
+                'name' => 'Imported '.$normalizedCode,
+                'description' => 'Created during employee import',
+                'code1' => $normalizedCode,
+                'balance' => 0,
+                'account_type_id' => $expenseTypeId,
+                'type' => 'expense',
+                'is_active' => true,
+                'level' => 1,
+            ]);
         }
 
         $this->lookupCache[$cacheKey] = $account->id;
@@ -1646,11 +1904,33 @@ class EmployeeImportService
             return null;
         }
 
-        if (!is_numeric($value)) {
-            throw new \RuntimeException('Expected a numeric value.');
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
         }
 
-        return (float) $value;
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        if (is_string($value)) {
+            // Accept currency-formatted amounts: "$1,234.56", "BZD 10.00"
+            $normalized = preg_replace('/[^0-9.\-]/', '', str_replace(',', '', $value));
+            if (is_string($normalized) && $normalized !== '' && $normalized !== '-' && $normalized !== '.' && is_numeric($normalized)) {
+                return (float) $normalized;
+            }
+        }
+
+        throw new \RuntimeException('Expected a numeric value.');
+    }
+
+    /** Like nullableFloat, but returns null for non-numeric labels (e.g. pool weight names). */
+    private function optionalFloat(mixed $value): ?float
+    {
+        try {
+            return $this->nullableFloat($value);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function toBool(mixed $value, bool $default = false): bool

@@ -50,6 +50,13 @@ class AuthController extends Controller
                     'message' => 'Mismatch Username or Password',
                 ], 400);
             }
+
+            // Keep password cost in sync without going through Auth::attempt.
+            if (config('hashing.rehash_on_login', true) && Hash::needsRehash($user->password)) {
+                $user->forceFill([
+                    'password' => $request->password,
+                ])->save();
+            }
         } catch (LoginAccessDeniedException $exception) {
             return $exception->toResponse();
         }
