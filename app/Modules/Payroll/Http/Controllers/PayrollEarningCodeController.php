@@ -6,6 +6,7 @@ use App\Models\PayrollEarningCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 class PayrollEarningCodeController extends Controller
 {
@@ -26,7 +27,8 @@ class PayrollEarningCodeController extends Controller
             'code' => ['required', 'string', 'max:32', 'unique:payroll_earning_code,code'],
             'name' => ['required', 'string', 'max:128'],
             'account_id' => ['nullable', 'uuid', 'exists:accounts,id'],
-            'source' => ['nullable', 'string', Rule::in(PayrollEarningCode::SOURCES), Rule::unique('payroll_earning_code', 'source')],
+            'source' => ['nullable', 'string', Rule::in(PayrollEarningCode::SOURCES), $this->sourceUniqueRule($request)],
+            'pay_multiplier' => ['nullable', 'numeric', 'min:0'],
             'post_to_department_account' => ['boolean'],
             'split_by_timesheet_department' => ['boolean'],
             'is_taxable' => ['boolean'],
@@ -54,7 +56,8 @@ class PayrollEarningCodeController extends Controller
             'code' => ['sometimes', 'string', 'max:32', Rule::unique('payroll_earning_code', 'code')->ignore($payrollEarningCode->id)],
             'name' => ['sometimes', 'string', 'max:128'],
             'account_id' => ['nullable', 'uuid', 'exists:accounts,id'],
-            'source' => ['nullable', 'string', Rule::in(PayrollEarningCode::SOURCES), Rule::unique('payroll_earning_code', 'source')->ignore($payrollEarningCode->id)],
+            'source' => ['nullable', 'string', Rule::in(PayrollEarningCode::SOURCES), $this->sourceUniqueRule($request, $payrollEarningCode)],
+            'pay_multiplier' => ['nullable', 'numeric', 'min:0'],
             'post_to_department_account' => ['boolean'],
             'split_by_timesheet_department' => ['boolean'],
             'is_taxable' => ['boolean'],
@@ -82,6 +85,27 @@ class PayrollEarningCodeController extends Controller
         $payrollEarningCode->delete();
 
         return response()->json(['message' => 'Payroll earning code deleted successfully']);
+    }
+
+    /**
+     * Source may be shared when the pay multiplier differs (holiday 1.5 and double time).
+     * Matches payroll_earning_code_source_multiplier_unique.
+     */
+    private function sourceUniqueRule(Request $request, ?PayrollEarningCode $existing = null): Unique
+    {
+        $multiplier = $request->exists('pay_multiplier')
+            ? $request->input('pay_multiplier')
+            : $existing?->pay_multiplier;
+        $normalized = ($multiplier === null || $multiplier === '') ? 0 : (float) $multiplier;
+
+        $rule = Rule::unique('payroll_earning_code', 'source')
+            ->where(fn ($query) => $query->whereRaw('COALESCE(pay_multiplier, 0) = ?', [$normalized]));
+
+        if ($existing) {
+            $rule->ignore($existing->id);
+        }
+
+        return $rule;
     }
 
     /**
