@@ -35,6 +35,7 @@ class PayrollEarningCode extends Model
         'source',
         'pay_multiplier',
         'post_to_department_account',
+        'split_by_timesheet_department',
         'is_taxable',
         'is_ss_subject',
         'is_active',
@@ -45,6 +46,7 @@ class PayrollEarningCode extends Model
         'is_taxable' => 'boolean',
         'is_ss_subject' => 'boolean',
         'post_to_department_account' => 'boolean',
+        'split_by_timesheet_department' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];
@@ -66,6 +68,15 @@ class PayrollEarningCode extends Model
     public function usesDepartmentAccount(): bool
     {
         return (bool) $this->post_to_department_account;
+    }
+
+    /**
+     * Split this earning across timesheet departments. Ignored unless department posting is on,
+     * so a fixed-account code (vacation, gratuity, and similar) stays on one GL.
+     */
+    public function splitsCostByTimesheetDepartment(): bool
+    {
+        return $this->usesDepartmentAccount() && (bool) $this->split_by_timesheet_department;
     }
 
     public function account(): BelongsTo

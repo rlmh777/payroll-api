@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\CompanyModuleService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureApiPermission
 {
+    public function __construct(
+        private readonly CompanyModuleService $companyModuleService,
+    ) {}
+
     public function handle(Request $request, Closure $next): Response
     {
         $method = strtoupper($request->method());
@@ -24,6 +29,10 @@ class EnsureApiPermission
         $user = $this->resolveAuthenticatedUser($request);
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if ($moduleResponse = $this->denyIfModuleDisabled($relativePath)) {
+            return $moduleResponse;
         }
 
         if ($this->isAuthOnlyRoute($routeKey, $method, $relativePath)) {
@@ -56,6 +65,23 @@ class EnsureApiPermission
         }
 
         return $next($request);
+    }
+
+    private function denyIfModuleDisabled(string $relativePath): ?Response
+    {
+        $required = $this->companyModuleService->requiredModulesForApiPath($relativePath);
+        if ($required === null) {
+            return null;
+        }
+
+        if ($this->companyModuleService->isAnyModuleEnabled($required)) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'Forbidden. Required application module is disabled.',
+            'modules' => $required,
+        ], 403);
     }
 
     private function resolveAuthenticatedUser(Request $request): ?User
