@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Support\Access;
 use App\Support\ConfiguredMail;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -69,7 +68,8 @@ class SensitiveActionChallengeService
             'user_id' => (string) $user->id,
             'action' => $action,
             'context' => $context,
-            'code_hash' => Hash::make($code),
+            // Short-lived OTPs do not need bcrypt (expensive and a poor fit for 6-digit codes).
+            'code_hash' => hash_hmac('sha256', $code, (string) config('app.key')),
             'attempts' => 0,
         ], now()->addSeconds(self::TTL_SECONDS));
 
@@ -117,7 +117,8 @@ class SensitiveActionChallengeService
         $attempts = (int) ($cached['attempts'] ?? 0) + 1;
         $normalized = preg_replace('/\s+/', '', $code) ?? '';
         $hash = $cached['code_hash'] ?? null;
-        $valid = is_string($hash) && $hash !== '' && Hash::check($normalized, $hash);
+        $expected = hash_hmac('sha256', $normalized, (string) config('app.key'));
+        $valid = is_string($hash) && $hash !== '' && hash_equals($hash, $expected);
 
         if (! $valid) {
             if ($attempts >= self::MAX_ATTEMPTS) {

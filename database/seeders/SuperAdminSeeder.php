@@ -7,7 +7,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UserRole;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class SuperAdminSeeder extends Seeder
@@ -22,7 +21,8 @@ class SuperAdminSeeder extends Seeder
             [
                 'name' => 'EZ Tech Support',
                 'username' => 'support',
-                'password' => Hash::make('Password123!'),
+                // Plain value: User casts password as "hashed" (avoid double bcrypt).
+                'password' => 'Password123!',
             ]
         );
 

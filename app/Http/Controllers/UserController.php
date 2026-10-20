@@ -13,7 +13,6 @@ use App\Support\Access;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 
@@ -102,7 +101,8 @@ class UserController extends Controller
             'name' => $request->input('name'),
             'username' => $username,
             'email' => $request->input('email'),
-            'password' => Hash::make($request->input('password')),
+            // Plain value: User casts password as "hashed".
+            'password' => $request->input('password'),
         ]);
 
         if ($request->has('roles')) {
@@ -172,7 +172,8 @@ class UserController extends Controller
         }
         
         if ($request->has('password')) {
-            $updateData['password'] = Hash::make($request->input('password'));
+            // Plain value: User casts password as "hashed".
+            $updateData['password'] = $request->input('password');
         }
 
         $user->update($updateData);
@@ -305,7 +306,7 @@ class UserController extends Controller
         }
 
         $user->update([
-            'password' => Hash::make($request->input('password')),
+            'password' => $request->input('password'),
         ]);
 
         return response()->json([
@@ -391,7 +392,7 @@ class UserController extends Controller
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
                 $user->forceFill([
-                    'password' => Hash::make($password)
+                    'password' => $password,
                 ])->save();
             }
         );

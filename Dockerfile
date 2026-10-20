@@ -40,7 +40,8 @@ RUN printf '%s\n' \
       'upload_max_filesize=32M' \
       'post_max_size=40M' \
       'memory_limit=512M' \
-      'max_execution_time=120' \
+      'max_execution_time=600' \
+      'max_input_time=600' \
       > /usr/local/etc/php/conf.d/zz-uploads.ini
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

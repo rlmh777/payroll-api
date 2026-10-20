@@ -26,6 +26,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Sail's php built-in server uses php.ini max_execution_time (30 by default).
+        // Keep a floor of 600s for long-running HTTP work (imports, reports, bcrypt).
+        if (! app()->runningInConsole()) {
+            $current = (int) ini_get('max_execution_time');
+            if ($current > 0 && $current < 600) {
+                ini_set('max_execution_time', '600');
+            }
+        }
+
         RateLimiter::for('login', function (Request $request) {
             $identity = strtolower((string) (
                 $request->input('username')

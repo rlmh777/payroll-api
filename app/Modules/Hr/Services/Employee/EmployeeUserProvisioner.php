@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\UserRole;
 use App\Modules\Hr\Models\Employee;
 use App\Services\UsernameGenerator;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class EmployeeUserProvisioner
@@ -67,7 +66,7 @@ class EmployeeUserProvisioner
             'name' => trim("{$person->firstName} {$person->lastName}"),
             'username' => $username,
             'email' => $email,
-            'password' => Hash::make((string) config('payroll.employee_default_password')),
+            'password' => (string) config('payroll.employee_default_password'),
         ]);
 
         $employeeRole = Role::query()->firstOrCreate([

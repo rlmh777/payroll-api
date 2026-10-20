@@ -22,6 +22,7 @@ services:
             AUTH_GUARD: '${AUTH_GUARD}'
         volumes:
             - '.:/var/www/html'
+            - './docker/php/zz-limits.ini:/etc/php/8.4/cli/conf.d/99-limits.ini'
         networks:
             - payroll-network
         depends_on:
