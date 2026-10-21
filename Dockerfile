@@ -1,11 +1,27 @@
 FROM dunglas/frankenphp:1-php8.4-bookworm
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN set -eux; \
+    apt-get update && apt-get install -y --no-install-recommends \
       git unzip libpq-dev libzip-dev libpng-dev libicu-dev \
-      postgresql-client \
-    && install-php-extensions \
-      pdo_pgsql pgsql zip intl bcmath pcntl redis opcache \
-    && rm -rf /var/lib/apt/lists/*
+      postgresql-client; \
+    install-php-extensions \
+      pdo_pgsql pgsql zip intl bcmath pcntl opcache; \
+    php_redis_ok=0; \
+    for attempt in 1 2 3 4 5; do \
+      if [ "$attempt" -le 2 ]; then \
+        redis_source=redis; \
+      else \
+        redis_source=https://github.com/phpredis/phpredis/archive/refs/tags/6.3.0.tar.gz; \
+      fi; \
+      if install-php-extensions "$redis_source"; then \
+        php_redis_ok=1; \
+        break; \
+      fi; \
+      echo "Redis extension download failed (attempt ${attempt}); retrying"; \
+      sleep $((attempt * 15)); \
+    done; \
+    test "$php_redis_ok" = 1; \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
