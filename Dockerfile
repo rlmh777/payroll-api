@@ -2,26 +2,29 @@ FROM dunglas/frankenphp:1-php8.4-bookworm
 
 RUN set -eux; \
     apt-get update && apt-get install -y --no-install-recommends \
-      git unzip libpq-dev libzip-dev libpng-dev libicu-dev \
-      postgresql-client; \
+      git unzip curl ca-certificates \
+      libpq-dev libzip-dev libpng-dev libicu-dev \
+      postgresql-client \
+      autoconf dpkg-dev file g++ gcc libc-dev make pkg-config re2c; \
     install-php-extensions \
       pdo_pgsql pgsql zip intl bcmath pcntl opcache; \
-    php_redis_ok=0; \
-    for attempt in 1 2 3 4 5; do \
-      if [ "$attempt" -le 2 ]; then \
-        redis_source=redis; \
-      else \
-        redis_source=https://github.com/phpredis/phpredis/archive/refs/tags/6.3.0.tar.gz; \
-      fi; \
-      if install-php-extensions "$redis_source"; then \
-        php_redis_ok=1; \
-        break; \
-      fi; \
-      echo "Redis extension download failed (attempt ${attempt}); retrying"; \
-      sleep $((attempt * 15)); \
-    done; \
-    test "$php_redis_ok" = 1; \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+      autoconf dpkg-dev file g++ gcc libc-dev make pkg-config re2c; \
+    curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
+      -o /tmp/phpredis.tar.gz \
+      https://codeload.github.com/phpredis/phpredis/tar.gz/refs/tags/6.3.0; \
+    mkdir -p /tmp/phpredis; \
+    tar -xzf /tmp/phpredis.tar.gz -C /tmp/phpredis --strip-components=1; \
+    ( \
+      cd /tmp/phpredis; \
+      phpize; \
+      ./configure; \
+      make -j"$(nproc)"; \
+      make install; \
+    ); \
+    docker-php-ext-enable redis; \
+    php -m | grep -qi '^redis$'; \
+    rm -rf /tmp/phpredis /tmp/phpredis.tar.gz /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
