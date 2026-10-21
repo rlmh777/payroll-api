@@ -78,9 +78,36 @@ jobs:
       - name: Deploy Container Apps
         run: |
           set -euo pipefail
+
+          # ARM sometimes returns an HTML "services aren't available" page.
+          # Azure CLI then crashes parsing "{font-family:...}" and hides the real error.
+          az_retry() {
+            local attempt=1
+            local max=4
+            local log
+            while true; do
+              log=$(mktemp)
+              if "$@" >"$log" 2>&1; then
+                cat "$log"
+                rm -f "$log"
+                return 0
+              fi
+              echo "Azure CLI failed (attempt ${attempt}/${max}):"
+              cat "$log"
+              if [ "$attempt" -ge "$max" ] || ! grep -Eq 'JSONDecodeError|Service Unavailable|503|temporarily unavailable' "$log"; then
+                rm -f "$log"
+                return 1
+              fi
+              rm -f "$log"
+              echo "Azure Resource Manager was unavailable. Retrying in $((attempt * 20))s..."
+              sleep $((attempt * 20))
+              attempt=$((attempt + 1))
+            done
+          }
+
           for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
             echo "Updating $app -> $IMAGE"
-            az containerapp update \
+            az_retry az containerapp update \
               --name "$app" \
               --resource-group "$RESOURCE_GROUP" \
               --image "$IMAGE" \
@@ -104,13 +131,37 @@ jobs:
             --public-access off \
             --output none
 
+          az_retry() {
+            local attempt=1
+            local max=4
+            local log
+            while true; do
+              log=$(mktemp)
+              if "$@" >"$log" 2>&1; then
+                cat "$log"
+                rm -f "$log"
+                return 0
+              fi
+              echo "Azure CLI failed (attempt ${attempt}/${max}):"
+              cat "$log"
+              if [ "$attempt" -ge "$max" ] || ! grep -Eq 'JSONDecodeError|Service Unavailable|503|temporarily unavailable' "$log"; then
+                rm -f "$log"
+                return 1
+              fi
+              rm -f "$log"
+              echo "Azure Resource Manager was unavailable. Retrying in $((attempt * 20))s..."
+              sleep $((attempt * 20))
+              attempt=$((attempt + 1))
+            done
+          }
+
           for app in "$CONTAINER_APP_API" "$CONTAINER_APP_QUEUE" "$CONTAINER_APP_SCHEDULER"; do
-            az containerapp secret set \
+            az_retry az containerapp secret set \
               --name "$app" \
               --resource-group "$RESOURCE_GROUP" \
               --secrets azure-storage-account-key="$ACCOUNT_KEY" \
               --output none
-            az containerapp update \
+            az_retry az containerapp update \
               --name "$app" \
               --resource-group "$RESOURCE_GROUP" \
               --set-env-vars \
@@ -125,11 +176,31 @@ jobs:
 
       - name: Ensure API runs migrations and insert-only catalog seed
         run: |
-          az containerapp update \
-            --name "$CONTAINER_APP_API" \
-            --resource-group "$RESOURCE_GROUP" \
-            --set-env-vars "RUN_MIGRATIONS=true" "RUN_SEEDERS=true" \
-            --output none
+          set -euo pipefail
+          attempt=1
+          max=4
+          while true; do
+            log=$(mktemp)
+            if az containerapp update \
+              --name "$CONTAINER_APP_API" \
+              --resource-group "$RESOURCE_GROUP" \
+              --set-env-vars "RUN_MIGRATIONS=true" "RUN_SEEDERS=true" \
+              --output none >"$log" 2>&1; then
+              cat "$log"
+              rm -f "$log"
+              break
+            fi
+            echo "Azure CLI failed (attempt ${attempt}/${max}):"
+            cat "$log"
+            if [ "$attempt" -ge "$max" ] || ! grep -Eq 'JSONDecodeError|Service Unavailable|503|temporarily unavailable' "$log"; then
+              rm -f "$log"
+              exit 1
+            fi
+            rm -f "$log"
+            echo "Azure Resource Manager was unavailable. Retrying in $((attempt * 20))s..."
+            sleep $((attempt * 20))
+            attempt=$((attempt + 1))
+          done
 
       - name: Summary
         run: |
