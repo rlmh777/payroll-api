@@ -61,11 +61,13 @@ class PayrollRunCalculationService
         $mondays = PayPeriodHelper::countMondays($startDate, $endDate);
         $weeksInPeriod = max(1, $mondays);
 
-        $this->timesheetProcessingService->generateScheduledTimesheets([
-            'startDate' => $startDate->toDateString(),
-            'endDate' => $timesheetEndDate->toDateString(),
-            'payPeriodGroupId' => $payPeriodGroupId,
-        ]);
+        if (strtolower((string) $payrollRun->status) !== 'posted') {
+            $this->timesheetProcessingService->generateScheduledTimesheets([
+                'startDate' => $startDate->toDateString(),
+                'endDate' => $timesheetEndDate->toDateString(),
+                'payPeriodGroupId' => $payPeriodGroupId,
+            ]);
+        }
 
         $employeeIds = $this->resolveEmployeeIds(
             $payrollRun,
@@ -253,6 +255,7 @@ class PayrollRunCalculationService
                             'periodDays' => 0,
                             'lines' => [],
                         ],
+                        'dayWorkByDepartment' => $timesheet['dayWorkByDepartment'] ?? [],
                         'vacationPay' => $timesheet['vacationPay'] ?? [
                             'amount' => 0.0,
                             'days' => 0,

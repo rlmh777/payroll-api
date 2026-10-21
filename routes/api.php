@@ -1143,6 +1143,7 @@ Route::prefix('payroll-runs')->group(function () {
     Route::get('/{payrollRun}/payroll-journal-departments-report', [PayrollRunController::class, 'payrollJournalDepartmentsReport']);
     Route::get('/{payrollRun}/employee-summary', [PayrollRunController::class, 'employeeSummary']);
     Route::post('/{payrollRun}/process', [PayrollRunPayslipController::class, 'process']);
+    Route::post('/{payrollRun}/reopen', [PayrollRunPayslipController::class, 'reopen']);
     Route::get('/{payrollRun}/payslips', [PayrollRunPayslipController::class, 'payslips']);
     Route::post('/{payrollRun}/allowance-deduction-import/preview', [PayrollRunAllowanceDeductionImportController::class, 'preview']);
     Route::post('/{payrollRun}/allowance-deduction-import/confirm', [PayrollRunAllowanceDeductionImportController::class, 'confirm']);

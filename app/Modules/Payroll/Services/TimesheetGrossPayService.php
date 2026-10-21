@@ -30,6 +30,7 @@ class TimesheetGrossPayService
      *     employmentDetailId: string|null,
      *     employeeCompensationId: string|null,
      *     departmentId: int|null,
+     *     dayWorkByDepartment: list<array{departmentId: int|null, amount: float}>,
      *     alreadyPaidLeave: array{
      *         amount: float,
      *         days: int,
@@ -164,6 +165,7 @@ class TimesheetGrossPayService
                     ?? $dayWorkEarnings['departmentId']
                     ?? $employmentContext['departmentId']
                     ?? null,
+                'dayWorkByDepartment' => $dayWorkEarnings['byDepartment'],
                 'alreadyPaidLeave' => $alreadyPaidLeave,
                 'vacationPay' => $vacationPay,
             ];
@@ -182,6 +184,7 @@ class TimesheetGrossPayService
             'employmentDetailId' => $employmentDetailId ?? $dayWorkEarnings['employmentDetailId'],
             'employeeCompensationId' => $employeeCompensationId ?? $dayWorkEarnings['employeeCompensationId'],
             'departmentId' => $departmentId ?? $dayWorkEarnings['departmentId'],
+            'dayWorkByDepartment' => $dayWorkEarnings['byDepartment'],
             'alreadyPaidLeave' => $alreadyPaidLeave,
             'vacationPay' => [
                 'amount' => 0.0,
@@ -272,7 +275,8 @@ class TimesheetGrossPayService
      *     baseEarnings: float,
      *     employmentDetailId: string|null,
      *     employeeCompensationId: string|null,
-     *     departmentId: int|null
+     *     departmentId: int|null,
+     *     byDepartment: list<array{departmentId: int|null, amount: float}>
      * }
      */
     public function dayWorkEarningsForEmployee(
@@ -290,26 +294,52 @@ class TimesheetGrossPayService
         )
             ->where('employeeId', $employeeId)
             ->whereRaw('UPPER("approvalStatus") = ?', ['APPROVED'])
+            ->with(['employmentDetail:id,departmentId'])
             ->orderBy('date')
             ->get();
 
         $baseEarnings = 0.0;
         $employmentDetailId = null;
         $employeeCompensationId = null;
-        $departmentId = null;
+        $homeDepartmentId = null;
+        $amountsByDepartment = [];
 
         foreach ($entries as $entry) {
-            $baseEarnings = round($baseEarnings + (float) $entry->amount, 2);
+            $amount = round((float) $entry->amount, 2);
+            $baseEarnings = round($baseEarnings + $amount, 2);
             $employmentDetailId ??= $entry->employmentDetailId ? (string) $entry->employmentDetailId : null;
             $employeeCompensationId ??= $entry->employeeCompensationId ? (string) $entry->employeeCompensationId : null;
-            $departmentId ??= $entry->departmentId !== null ? (int) $entry->departmentId : null;
+
+            $contractDepartmentId = $entry->employmentDetail?->departmentId;
+            if ($homeDepartmentId === null && $contractDepartmentId !== null) {
+                $homeDepartmentId = (int) $contractDepartmentId;
+            }
+
+            $postingDepartmentId = $entry->departmentId !== null
+                ? (int) $entry->departmentId
+                : ($contractDepartmentId !== null ? (int) $contractDepartmentId : null);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $key = $postingDepartmentId ?? 0;
+            $amountsByDepartment[$key] = round(($amountsByDepartment[$key] ?? 0) + $amount, 2);
+        }
+
+        $byDepartment = [];
+        foreach ($amountsByDepartment as $departmentKey => $amount) {
+            $byDepartment[] = [
+                'departmentId' => (int) $departmentKey > 0 ? (int) $departmentKey : null,
+                'amount' => $amount,
+            ];
         }
 
         return [
             'baseEarnings' => $baseEarnings,
             'employmentDetailId' => $employmentDetailId,
             'employeeCompensationId' => $employeeCompensationId,
-            'departmentId' => $departmentId,
+            'departmentId' => $homeDepartmentId ?? ($byDepartment[0]['departmentId'] ?? null),
+            'byDepartment' => $byDepartment,
         ];
     }
 

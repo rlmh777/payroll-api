@@ -34,6 +34,22 @@ class PayrollRunPayslipController extends Controller
         }
     }
 
+    public function reopen(PayrollRun $payrollRun): JsonResponse
+    {
+        try {
+            $result = $this->payrollRunProcessingService->reopen($payrollRun);
+
+            return response()->json([
+                'message' => 'Payroll run reopened. Correct it, then process it again.',
+                'data' => $result,
+            ]);
+        } catch (InvalidArgumentException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+    }
+
     public function payslips(Request $request, PayrollRun $payrollRun)
     {
         if (strtolower((string) $payrollRun->status) !== 'posted') {
