@@ -27,6 +27,36 @@ class EmployeeLeaveAccessTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
+    public function employee_can_load_leave_types_and_their_own_balance_when_requesting_leave(): void
+    {
+        [$employeeUser, $employeeId] = $this->employeeActor(
+            'apply-leave@example.com',
+            'Apply',
+            'Leave',
+            ['employee-leave-crud'],
+        );
+        [, $otherId] = $this->employeeActor(
+            'apply-other@example.com',
+            'Other',
+            'Person',
+            ['employee-leave-crud'],
+        );
+        $this->leaveTypeId();
+
+        Sanctum::actingAs($employeeUser);
+
+        $types = $this->getJson('/api/leave-types?per_page=100')->assertOk();
+        $this->assertTrue(
+            collect($types->json('data'))->pluck('code')->contains('ACCESS_TEST_LEAVE')
+        );
+
+        $this->getJson('/api/employee-leave-balances?employeeId='.$employeeId)->assertOk();
+        $this->getJson('/api/employee-leave-balances?employeeId='.$otherId)->assertForbidden();
+        $this->getJson('/api/employees/'.$employeeId.'/hours-bank')->assertOk();
+        $this->getJson('/api/employees/'.$otherId.'/hours-bank')->assertForbidden();
+    }
+
+    #[Test]
     public function employee_can_create_and_read_only_their_own_leave(): void
     {
         [$employeeUser, $employeeId] = $this->employeeActor('self-leave@example.com', 'Self', 'Leave');

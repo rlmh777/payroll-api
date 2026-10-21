@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Services\CompanyModuleService;
+use App\Support\LoginSessionToken;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,10 @@ class EnsureApiPermission
         $method = strtoupper($request->method());
         $relativePath = $this->relativeApiPath($request);
         $routeKey = "{$method} {$relativePath}";
+
+        if ($method === 'POST' && $relativePath === 'logout') {
+            return $next($request);
+        }
 
         if ($this->isPublicRoute($routeKey, $method, $relativePath)) {
             return $next($request);
@@ -86,23 +91,37 @@ class EnsureApiPermission
 
     private function resolveAuthenticatedUser(Request $request): ?User
     {
+        $plain = $request->bearerToken();
+        if (is_string($plain) && $plain !== '') {
+            $accessToken = PersonalAccessToken::findToken($plain);
+            if (! $accessToken instanceof PersonalAccessToken || ! $this->accessTokenIsCurrent($accessToken)) {
+                return null;
+            }
+
+            $tokenUser = $accessToken->tokenable;
+            if (! $tokenUser instanceof User) {
+                return null;
+            }
+
+            $tokenUser->withAccessToken($accessToken);
+            LoginSessionToken::refresh($accessToken);
+            $this->bindAuthenticatedUser($request, $tokenUser);
+
+            return $tokenUser;
+        }
+
         $user = $request->user('sanctum') ?? $request->user();
         if ($user instanceof User) {
+            $current = $user->currentAccessToken();
+            if ($current instanceof PersonalAccessToken && ! $this->accessTokenIsCurrent($current)) {
+                return null;
+            }
+            if ($current instanceof PersonalAccessToken) {
+                LoginSessionToken::refresh($current);
+            }
             $this->bindAuthenticatedUser($request, $user);
 
             return $user;
-        }
-
-        if ($token = $request->bearerToken()) {
-            $accessToken = PersonalAccessToken::findToken($token);
-            if ($accessToken && (! $accessToken->expires_at || $accessToken->expires_at->isFuture())) {
-                $tokenUser = $accessToken->tokenable;
-                if ($tokenUser instanceof User) {
-                    $this->bindAuthenticatedUser($request, $tokenUser);
-
-                    return $tokenUser;
-                }
-            }
         }
 
         if (Auth::guard('web')->check()) {
@@ -121,6 +140,13 @@ class EnsureApiPermission
      * Ensure $request->user() (default guard) resolves for the rest of the request.
      * Sanctum may authenticate via the "sanctum" guard while the default remains unset.
      */
+    private function accessTokenIsCurrent(PersonalAccessToken $accessToken): bool
+    {
+        $expiresAt = $accessToken->expires_at;
+
+        return ! $expiresAt instanceof \DateTimeInterface || $expiresAt->isFuture();
+    }
+
     private function bindAuthenticatedUser(Request $request, User $user): void
     {
         $request->setUserResolver(static fn () => $user);
@@ -236,6 +262,10 @@ class EnsureApiPermission
         }
 
         if (preg_match('#^employees/([^/]+)$#', $path, $matches) === 1) {
+            return (string) $matches[1] === (string) $ownEmployeeId;
+        }
+
+        if (preg_match('#^employees/([^/]+)/hours-bank$#', $path, $matches) === 1) {
             return (string) $matches[1] === (string) $ownEmployeeId;
         }
 

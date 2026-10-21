@@ -327,8 +327,16 @@ class EmployeeDashboardService
             $events->push($birthday);
         }
 
+        $today = $from->toDateString();
+
         return $events
+            ->filter(function (array $event) use ($today): bool {
+                $end = $event['endDate'] ?? $event['startDate'] ?? null;
+
+                return is_string($end) && $end !== '' && $end >= $today;
+            })
             ->sortBy(fn (array $event) => ($event['startDate'] ?? '').$event['type'].($event['title'] ?? ''))
+            ->take(10)
             ->values()
             ->all();
     }

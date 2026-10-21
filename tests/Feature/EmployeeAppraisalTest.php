@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\ContractType;
 use App\Models\Country;
 use App\Models\Department;
+use App\Models\DepartmentHeadAssignment;
 use App\Models\EmploymentDetail;
 use App\Models\Gender;
 use App\Models\HrSetting;
@@ -176,6 +177,37 @@ class EmployeeAppraisalTest extends TestCase
         $this->assertSame($next, $contract->fresh()->appraisalDate->toDateString());
     }
 
+    public function test_department_head_can_start_an_appraisal_for_a_department_employee(): void
+    {
+        $mail = $this->mock(ConfiguredMail::class);
+        $mail->shouldReceive('isReady')->andReturn(false);
+
+        $head = $this->employeeUser('head@example.com', 'Dee', 'Head');
+        $subject = $this->employeeUser('dept.report@example.com', 'Pat', 'Dept');
+        $formId = FormTemplate::query()->where('purpose', FormTemplate::PURPOSE_APPRAISAL)->value('id');
+        $contract = $this->createContract($subject->employee->id, $formId, now()->addMonths(4)->toDateString());
+
+        DepartmentHeadAssignment::query()->create([
+            'departmentId' => $contract->departmentId,
+            'employeeId' => $head->employee->id,
+            'startDate' => now()->subMonth()->toDateString(),
+            'isCurrent' => true,
+        ]);
+
+        Sanctum::actingAs($head);
+        $this->getJson('/api/appraisals/candidates')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $subject->employee->id]);
+
+        $this->postJson('/api/appraisals', [
+            'employee_id' => $subject->employee->id,
+            'period_label' => '2026 department review',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.form_template.id', $formId)
+            ->assertJsonPath('data.pipeline.currentStep.key', 'supervisor');
+    }
+
     public function test_due_appraisals_start_three_months_before_the_contract_date(): void
     {
         $mail = $this->mock(ConfiguredMail::class);
@@ -196,6 +228,71 @@ class EmployeeAppraisalTest extends TestCase
         );
         $this->assertFalse(
             EmployeeAppraisal::query()->where('employee_id', $later->employee->id)->exists()
+        );
+    }
+
+    public function test_employee_can_start_their_own_appraisal_once_per_period(): void
+    {
+        $mail = $this->mock(ConfiguredMail::class);
+        $mail->shouldReceive('isReady')->andReturn(true);
+        $mail->shouldReceive('sendHtml')->andReturnNull();
+
+        $employee = $this->employeeUser('self@example.com', 'Self', 'Start');
+        $formId = FormTemplate::query()->where('purpose', FormTemplate::PURPOSE_APPRAISAL)->value('id');
+        $this->createContract($employee->employee->id, $formId, now()->addMonths(2)->toDateString());
+
+        Sanctum::actingAs($employee);
+        $this->getJson('/api/appraisals/candidates')
+            ->assertOk()
+            ->assertJsonPath('data.0.is_self', true);
+
+        $this->postJson('/api/appraisals', [
+            'employee_id' => $employee->employee->id,
+            'period_label' => '2026 appraisal',
+        ])->assertCreated();
+
+        $this->postJson('/api/appraisals', [
+            'employee_id' => $employee->employee->id,
+            'period_label' => '2026 appraisal',
+        ])->assertStatus(422)->assertJsonValidationErrors(['period_label']);
+
+        $this->assertSame(1, EmployeeAppraisal::query()->where('employee_id', $employee->employee->id)->count());
+    }
+
+    public function test_due_job_skips_an_existing_period_and_sends_a_reminder(): void
+    {
+        $mail = $this->mock(ConfiguredMail::class);
+        $mail->shouldReceive('isReady')->andReturn(true);
+        $mail->shouldReceive('sendHtml')->andReturnNull();
+
+        $employee = $this->employeeUser('due@example.com', 'Due', 'Again');
+        $supervisor = $this->employeeUser('due-boss@example.com', 'Due', 'Boss');
+        $employee->employee->update(['supervisorId' => $supervisor->employee->id]);
+        $formId = FormTemplate::query()->where('purpose', FormTemplate::PURPOSE_APPRAISAL)->value('id');
+        $milestone = now()->addMonths(3)->startOfDay();
+        $this->createContract($employee->employee->id, $formId, $milestone->toDateString());
+
+        $schedule = app(AppraisalScheduleService::class);
+        $first = $schedule->startDue();
+        $this->assertSame(1, $first['started']);
+
+        EmployeeAppraisal::query()->where('employee_id', $employee->employee->id)->update([
+            'last_notified_at' => now()->subDays(5),
+            'last_reminded_at' => now()->subDays(5),
+        ]);
+        $setting = HrSetting::current();
+        $setting->update([
+            'appraisal_reminder_enabled' => true,
+            'appraisal_reminder_interval_value' => 2,
+            'appraisal_reminder_interval_unit' => 'days',
+        ]);
+        HrSetting::clearCurrentCache();
+
+        $second = $schedule->startDue();
+        $this->assertSame(0, $second['started']);
+        $this->assertSame(1, EmployeeAppraisal::query()->where('employee_id', $employee->employee->id)->count());
+        $this->assertTrue(
+            EmployeeAppraisal::query()->where('employee_id', $employee->employee->id)->first()->last_reminded_at->gt(now()->subMinute())
         );
     }
 

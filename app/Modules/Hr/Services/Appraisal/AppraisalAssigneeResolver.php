@@ -50,7 +50,7 @@ class AppraisalAssigneeResolver
         };
 
         return $users
-            ->filter(fn ($user) => $user instanceof User && filled($user->email))
+            ->filter(fn ($user) => $user instanceof User)
             ->unique('id')
             ->values();
     }

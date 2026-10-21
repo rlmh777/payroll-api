@@ -169,7 +169,7 @@ Route::get('/login-page', [\App\Http\Controllers\LoginPageSettingController::cla
 Route::get('/careers/vacancies', [VacancyController::class, 'publicIndex']);
 Route::get('/careers/vacancies/{vacancy}', [VacancyController::class, 'publicShow']);
 Route::post('/careers/vacancies/{vacancy}/applications', [VacancyApplicationController::class, 'publicStore']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/logout', [AuthController::class, 'logout']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/passkeys', [\App\Http\Controllers\PasskeyController::class, 'index']);
