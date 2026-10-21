@@ -140,17 +140,6 @@ class EmployeeDayWorkController extends Controller
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
 
-            $exists = EmployeeDayWork::query()
-                ->where('employeeId', $payload['employeeId'])
-                ->whereDate('date', $payload['date'])
-                ->exists();
-
-            if ($exists) {
-                return response()->json([
-                    'errors' => ['date' => ['A day / trip work entry already exists for this employee on that date.']],
-                ], 422);
-            }
-
             $actor = $this->authorization->actorEmployee($user);
             $payload['approvalStatus'] = 'APPROVED';
             $payload['approvalDate'] = Carbon::today()->toDateString();
@@ -191,21 +180,6 @@ class EmployeeDayWorkController extends Controller
             if (isset($payload['employeeId'])
                 && ! $this->authorization->canAccessEmployee($user, $payload['employeeId'])) {
                 return response()->json(['message' => 'Forbidden.'], 403);
-            }
-
-            $employeeId = $payload['employeeId'] ?? (string) $employeeDayWork->employeeId;
-            $date = $payload['date'] ?? Carbon::parse($employeeDayWork->date)->toDateString();
-
-            $duplicate = EmployeeDayWork::query()
-                ->where('employeeId', $employeeId)
-                ->whereDate('date', $date)
-                ->where('id', '!=', $employeeDayWork->id)
-                ->exists();
-
-            if ($duplicate) {
-                return response()->json([
-                    'errors' => ['date' => ['A day / trip work entry already exists for this employee on that date.']],
-                ], 422);
             }
 
             $actor = $this->authorization->actorEmployee($user);
@@ -254,6 +228,8 @@ class EmployeeDayWorkController extends Controller
             'dailyRate' => ['sometimes', 'numeric', 'min:0'],
             'daily_rate' => ['sometimes', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:5000'],
+            'guest' => ['nullable', 'string', 'max:255'],
+            'destination' => ['nullable', 'string', 'max:255'],
             'employmentDetailId' => ['nullable', 'uuid', 'exists:employment_detail,id'],
             'departmentId' => ['nullable', 'integer', 'exists:department,id'],
         ];
@@ -288,8 +264,17 @@ class EmployeeDayWorkController extends Controller
             'employmentDetailId' => $data['employmentDetailId'] ?? $context['employmentDetailId'] ?? null,
             'employeeCompensationId' => $context['employeeCompensationId'] ?? null,
             'departmentId' => $data['departmentId'] ?? $context['departmentId'] ?? null,
-            'note' => array_key_exists('note', $data) ? ($data['note'] ?? null) : null,
-        ], fn ($value, $key) => $value !== null || $key === 'note', ARRAY_FILTER_USE_BOTH);
+        ], fn ($value) => $value !== null);
+
+        foreach (['note', 'guest', 'destination'] as $field) {
+            if (! array_key_exists($field, $data)) {
+                continue;
+            }
+
+            $payload[$field] = $field === 'note'
+                ? ($data[$field] ?? null)
+                : $this->nullableText($data[$field] ?? null);
+        }
 
         if ($units !== null) {
             $payload['units'] = $units;
@@ -306,6 +291,17 @@ class EmployeeDayWorkController extends Controller
         }
 
         return $payload;
+    }
+
+    private function nullableText(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     /**

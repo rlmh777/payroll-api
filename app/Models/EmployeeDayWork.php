@@ -28,6 +28,8 @@ class EmployeeDayWork extends Model
         'dailyRate',
         'amount',
         'note',
+        'guest',
+        'destination',
         'approvalStatus',
         'approvalDate',
         'approverId',
