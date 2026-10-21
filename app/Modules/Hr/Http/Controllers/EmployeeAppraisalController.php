@@ -9,7 +9,6 @@ use App\Modules\Hr\Models\Employee;
 use App\Modules\Hr\Models\EmployeeAppraisal;
 use App\Modules\Hr\Models\FormTemplate;
 use App\Modules\Hr\Services\Appraisal\AppraisalWorkflowService;
-use App\Modules\Hr\Services\Leave\LeaveSupervisorAuthorizationService;
 use App\Modules\Workflow\Services\PipelineEngine;
 use App\Support\Access;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +21,6 @@ class EmployeeAppraisalController extends Controller
     public function __construct(
         private readonly AppraisalWorkflowService $workflow,
         private readonly PipelineEngine $pipelineEngine,
-        private readonly LeaveSupervisorAuthorizationService $supervisors,
     ) {}
 
     public function options(): JsonResponse
@@ -90,16 +88,21 @@ class EmployeeAppraisalController extends Controller
         $user = $request->user();
         $query = Employee::query()->with(['person']);
         if (! Access::canManageAppraisals($user)) {
-            $ids = $this->supervisors->subordinateEmployeeIds($user);
-            $query->whereIn('id', $ids->all());
+            $query->whereIn('id', $this->workflow->startableEmployeeIds($user)->all());
         } else {
             $query->whereHas('employmentDetails', fn ($employment) => $employment->where('isActive', true));
         }
 
         $rows = $query->orderBy('id')->limit(200)->get();
+        $ownId = (string) ($user->employee?->id ?? '');
 
         return response()->json([
-            'data' => $rows->map(fn (Employee $employee) => $this->candidatePayload($employee))->values(),
+            'data' => $rows->map(function (Employee $employee) use ($ownId) {
+                $payload = $this->candidatePayload($employee);
+                $payload['is_self'] = $ownId !== '' && (string) $employee->id === $ownId;
+
+                return $payload;
+            })->values(),
         ]);
     }
 

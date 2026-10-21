@@ -9,6 +9,7 @@ use App\Support\LoginUserFinder;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -78,7 +79,7 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $token = $user->createToken($request->token_name);
+        $token = $user->createToken($request->token_name, ['*'], now()->addHours(24));
         
         return response()->json([
             'message' => 'Token created successfully',
@@ -172,27 +173,33 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $user = $request->user();
-        
-        if (!$user) {
-            return response()->json([
-                'message' => 'Unauthenticated'
-            ], 401);
+        $this->deletePresentedToken($request);
+
+        try {
+            if ($request->hasSession()) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
+        } catch (\Throwable) {
+            // The API token is already deleted. A session error must not leave it behind.
         }
 
-        // Revoke the current token
-        $currentToken = $request->user()->currentAccessToken();
-        if ($currentToken) {
-            $currentToken->delete();
-        }
-
-        // Clear the session
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-        
         return response()->json([
-            'message' => 'Logged out successfully'
-        ], 200);
+            'message' => 'Logged out successfully',
+        ]);
+    }
+
+    private function deletePresentedToken(Request $request): void
+    {
+        $plain = $request->bearerToken();
+        if (is_string($plain) && $plain !== '') {
+            PersonalAccessToken::findToken($plain)?->delete();
+        }
+
+        $current = $request->user()?->currentAccessToken();
+        if ($current instanceof PersonalAccessToken) {
+            $current->delete();
+        }
     }
 
 }

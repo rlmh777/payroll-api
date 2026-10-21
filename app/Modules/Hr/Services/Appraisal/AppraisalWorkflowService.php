@@ -41,7 +41,20 @@ class AppraisalWorkflowService
 
         $system = (bool) ($payload['system'] ?? false);
         if (! $system && ! $this->canStartFor($actor, (string) $employee->id)) {
-            abort(403, 'You can only start appraisals for employees who report to you.');
+            abort(403, 'You can only start appraisals for yourself, for employees who report to you, or for employees in a department you head.');
+        }
+
+        $existing = $this->existingForPeriod(
+            (string) $employee->id,
+            isset($payload['period_end']) ? (string) $payload['period_end'] : null,
+            isset($payload['scheduled_for']) ? (string) $payload['scheduled_for'] : null,
+            (string) ($payload['period_label'] ?? ''),
+        );
+        if ($existing) {
+            $this->notifications->remindIfDue($existing);
+            throw ValidationException::withMessages([
+                'period_label' => 'An appraisal for this period has already been started.',
+            ]);
         }
 
         $contract = $this->activeContract($employee);
@@ -123,8 +136,91 @@ class AppraisalWorkflowService
             return true;
         }
 
-        return $this->supervisors->subordinateEmployeeIds($actor)
+        return $this->startableEmployeeIds($actor)
             ->contains(fn ($id) => (string) $id === $employeeId);
+    }
+
+    /**
+     * Employees this user may start an appraisal for: themselves, direct reports,
+     * and employees in a department they currently head.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    public function startableEmployeeIds(?User $actor): \Illuminate\Support\Collection
+    {
+        if (! $actor) {
+            return collect();
+        }
+
+        $ids = $this->supervisors->subordinateEmployeeIds($actor);
+
+        $departmentIds = $this->supervisors->headedDepartmentIds($actor);
+        if ($departmentIds->isNotEmpty()) {
+            $departmentEmployeeIds = Employee::query()
+                ->whereHas('employmentDetails', function ($query) use ($departmentIds) {
+                    $query->where('isActive', true)
+                        ->whereIn('departmentId', $departmentIds->all());
+                })
+                ->pluck('id');
+            $ids = $ids->merge($departmentEmployeeIds);
+        }
+
+        $ownId = $actor->employee?->id;
+        if ($ownId) {
+            $ids->push($ownId);
+        }
+
+        return $ids
+            ->map(fn ($id) => (string) $id)
+            ->filter(fn ($id) => $id !== '')
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * A non-cancelled appraisal already started for this employee and period.
+     * Dates match scheduled_for or period_end. Without dates, the period label is used.
+     */
+    public function existingForPeriod(
+        string $employeeId,
+        ?string $periodEnd,
+        ?string $scheduledFor,
+        ?string $periodLabel,
+    ): ?EmployeeAppraisal {
+        $query = EmployeeAppraisal::query()
+            ->where('employee_id', $employeeId)
+            ->where('status', '!=', EmployeeAppraisal::STATUS_CANCELLED);
+
+        $dates = array_values(array_unique(array_filter(
+            [$periodEnd, $scheduledFor],
+            fn ($date) => is_string($date) && trim($date) !== '',
+        )));
+
+        if ($dates !== []) {
+            return $query
+                ->where(function ($outer) use ($dates) {
+                    $outer->where(function ($inner) use ($dates) {
+                        foreach ($dates as $index => $date) {
+                            $method = $index === 0 ? 'whereDate' : 'orWhereDate';
+                            $inner->{$method}('scheduled_for', $date);
+                        }
+                    })->orWhere(function ($inner) use ($dates) {
+                        foreach ($dates as $index => $date) {
+                            $method = $index === 0 ? 'whereDate' : 'orWhereDate';
+                            $inner->{$method}('period_end', $date);
+                        }
+                    });
+                })
+                ->latest()
+                ->first();
+        }
+
+        $label = trim((string) $periodLabel);
+        if ($label === '') {
+            return null;
+        }
+
+        return $query->where('period_label', $label)->latest()->first();
     }
 
     /**

@@ -89,32 +89,57 @@ class AppraisalNotificationService
             ->get();
 
         foreach ($appraisals as $appraisal) {
-            $last = $appraisal->last_reminded_at ?? $appraisal->last_notified_at;
-            if ($last instanceof Carbon && $last->gt($threshold)) {
-                $stats['skipped']++;
-
-                continue;
-            }
-
-            $instance = $this->pipelineEngine->activeInstance(PipelineEngine::SUBJECT_APPRAISAL, (string) $appraisal->id);
-            $users = $this->assignees->usersForCurrentStep($appraisal, $instance);
-            if ($users->isEmpty()) {
-                $stats['skipped']++;
-
-                continue;
-            }
-
-            $sent = $this->sendToUsers($appraisal, $users, self::REMINDER_KEY, $instance?->currentStep?->label);
-            if ($sent > 0) {
-                $appraisal->last_reminded_at = now();
-                $appraisal->save();
-                $stats['sent'] += $sent;
-            } else {
-                $stats['errors']++;
-            }
+            $outcome = $this->remindIfDue($appraisal, $threshold);
+            $stats[$outcome]++;
         }
 
         return $stats;
+    }
+
+    /**
+     * Email the current assignees when the reminder interval has elapsed.
+     * No-op when reminders are disabled or mail is not ready.
+     *
+     * @return 'sent'|'skipped'|'errors'
+     */
+    public function remindIfDue(EmployeeAppraisal $appraisal, ?Carbon $threshold = null): string
+    {
+        $settings = HrSetting::current();
+        if (! $settings->appraisalReminderEnabled() || ! $this->mail->isReady()) {
+            return 'skipped';
+        }
+
+        if ($appraisal->status !== EmployeeAppraisal::STATUS_PENDING) {
+            return 'skipped';
+        }
+
+        if ($threshold === null) {
+            $interval = $settings->appraisalReminderInterval();
+            $threshold = $interval['unit'] === 'weeks'
+                ? now()->subWeeks($interval['value'])
+                : now()->subDays($interval['value']);
+        }
+
+        $last = $appraisal->last_reminded_at ?? $appraisal->last_notified_at;
+        if ($last instanceof Carbon && $last->gt($threshold)) {
+            return 'skipped';
+        }
+
+        $instance = $this->pipelineEngine->activeInstance(PipelineEngine::SUBJECT_APPRAISAL, (string) $appraisal->id);
+        $users = $this->assignees->usersForCurrentStep($appraisal, $instance);
+        if ($users->isEmpty()) {
+            return 'skipped';
+        }
+
+        $sent = $this->sendToUsers($appraisal, $users, self::REMINDER_KEY, $instance?->currentStep?->label);
+        if ($sent < 1) {
+            return 'errors';
+        }
+
+        $appraisal->last_reminded_at = now();
+        $appraisal->save();
+
+        return 'sent';
     }
 
     /**

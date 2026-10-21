@@ -6,6 +6,7 @@ use App\Models\AuthSetting;
 use App\Models\User;
 use App\Services\LoginLockoutService;
 use App\Support\AuthUserPresenter;
+use App\Support\LoginSessionToken;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -268,7 +269,7 @@ class TwoFactorService
     {
         $userPayload = AuthUserPresenter::present($user);
         $this->lockout->clear($user);
-        $token = $user->createToken($user->email)->plainTextToken;
+        $token = LoginSessionToken::issue($user)->plainTextToken;
 
         return [
             'message' => 'Login successful',

@@ -11,6 +11,7 @@ class AppraisalScheduleService
 {
     public function __construct(
         private readonly AppraisalWorkflowService $workflow,
+        private readonly AppraisalNotificationService $notifications,
     ) {}
 
     /**
@@ -32,16 +33,14 @@ class AppraisalScheduleService
                 continue;
             }
 
-            $alreadyOpen = EmployeeAppraisal::query()
-                ->where('employee_id', $contract->employeeId)
-                ->where('status', EmployeeAppraisal::STATUS_PENDING)
-                ->exists();
-            $alreadyScheduled = EmployeeAppraisal::query()
-                ->where('employee_id', $contract->employeeId)
-                ->whereDate('scheduled_for', $milestone->toDateString())
-                ->where('status', '!=', EmployeeAppraisal::STATUS_CANCELLED)
-                ->exists();
-            if ($alreadyOpen || $alreadyScheduled) {
+            $existing = $this->workflow->existingForPeriod(
+                (string) $contract->employeeId,
+                $milestone->toDateString(),
+                $milestone->toDateString(),
+                null,
+            );
+            if ($existing) {
+                $this->notifications->remindIfDue($existing);
                 $stats['skipped']++;
 
                 continue;

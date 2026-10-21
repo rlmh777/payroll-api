@@ -369,6 +369,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'self_employee_catalogs' => [
+        'leave-types',
         'genders',
         'honorifics',
         'citizenship-statuses',
@@ -399,6 +400,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'self_employee_resources' => [
+        'employee-leave-balances',
         'employee-contacts',
         'employee-documents',
         'employee-certifications',
