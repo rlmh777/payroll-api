@@ -1149,6 +1149,7 @@ Route::prefix('payroll-runs')->group(function () {
     Route::post('/{payrollRun}/allowance-deduction-import/confirm', [PayrollRunAllowanceDeductionImportController::class, 'confirm']);
     Route::get('/{payrollRun}/pool-totals', [PayrollRunPoolController::class, 'totals']);
     Route::put('/{payrollRun}/pool-totals', [PayrollRunPoolController::class, 'saveTotals']);
+    Route::put('/{payrollRun}/pool-shares', [PayrollRunPoolController::class, 'saveShares']);
     Route::post('/{payrollRun}/pool-distribute', [PayrollRunPoolController::class, 'distribute']);
     Route::get('/{payrollRun}/pool-distributions', [PayrollRunPoolController::class, 'distributions']);
     Route::get('/{payrollRun}', [PayrollRunController::class, 'show']);

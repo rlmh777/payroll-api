@@ -8,6 +8,7 @@ use App\Models\EmployeePoolPoint;
 use App\Models\EmploymentDetail;
 use App\Models\PayrollRun;
 use App\Models\PayrollRunPoolDistribution;
+use App\Models\PayrollRunPoolShare;
 use App\Models\PayrollRunPoolTotal;
 use App\Models\PoolDistributionType;
 use App\Modules\Payroll\Support\MoneyPrecision;
@@ -32,7 +33,7 @@ class PoolDistributionService
     public function totalsForRun(PayrollRun $payrollRun): array
     {
         $types = PoolDistributionType::query()
-            ->with(['payrollEarningCode', 'departmentShares.department'])
+            ->with(['payrollEarningCode.account', 'departmentShares.department'])
             ->where('is_active', true)
             ->where('calculation_mode', '!=', PoolDistributionType::MODE_DISABLED)
             ->orderBy('sort_order')
@@ -44,8 +45,18 @@ class PoolDistributionService
             ->get()
             ->keyBy('pool_distribution_type_id');
 
-        return $types->map(function (PoolDistributionType $type) use ($totals) {
+        $shareSummary = PayrollRunPoolShare::query()
+            ->where('payroll_run_id', $payrollRun->id)
+            ->selectRaw('pool_distribution_type_id, COUNT(*) as share_count, SUM(shares) as share_total')
+            ->groupBy('pool_distribution_type_id')
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->pool_distribution_type_id);
+
+        return $types->map(function (PoolDistributionType $type) use ($totals, $shareSummary) {
             $total = $totals->get($type->id);
+            $shares = $shareSummary->get($type->id);
+            $earningCode = $type->payrollEarningCode;
+            $account = $earningCode?->account;
 
             return [
                 'poolDistributionTypeId' => $type->id,
@@ -56,6 +67,12 @@ class PoolDistributionService
                 'isTaxable' => (bool) $type->is_taxable,
                 'isSsSubject' => (bool) $type->is_ss_subject,
                 'payrollEarningCodeId' => $type->payroll_earning_code_id,
+                'earningCodeName' => $earningCode?->name,
+                'accountId' => $account?->id,
+                'accountName' => $account?->name,
+                'accountCode' => $account?->code1,
+                'importedShareCount' => (int) ($shares->share_count ?? 0),
+                'importedShareTotal' => round((float) ($shares->share_total ?? 0), 4),
                 'totalAmount' => MoneyPrecision::store($total?->total_amount ?? 0),
                 'notes' => $total?->notes,
                 'totalId' => $total?->id,
@@ -119,6 +136,142 @@ class PoolDistributionService
     }
 
     /**
+     * @param list<array{employeeCode:string, shares:float|int|string}> $rows
+     * @return array{importedShareCount:int, importedShareTotal:float, employees:list<array{employeeId:string, employeeCode:string, shares:float}>}
+     */
+    public function replaceShares(PayrollRun $payrollRun, int $poolDistributionTypeId, array $rows): array
+    {
+        $type = PoolDistributionType::query()
+            ->whereKey($poolDistributionTypeId)
+            ->where('is_active', true)
+            ->where('calculation_mode', '!=', PoolDistributionType::MODE_DISABLED)
+            ->first();
+
+        if (!$type) {
+            throw ValidationException::withMessages([
+                'poolDistributionTypeId' => 'Choose an active pool such as tips or shares.',
+            ]);
+        }
+
+        $combined = [];
+        foreach ($rows as $row) {
+            $code = trim((string) ($row['employeeCode'] ?? ''));
+            $shares = round((float) ($row['shares'] ?? 0), 4);
+            if ($code === '') {
+                continue;
+            }
+            if ($shares <= 0) {
+                throw ValidationException::withMessages([
+                    'shares' => "Shares for {$code} must be greater than zero.",
+                ]);
+            }
+            $key = mb_strtolower($code);
+            $combined[$key] = [
+                'code' => $code,
+                'shares' => round(($combined[$key]['shares'] ?? 0) + $shares, 4),
+            ];
+        }
+
+        if ($combined === []) {
+            throw ValidationException::withMessages([
+                'shares' => 'The file needs at least one employee code and a share amount.',
+            ]);
+        }
+
+        $codes = array_keys($combined);
+        $employees = Employee::query()
+            ->whereRaw(
+                'LOWER(code) IN ('.implode(',', array_fill(0, count($codes), '?')).')',
+                $codes,
+            )
+            ->get()
+            ->keyBy(fn (Employee $employee) => mb_strtolower((string) $employee->code));
+
+        $missing = [];
+        foreach ($combined as $key => $row) {
+            if (!$employees->has($key)) {
+                $missing[] = $row['code'];
+            }
+        }
+
+        if ($missing !== []) {
+            $shown = array_slice($missing, 0, 8);
+            $suffix = count($missing) > 8 ? ' and '.(count($missing) - 8).' more' : '';
+            throw ValidationException::withMessages([
+                'shares' => 'These employee codes were not found: '.implode(', ', $shown).$suffix.'.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($payrollRun, $type, $combined, $employees) {
+            PayrollRunPoolShare::query()
+                ->where('payroll_run_id', $payrollRun->id)
+                ->where('pool_distribution_type_id', $type->id)
+                ->delete();
+
+            $saved = [];
+            foreach ($combined as $key => $row) {
+                $employee = $employees->get($key);
+                PayrollRunPoolShare::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'payroll_run_id' => $payrollRun->id,
+                    'pool_distribution_type_id' => $type->id,
+                    'employee_id' => $employee->id,
+                    'shares' => $row['shares'],
+                ]);
+                $saved[] = [
+                    'employeeId' => (string) $employee->id,
+                    'employeeCode' => (string) $employee->code,
+                    'shares' => $row['shares'],
+                ];
+            }
+
+            usort($saved, fn (array $left, array $right) => strcmp($left['employeeCode'], $right['employeeCode']));
+
+            return [
+                'importedShareCount' => count($saved),
+                'importedShareTotal' => round(array_sum(array_column($saved, 'shares')), 4),
+                'employees' => $saved,
+            ];
+        });
+    }
+
+    /**
+     * Split a pool total across share weights. The last share absorbs the rounding remainder.
+     *
+     * @param  list<float|int|string>  $shares
+     * @return list<float>
+     */
+    public function allocateByShares(float $total, array $shares): array
+    {
+        $weights = array_values(array_map(fn ($share) => round((float) $share, 4), $shares));
+        $count = count($weights);
+        if ($count === 0) {
+            return [];
+        }
+
+        $poolAmount = MoneyPrecision::store($total);
+        $denominator = round(array_sum($weights), 4);
+        if ($denominator <= 0 || $poolAmount <= 0) {
+            return array_fill(0, $count, 0.0);
+        }
+
+        $amounts = [];
+        $allocated = 0.0;
+        foreach ($weights as $index => $weight) {
+            if ($index === $count - 1) {
+                $amounts[] = MoneyPrecision::store($poolAmount - $allocated);
+                break;
+            }
+
+            $amount = MoneyPrecision::store($poolAmount * ($weight / $denominator));
+            $amounts[] = $amount;
+            $allocated = MoneyPrecision::store($allocated + $amount);
+        }
+
+        return $amounts;
+    }
+
+    /**
      * @param list<string> $employeeIds
      * @return array{
      *     totals: list<array<string, mixed>>,
@@ -149,17 +302,38 @@ class PoolDistributionService
                 ->where('payroll_run_id', $payrollRun->id)
                 ->get();
 
+            $uploadedShares = PayrollRunPoolShare::query()
+                ->with('employee.person')
+                ->where('payroll_run_id', $payrollRun->id)
+                ->get()
+                ->groupBy(fn (PayrollRunPoolShare $share) => (int) $share->pool_distribution_type_id);
+
             $distributions = [];
             $departmentBreakdown = [];
 
             foreach ($totals as $total) {
                 $type = $total->poolDistributionType;
-                if (!$type || !$type->isDistributable()) {
+                if (!$type || $type->calculation_mode === PoolDistributionType::MODE_DISABLED || !$type->is_active) {
                     continue;
                 }
 
                 $poolAmount = MoneyPrecision::store($total->total_amount);
                 if ($poolAmount <= 0) {
+                    continue;
+                }
+
+                $shareRows = $uploadedShares->get($type->id, collect());
+                if ($shareRows->isNotEmpty()) {
+                    array_push($distributions, ...$this->distributeByUploadedShares(
+                        $payrollRun,
+                        $type,
+                        $poolAmount,
+                        $shareRows,
+                    ));
+                    continue;
+                }
+
+                if (!$type->isDistributable()) {
                     continue;
                 }
 
@@ -579,6 +753,54 @@ class PoolDistributionService
             ->get();
 
         return $rows->groupBy('employee_id')->map(fn (Collection $group) => $group->first());
+    }
+
+    /**
+     * @param  Collection<int, PayrollRunPoolShare>  $shareRows
+     * @return list<array<string, mixed>>
+     */
+    private function distributeByUploadedShares(
+        PayrollRun $payrollRun,
+        PoolDistributionType $type,
+        float $poolAmount,
+        Collection $shareRows,
+    ): array {
+        $ordered = $shareRows
+            ->sortBy(fn (PayrollRunPoolShare $share) => mb_strtolower((string) ($share->employee?->code ?? $share->employee_id)))
+            ->values();
+
+        $amounts = $this->allocateByShares(
+            $poolAmount,
+            $ordered->map(fn (PayrollRunPoolShare $share) => (float) $share->shares)->all(),
+        );
+        $denominator = round($ordered->sum(fn (PayrollRunPoolShare $share) => (float) $share->shares), 4);
+        $distributions = [];
+
+        foreach ($ordered as $index => $share) {
+            $weight = round((float) $share->shares, 4);
+            $amount = $amounts[$index] ?? 0.0;
+            $ratio = $denominator > 0 ? round($weight / $denominator, 8) : 0.0;
+            $distributions[] = $this->storeDistribution(
+                $payrollRun->id,
+                (int) $type->id,
+                (string) $share->employee_id,
+                $weight,
+                1,
+                $weight,
+                $ratio,
+                $amount,
+                $amount > 0,
+                $amount > 0 ? null : 'Share amount rounded to zero',
+                $this->defaultEligibility(),
+                [
+                    'poolName' => $type->name,
+                    'employeeName' => $this->employeeDisplayName($share->employee),
+                    'employeeCode' => $share->employee?->code,
+                ],
+            );
+        }
+
+        return $distributions;
     }
 
     /**

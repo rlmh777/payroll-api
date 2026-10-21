@@ -50,6 +50,32 @@ class PayrollRunPoolController extends Controller
         ]);
     }
 
+    public function saveShares(Request $request, PayrollRun $payrollRun): JsonResponse
+    {
+        if ($this->isProcessed($payrollRun)) {
+            return response()->json(['message' => 'Cannot update pool shares on a processed payroll run.'], 422);
+        }
+
+        $validated = $request->validate([
+            'poolDistributionTypeId' => ['required', 'integer', 'exists:pool_distribution_type,id'],
+            'shares' => ['required', 'array', 'min:1'],
+            'shares.*.employeeCode' => ['required', 'string', 'max:64'],
+            'shares.*.shares' => ['required', 'numeric', 'gt:0'],
+        ]);
+
+        $result = $this->poolDistributionService->replaceShares(
+            $payrollRun,
+            (int) $validated['poolDistributionTypeId'],
+            $validated['shares'],
+        );
+
+        return response()->json([
+            'message' => 'Pool shares saved. Type the total and distribute to post the amounts.',
+            ...$result,
+            'totals' => $this->poolDistributionService->totalsForRun($payrollRun),
+        ]);
+    }
+
     public function distribute(Request $request, PayrollRun $payrollRun): JsonResponse
     {
         if ($this->isProcessed($payrollRun)) {

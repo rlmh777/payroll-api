@@ -32,4 +32,21 @@ class PoolDistributionServiceTest extends TestCase
         $this->assertSame($grill, $service->resolveShareDepartmentId($grill, $configuredPercents, $parentById));
         $this->assertNull($service->resolveShareDepartmentId(99, $configuredPercents, $parentById));
     }
+
+    public function test_uploaded_shares_split_the_typed_total_and_keep_the_remainder_on_the_last_share(): void
+    {
+        $service = $this->app->make(PoolDistributionService::class);
+
+        $amounts = $service->allocateByShares(100, [1, 1, 1]);
+
+        $this->assertCount(3, $amounts);
+        $this->assertEqualsWithDelta(100, array_sum($amounts), 0.0000001);
+        $this->assertEqualsWithDelta(33.3333333333, $amounts[0], 0.0000001);
+        $this->assertEqualsWithDelta(33.3333333333, $amounts[1], 0.0000001);
+        $this->assertEqualsWithDelta(33.3333333334, $amounts[2], 0.0000001);
+
+        $weighted = $service->allocateByShares(300, [2, 1]);
+        $this->assertEqualsWithDelta(200, $weighted[0], 0.0000001);
+        $this->assertEqualsWithDelta(100, $weighted[1], 0.0000001);
+    }
 }
