@@ -78,9 +78,18 @@ class PayrollRunEarningLineBuilderService
                 ->whereRaw('UPPER("approvalStatus") = ?', ['APPROVED'])
                 ->get(['employeeId', 'departmentId', 'regularHours', 'overtimeHours', 'holidayHours']);
 
+        $dayWorkDepartmentIds = $rows->flatMap(function ($row) {
+            $slices = is_array($row['_calculation']['dayWorkByDepartment'] ?? null)
+                ? $row['_calculation']['dayWorkByDepartment']
+                : [];
+
+            return collect($slices)->pluck('departmentId');
+        });
+
         $departmentIds = $rows
             ->pluck('departmentId')
             ->merge($timesheets->pluck('departmentId'))
+            ->merge($dayWorkDepartmentIds)
             ->filter()
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -115,6 +124,12 @@ class PayrollRunEarningLineBuilderService
             $alreadyPaidLeave = $row['_calculation']['alreadyPaidLeave'] ?? [];
             $alreadyPaidAmount = round((float) ($alreadyPaidLeave['amount'] ?? 0), 2);
             $regularAmount = round(max(0, $baseEarnings - $overtimeAmount - $holidayAmount - $vacationPayAmount), 2);
+            $dayWorkSlices = $this->dayWorkSlicesForRegular($row, $regularAmount);
+            $dayWorkTotal = round(array_sum(array_map(
+                fn (array $slice) => (float) $slice['amount'],
+                $dayWorkSlices,
+            )), 2);
+            $regularRemainder = round(max(0, $regularAmount - $dayWorkTotal), 2);
 
             $regularCode = $codesBySource->get(PayrollEarningCode::SOURCE_TIMESHEET_REGULAR);
             $overtimeCode = $codesBySource->get(PayrollEarningCode::SOURCE_TIMESHEET_OVERTIME);
@@ -131,9 +146,26 @@ class PayrollRunEarningLineBuilderService
                 $departmentsById,
                 null,
                 null,
-                $regularAmount,
+                $regularRemainder,
                 $this->hoursByDepartment($employeeTimesheets, 'regularHours', $departmentId),
             );
+
+            foreach ($dayWorkSlices as $slice) {
+                $this->createLine(
+                    $payrollRun,
+                    $employeeId,
+                    $payrollId,
+                    $slice['departmentId'] ?? $departmentId,
+                    $regularCode,
+                    $departmentsById,
+                    null,
+                    null,
+                    (float) $slice['amount'],
+                    'DAY_WORK',
+                    null,
+                    'Day / trip work',
+                );
+            }
 
             $this->createDistributedLine(
                 $payrollRun,
@@ -230,6 +262,66 @@ class PayrollRunEarningLineBuilderService
                 );
             }
         }
+    }
+
+    /**
+     * Day / trip amounts stay on the department recorded for each entry.
+     * They are capped so regular earning lines still add up to the regular amount.
+     *
+     * @param array<string, mixed> $row
+     * @return list<array{departmentId: int|null, amount: float}>
+     */
+    private function dayWorkSlicesForRegular(array $row, float $regularAmount): array
+    {
+        $raw = $row['_calculation']['dayWorkByDepartment'] ?? [];
+        if (! is_array($raw) || $regularAmount <= 0) {
+            return [];
+        }
+
+        $slices = [];
+        $total = 0.0;
+        foreach ($raw as $slice) {
+            if (! is_array($slice)) {
+                continue;
+            }
+
+            $amount = round((float) ($slice['amount'] ?? 0), 2);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $departmentId = isset($slice['departmentId']) && $slice['departmentId'] !== null
+                ? (int) $slice['departmentId']
+                : null;
+            $slices[] = ['departmentId' => $departmentId, 'amount' => $amount];
+            $total = round($total + $amount, 2);
+        }
+
+        if ($slices === [] || $total <= 0) {
+            return [];
+        }
+
+        if ($total <= $regularAmount) {
+            return $slices;
+        }
+
+        $scaled = [];
+        $assigned = 0.0;
+        $lastIndex = count($slices) - 1;
+        foreach ($slices as $index => $slice) {
+            if ($index === $lastIndex) {
+                $amount = round($regularAmount - $assigned, 2);
+            } else {
+                $amount = round($regularAmount * ($slice['amount'] / $total), 2);
+                $assigned = round($assigned + $amount, 2);
+            }
+
+            if ($amount > 0) {
+                $scaled[] = ['departmentId' => $slice['departmentId'], 'amount' => $amount];
+            }
+        }
+
+        return $scaled;
     }
 
     /**

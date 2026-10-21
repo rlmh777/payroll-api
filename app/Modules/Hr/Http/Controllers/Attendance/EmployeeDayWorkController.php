@@ -3,10 +3,16 @@
 namespace App\Modules\Hr\Http\Controllers\Attendance;
 
 use App\Enums\CompensationMethod;
+use App\Enums\LeaveStatusCode;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeCompensation;
 use App\Models\EmployeeDayWork;
+use App\Models\EmployeeLeave;
 use App\Models\EmploymentDetail;
+use App\Models\ScheduledWork;
+use App\Models\ScheduleEmployeeTimesheet;
+use App\Models\Timesheet;
 use App\Modules\Hr\Http\Controllers\Controller;
 use App\Modules\Hr\Services\Attendance\EmployeeDayWorkAuthorizationService;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
@@ -42,7 +48,10 @@ class EmployeeDayWorkController extends Controller
             ->with(['person', 'employmentDetails' => fn ($q) => $q->where('isActive', true)])
             ->whereHas('employeeCompensations', function ($query) {
                 $query->where('isActive', true)
-                    ->where('compensationMethod', CompensationMethod::DailyRate->value);
+                    ->where(function ($eligible) {
+                        $eligible->where('compensationMethod', CompensationMethod::DailyRate->value)
+                            ->orWhere('dailyRate', '>', 0);
+                    });
             });
 
         if ($visibleEmployeeIds !== null) {
@@ -61,7 +70,10 @@ class EmployeeDayWorkController extends Controller
                 $compensation = EmployeeCompensation::query()
                     ->where('employeeId', $employee->id)
                     ->where('isActive', true)
-                    ->where('compensationMethod', CompensationMethod::DailyRate->value)
+                    ->where(function ($eligible) {
+                        $eligible->where('compensationMethod', CompensationMethod::DailyRate->value)
+                            ->orWhere('dailyRate', '>', 0);
+                    })
                     ->orderByDesc('effectiveDate')
                     ->first();
 
@@ -72,15 +84,27 @@ class EmployeeDayWorkController extends Controller
                     'lastName' => $lastName,
                     'displayName' => $displayName !== '' ? $displayName : ($employee->code ?? 'Employee'),
                     'employmentDetailId' => $activeContract?->id,
-                    'departmentId' => $activeContract?->departmentId,
+                    'departmentId' => $activeContract?->departmentId !== null
+                        ? (int) $activeContract->departmentId
+                        : null,
                     'employeeCompensationId' => $compensation?->id,
                     'dailyRate' => $compensation ? (float) ($compensation->dailyRate ?? 0) : 0,
                 ];
             })
             ->values();
 
+        $departments = Department::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Department $department) => [
+                'id' => (int) $department->id,
+                'name' => $department->name,
+            ])
+            ->values();
+
         return response()->json([
             'employees' => $employees,
+            'departments' => $departments,
         ]);
     }
 
@@ -247,6 +271,10 @@ class EmployeeDayWorkController extends Controller
             ? $this->resolveWorkContext($employeeId, $date, $data)
             : null;
 
+        if ($employeeId && $date && ! CompensationMethod::fromStored($context['compensationMethod'] ?? null)->isDailyRateBased()) {
+            $this->assertAvailableForTrip($employeeId, $date);
+        }
+
         $units = array_key_exists('units', $data) ? round((float) $data['units'], 2) : null;
         $dailyRate = array_key_exists('dailyRate', $data) || array_key_exists('daily_rate', $data)
             ? round((float) ($data['dailyRate'] ?? $data['daily_rate'] ?? 0), 2)
@@ -349,27 +377,67 @@ class EmployeeDayWorkController extends Controller
             $employmentDetail?->id ? (string) $employmentDetail->id : null,
         );
 
-        if ($compensation && ! CompensationMethod::fromStored($compensation->compensationMethod)->isDailyRateBased()) {
-            $dailyRateCompensation = $compensations->first(function (EmployeeCompensation $record) use ($asOf) {
-                if (! CompensationMethod::fromStored($record->compensationMethod)->isDailyRateBased()) {
-                    return false;
-                }
-
-                $start = Carbon::parse($record->effectiveDate)->startOfDay();
-                $end = $record->endDate ? Carbon::parse($record->endDate)->startOfDay() : null;
-
-                return $start->lte($asOf) && (! $end || $end->gte($asOf));
-            });
-            $compensation = $dailyRateCompensation;
-        }
-
         return [
             'employmentDetailId' => $employmentDetail?->id ? (string) $employmentDetail->id : null,
             'employeeCompensationId' => $compensation?->id ? (string) $compensation->id : null,
             'departmentId' => $employmentDetail?->departmentId !== null
                 ? (int) $employmentDetail->departmentId
                 : null,
+            'compensationMethod' => $compensation?->compensationMethod,
             'dailyRate' => $this->compensationResolver->effectiveDailyRate($compensation),
         ];
+    }
+
+    private function assertAvailableForTrip(string $employeeId, string $date): void
+    {
+        $scheduled = ScheduledWork::query()
+            ->where('employeeId', $employeeId)
+            ->whereDate('startDate', '<=', $date)
+            ->whereDate('endDate', '>=', $date)
+            ->exists()
+            || ScheduleEmployeeTimesheet::query()
+                ->where('employeeId', $employeeId)
+                ->whereDate('date', $date)
+                ->exists();
+
+        if ($scheduled) {
+            throw ValidationException::withMessages([
+                'date' => ['This employee is already scheduled on this date. A trip can be recorded only on a day they are not scheduled.'],
+            ]);
+        }
+
+        $clocked = Timesheet::query()
+            ->where('employeeId', $employeeId)
+            ->whereDate('date', $date)
+            ->exists();
+
+        if ($clocked) {
+            throw ValidationException::withMessages([
+                'date' => ['This employee already clocked in on this date. A trip is for a day outside their usual shift.'],
+            ]);
+        }
+
+        $unavailableLeaveCodes = array_map(
+            fn (LeaveStatusCode $code) => $code->value,
+            [
+                ...LeaveStatusCode::scheduledBalanceStatuses(),
+                ...LeaveStatusCode::takenBalanceStatuses(),
+            ],
+        );
+
+        $onLeave = EmployeeLeave::query()
+            ->where('employeeId', $employeeId)
+            ->whereDate('startDate', '<=', $date)
+            ->whereDate('endDate', '>=', $date)
+            ->whereHas('leaveStatus', function ($query) use ($unavailableLeaveCodes) {
+                $query->whereIn('code', $unavailableLeaveCodes);
+            })
+            ->exists();
+
+        if ($onLeave) {
+            throw ValidationException::withMessages([
+                'date' => ['This employee is on leave for this date, so they are not available for a trip.'],
+            ]);
+        }
     }
 }

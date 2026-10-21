@@ -7,8 +7,10 @@ use App\Enums\CompensationReason;
 use App\Models\Employee;
 use App\Models\EmployeeCompensation;
 use App\Models\EmploymentDetail;
+use App\Models\PayrollRun;
 use App\Modules\Hr\Services\Attendance\TimesheetCompensationRecalculationService;
 use App\Modules\Hr\Services\Employment\EmployeeCompensationResolver;
+use App\Modules\Hr\Services\Employment\EmployeeCompensationVersionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +30,7 @@ class EmployeeCompensationController extends Controller
 
     public function __construct(
         private readonly TimesheetCompensationRecalculationService $timesheetRecalculationService,
+        private readonly EmployeeCompensationVersionService $compensationVersionService,
     ) {
     }
 
@@ -142,9 +145,19 @@ class EmployeeCompensationController extends Controller
             $payload['approvedById'] = $approver->id;
         }
 
+        $payFieldsChanged = $this->compensationVersionService->compensationFieldsChanged(
+            $employeeCompensation,
+            $payload,
+        );
+
         if (!$employeeCompensation->isActive) {
+            if ($payFieldsChanged) {
+                return response()->json([
+                    'message' => 'Closed compensation stays on payroll runs already posted. Add a new compensation record for a draft or later pay period.',
+                ], 422);
+            }
+
             $employeeCompensation->update($payload);
-            $this->recalculateEmployeeTimesheets($employeeCompensation->fresh());
 
             return response()->json([
                 'message' => 'Compensation record updated successfully.',
@@ -153,8 +166,32 @@ class EmployeeCompensationController extends Controller
             ]);
         }
 
+        if ($payFieldsChanged) {
+            $effectiveDate = $this->effectiveDateAfterPostedRuns($employeeCompensation, $payload);
+
+            if ($effectiveDate === null) {
+                $employeeCompensation->update($payload);
+                $this->recalculateEmployeeTimesheets($employeeCompensation->fresh());
+
+                return response()->json([
+                    'message' => 'Compensation record updated successfully.',
+                    'data' => $employeeCompensation->fresh()->load(self::RELATIONS),
+                    'revised' => false,
+                ]);
+            }
+
+            $payload['effectiveDate'] = $effectiveDate->toDateString();
+            $successor = $this->compensationVersionService->revise($employeeCompensation, $payload);
+            $this->recalculateEmployeeTimesheets($successor);
+
+            return response()->json([
+                'message' => 'Compensation applies from '.$effectiveDate->toDateString().'. Posted payroll runs keep the previous rates.',
+                'data' => $successor->load(self::RELATIONS),
+                'revised' => true,
+            ]);
+        }
+
         $employeeCompensation->update($payload);
-        $this->recalculateEmployeeTimesheets($employeeCompensation->fresh());
 
         return response()->json([
             'message' => 'Compensation record updated successfully.',
@@ -302,7 +339,7 @@ class EmployeeCompensationController extends Controller
                 $resolver->derivedYearlyRateFromHourly($hourlyRate, $compensation)
                 ?? 0.0
             );
-            $data['dailyRate'] = 0;
+            $data['dailyRate'] = round((float) ($data['dailyRate'] ?? $existing?->dailyRate ?? 0), 2);
         } elseif ($method->isDailyRateBased()) {
             $dailyRate = (float) ($data['dailyRate'] ?? $existing?->dailyRate ?? 0);
             $data['dailyRate'] = $dailyRate;
@@ -336,7 +373,7 @@ class EmployeeCompensationController extends Controller
 
             $data['hourlyRate'] = $hourlyRate;
             $data['yearlyRate'] = $yearlyRate;
-            $data['dailyRate'] = 0;
+            $data['dailyRate'] = round((float) ($data['dailyRate'] ?? $existing?->dailyRate ?? 0), 2);
         }
 
         if (! array_key_exists('requiresClocking', $data)) {
@@ -370,6 +407,52 @@ class EmployeeCompensationController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Date a rate change may start without rewriting a posted payroll run.
+     * Null means this compensation is not on any posted run, so the open row can be updated.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function effectiveDateAfterPostedRuns(EmployeeCompensation $existing, array $payload): ?Carbon
+    {
+        $requested = !empty($payload['effectiveDate'])
+            ? Carbon::parse($payload['effectiveDate'])->startOfDay()
+            : Carbon::today()->startOfDay();
+        $existingStart = Carbon::parse($existing->effectiveDate)->startOfDay();
+
+        if ($requested->equalTo($existingStart)) {
+            $requested = Carbon::today()->startOfDay();
+        }
+
+        $postedEnds = PayrollRun::query()
+            ->whereRaw('LOWER(status) = ?', ['posted'])
+            ->whereHas('payrolls', fn ($query) => $query->where('employeeId', $existing->employeeId))
+            ->whereHas('payPeriodSchedule', function ($query) use ($existing) {
+                $query->whereDate('end_date', '>=', Carbon::parse($existing->effectiveDate)->toDateString());
+                if ($existing->endDate) {
+                    $query->whereDate('start_date', '<=', Carbon::parse($existing->endDate)->toDateString());
+                }
+            })
+            ->with('payPeriodSchedule')
+            ->get()
+            ->map(function (PayrollRun $run) {
+                $end = $run->payPeriodSchedule?->end_date;
+
+                return $end ? Carbon::parse($end)->startOfDay() : null;
+            })
+            ->filter()
+            ->sort()
+            ->values();
+
+        if ($postedEnds->isEmpty()) {
+            return null;
+        }
+
+        $dayAfterPosted = $postedEnds->last()->copy()->addDay();
+
+        return $requested->greaterThan($dayAfterPosted) ? $requested : $dayAfterPosted;
     }
 
     private function recalculateEmployeeTimesheets(?EmployeeCompensation $compensation): void
