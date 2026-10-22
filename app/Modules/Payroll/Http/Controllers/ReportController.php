@@ -11,6 +11,7 @@ use App\Modules\Payroll\Services\PayeReconciliationEmployeeDetailsReportService;
 use App\Modules\Payroll\Services\PayrollMasterSheetReportService;
 use App\Modules\Payroll\Services\PayeReportService;
 use App\Modules\Payroll\Services\PayrollRegistryReportService;
+use App\Modules\Payroll\Services\PoolPayoutReportService;
 use App\Modules\Payroll\Services\RegistrySummaryByOfficeDepartmentReportService;
 use App\Modules\Payroll\Services\SalaryPaymentsReportService;
 use App\Modules\Payroll\Services\SalaryReviewReportService;
@@ -663,5 +664,20 @@ class ReportController extends Controller
                 'message' => $exception->getMessage(),
             ], 422);
         }
+    }
+
+    public function poolPayouts(Request $request, PoolPayoutReportService $poolPayoutReportService): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        return response()->json(
+            $poolPayoutReportService->build(
+                Carbon::parse($validated['start_date'])->startOfDay(),
+                Carbon::parse($validated['end_date'])->startOfDay(),
+            ),
+        );
     }
 }

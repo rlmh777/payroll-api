@@ -20,6 +20,7 @@ class EmployeePoolPoint extends Model
         'pool_distribution_type_id',
         'points',
         'weight',
+        'tip_percent',
         'effective_date',
         'end_date',
         'notes',
@@ -29,6 +30,7 @@ class EmployeePoolPoint extends Model
     protected $casts = [
         'points' => 'decimal:4',
         'weight' => 'decimal:4',
+        'tip_percent' => 'decimal:4',
         'effective_date' => 'date',
         'end_date' => 'date',
     ];

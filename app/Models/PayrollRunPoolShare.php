@@ -22,11 +22,14 @@ class PayrollRunPoolShare extends Model
         'payroll_run_id',
         'pool_distribution_type_id',
         'employee_id',
+        'batch_id',
         'shares',
+        'payout_amount',
     ];
 
     protected $casts = [
         'shares' => 'decimal:4',
+        'payout_amount' => 'decimal:2',
     ];
 
     public function employee(): BelongsTo
@@ -37,5 +40,10 @@ class PayrollRunPoolShare extends Model
     public function poolDistributionType(): BelongsTo
     {
         return $this->belongsTo(PoolDistributionType::class, 'pool_distribution_type_id');
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(PayrollRunPoolShareBatch::class, 'batch_id');
     }
 }

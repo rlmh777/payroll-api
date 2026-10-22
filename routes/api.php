@@ -35,6 +35,7 @@ use App\Modules\Hr\Http\Controllers\Attendance\AttendanceSettingController;
 use App\Modules\Hr\Http\Controllers\Attendance\ClockingLogController;
 use App\Modules\Hr\Http\Controllers\Attendance\EmployeeDayWorkController;
 use App\Modules\Hr\Http\Controllers\Attendance\TimesheetController;
+use App\Modules\Hr\Http\Controllers\Attendance\TimesheetImportController;
 use App\Modules\Hr\Http\Controllers\CalendarGroupController;
 use App\Modules\Hr\Http\Controllers\CandidateStageController;
 use App\Modules\Hr\Http\Controllers\ContractTypeController;
@@ -320,6 +321,7 @@ Route::prefix('attendance-settings')->middleware('auth:sanctum')->group(function
 });
 
 Route::prefix('timesheets')->middleware('auth:sanctum')->group(function () {
+    Route::post('/import', [TimesheetImportController::class, 'store']);
     Route::get('/', [TimesheetController::class, 'index']);
     Route::get('/employee-summary', [TimesheetController::class, 'employeeSummary']);
     Route::post('/', [TimesheetController::class, 'store']);
@@ -1122,6 +1124,7 @@ Route::prefix('reports')->group(function () {
     Route::get('/company-payroll-analysis-by-department', [ReportController::class, 'companyPayrollAnalysisByDepartment']);
     Route::get('/payroll-master-sheet', [ReportController::class, 'payrollMasterSheet']);
     Route::get('/salary-payments', [ReportController::class, 'salaryPayments']);
+    Route::get('/pool-payouts', [ReportController::class, 'poolPayouts']);
     Route::get('/payroll-registry', [ReportController::class, 'payrollRegistry']);
     Route::get('/registry-summary-by-office-department', [ReportController::class, 'registrySummaryByOfficeDepartment']);
     Route::get('/paye', [ReportController::class, 'paye']);
@@ -1152,6 +1155,7 @@ Route::prefix('payroll-runs')->group(function () {
     Route::put('/{payrollRun}/pool-shares', [PayrollRunPoolController::class, 'saveShares']);
     Route::post('/{payrollRun}/pool-distribute', [PayrollRunPoolController::class, 'distribute']);
     Route::get('/{payrollRun}/pool-distributions', [PayrollRunPoolController::class, 'distributions']);
+    Route::put('/{payrollRun}/pool-distributions/{distribution}', [PayrollRunPoolController::class, 'updateDistribution']);
     Route::get('/{payrollRun}', [PayrollRunController::class, 'show']);
     Route::put('/{payrollRun}', [PayrollRunController::class, 'update']);
     Route::delete('/{payrollRun}', [PayrollRunController::class, 'destroy']);

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Payroll;
 
 use App\Modules\Payroll\Services\PoolDistributionService;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class PoolDistributionServiceTest extends TestCase
@@ -48,5 +49,51 @@ class PoolDistributionServiceTest extends TestCase
         $weighted = $service->allocateByShares(300, [2, 1]);
         $this->assertEqualsWithDelta(200, $weighted[0], 0.0000001);
         $this->assertEqualsWithDelta(100, $weighted[1], 0.0000001);
+    }
+
+    public function test_blank_file_amounts_split_the_typed_total_by_shares_or_percentages(): void
+    {
+        $service = $this->app->make(PoolDistributionService::class);
+
+        $amounts = $service->allocateUploadedPayouts(1000, [
+            ['weight' => 60, 'amount' => null],
+            ['weight' => 40, 'amount' => null],
+        ]);
+
+        $this->assertEqualsWithDelta(600, $amounts[0], 0.0000001);
+        $this->assertEqualsWithDelta(400, $amounts[1], 0.0000001);
+    }
+
+    public function test_file_amounts_are_kept_and_blank_rows_split_the_remainder(): void
+    {
+        $service = $this->app->make(PoolDistributionService::class);
+
+        $amounts = $service->allocateUploadedPayouts(100, [
+            ['weight' => 1, 'amount' => null],
+            ['weight' => 1, 'amount' => 40],
+            ['weight' => 2, 'amount' => null],
+        ]);
+
+        $this->assertEqualsWithDelta(20, $amounts[0], 0.0000001);
+        $this->assertEqualsWithDelta(40, $amounts[1], 0.0000001);
+        $this->assertEqualsWithDelta(40, $amounts[2], 0.0000001);
+
+        $explicit = $service->allocateUploadedPayouts(0, [
+            ['weight' => 1, 'amount' => 25],
+            ['weight' => 3, 'amount' => 75],
+        ]);
+        $this->assertEqualsWithDelta(25, $explicit[0], 0.0000001);
+        $this->assertEqualsWithDelta(75, $explicit[1], 0.0000001);
+    }
+
+    public function test_typed_total_cannot_be_smaller_than_amounts_on_the_file(): void
+    {
+        $service = $this->app->make(PoolDistributionService::class);
+
+        $this->expectException(ValidationException::class);
+        $service->allocateUploadedPayouts(50, [
+            ['weight' => 1, 'amount' => 80],
+            ['weight' => 1, 'amount' => null],
+        ]);
     }
 }
