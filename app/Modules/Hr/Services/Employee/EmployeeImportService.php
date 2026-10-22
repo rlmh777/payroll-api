@@ -1301,6 +1301,9 @@ class EmployeeImportService
             'pool_distribution_type_id' => $type->id,
             'points' => $this->nullableFloat($row['points'] ?? null) ?? 0,
             'weight' => $this->optionalFloat($row['weight'] ?? null) ?? 1,
+            'tip_percent' => strtoupper((string) $type->code) === 'TIPS'
+                ? $this->nullableFloat($row['tipPercent'] ?? $row['tip_percent'] ?? null)
+                : null,
             'effective_date' => $effectiveDate,
             'end_date' => $this->nullableDate($row['endDate'] ?? null),
             'notes' => $this->nullableString($row['notes'] ?? null),

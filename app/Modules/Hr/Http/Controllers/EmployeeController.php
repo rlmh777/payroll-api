@@ -8,6 +8,7 @@ use App\Models\EmployeeReporting;
 use App\Modules\Hr\Services\Activity\EmployeeTimeTravelService;
 use App\Modules\Hr\Services\Employee\EmployeeCodeGenerator;
 use App\Modules\Hr\Services\EmployeeNameSearch;
+use App\Modules\Hr\Services\EmployeeIdentifierUniqueness;
 use App\Modules\Hr\Services\EmployeePersonSync;
 use App\Modules\Hr\Services\ProfileChange\ProfileChangeWorkflowService;
 use App\Services\EmployeeFormAccessService;
@@ -429,6 +430,15 @@ class EmployeeController extends Controller
         );
     }
 
+    private static function uniqueIdentifier(string $column, string $label, ?string $employeeId): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($column, $label, $employeeId): void {
+            if (EmployeeIdentifierUniqueness::taken($column, $value, $employeeId)) {
+                $fail("{$label} is already used by another employee.");
+            }
+        };
+    }
+
     private static function validationRules(?string $employeeId = null, bool $partial = false): array
     {
         $required = $partial ? 'sometimes' : 'required';
@@ -436,8 +446,18 @@ class EmployeeController extends Controller
 
         return [
             'user_id' => 'nullable|uuid|exists:users,id|unique:employee,user_id'.($employeeId ? ','.$employeeId : ''),
-            'code' => ($partial ? 'sometimes' : 'nullable').'|string|max:64|unique:employee,code'.($employeeId ? ','.$employeeId : ''),
-            'internalId1' => 'nullable|string|max:64',
+            'code' => [
+                $partial ? 'sometimes' : 'nullable',
+                'string',
+                'max:64',
+                self::uniqueIdentifier('code', 'Employee code', $employeeId),
+            ],
+            'internalId1' => [
+                'nullable',
+                'string',
+                'max:64',
+                self::uniqueIdentifier('internalId1', 'Internal code 1', $employeeId),
+            ],
             'internalId2' => 'nullable|string|max:64',
             'honorificId' => 'nullable|exists:honorific,id',
             'firstName' => $stringRequired.'|max:255',

@@ -13,6 +13,7 @@ class PayrollRunProcessingService
 {
     public function __construct(
         private readonly PayrollRunCalculationService $payrollRunCalculationService,
+        private readonly PoolDistributionService $poolDistributionService,
         private readonly PayrollRunEarningLineBuilderService $payrollRunEarningLineBuilderService,
         private readonly PayrollRunTimesheetPaidMarker $payrollRunTimesheetPaidMarker,
         private readonly PayrollRunLeavePaidMarker $payrollRunLeavePaidMarker,
@@ -37,6 +38,7 @@ class PayrollRunProcessingService
         }
 
         return DB::transaction(function () use ($payrollRun) {
+            $this->poolDistributionService->refreshSharePoolsFromEmployeePoints($payrollRun);
             $summary = $this->payrollRunCalculationService->calculate($payrollRun, true, true);
             $rows = $summary['rows'] ?? [];
 

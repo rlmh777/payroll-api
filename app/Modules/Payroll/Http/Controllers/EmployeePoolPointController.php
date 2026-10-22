@@ -49,6 +49,7 @@ class EmployeePoolPointController extends Controller
             'pool_distribution_type_id' => ['required', 'integer', 'exists:pool_distribution_type,id'],
             'points' => ['required', 'numeric', 'min:0'],
             'weight' => ['nullable', 'numeric', 'min:0'],
+            'tip_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'effective_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:effective_date'],
             'notes' => ['nullable', 'string'],
@@ -66,6 +67,10 @@ class EmployeePoolPointController extends Controller
             'pool_distribution_type_id' => $validated['pool_distribution_type_id'],
             'points' => $validated['points'],
             'weight' => $validated['weight'] ?? 1,
+            'tip_percent' => $this->tipPercentForType(
+                (int) $validated['pool_distribution_type_id'],
+                $validated['tip_percent'] ?? null,
+            ),
             'effective_date' => $validated['effective_date'],
             'end_date' => $validated['end_date'] ?? null,
             'notes' => $validated['notes'] ?? null,
@@ -88,6 +93,7 @@ class EmployeePoolPointController extends Controller
         $validated = $request->validate([
             'points' => ['sometimes', 'numeric', 'min:0'],
             'weight' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'tip_percent' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'effective_date' => ['sometimes', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:effective_date'],
             'notes' => ['nullable', 'string'],
@@ -97,6 +103,13 @@ class EmployeePoolPointController extends Controller
                 Rule::exists(PoolDistributionType::class, 'id'),
             ],
         ]);
+
+        if (array_key_exists('tip_percent', $validated)) {
+            $validated['tip_percent'] = $this->tipPercentForType(
+                (int) ($validated['pool_distribution_type_id'] ?? $employeePoolPoint->pool_distribution_type_id),
+                $validated['tip_percent'],
+            );
+        }
 
         $employeePoolPoint->update($validated);
 
@@ -145,6 +158,7 @@ class EmployeePoolPointController extends Controller
                 'poolDistributionType' => $type,
                 'points' => $point ? round((float) $point->points, 4) : 0,
                 'weight' => $point ? round((float) $point->weight, 4) : 1,
+                'tipPercent' => $point?->tip_percent !== null ? round((float) $point->tip_percent, 4) : null,
                 'weightedPoints' => $point ? $point->weightedPoints() : 0,
                 'effectiveDate' => optional($point?->effective_date)->format('Y-m-d'),
                 'notes' => $point?->notes,
@@ -153,6 +167,20 @@ class EmployeePoolPointController extends Controller
         })->values();
 
         return response()->json(['data' => $data, 'asOf' => $asOf]);
+    }
+
+    private function tipPercentForType(int $typeId, mixed $tipPercent): ?float
+    {
+        if ($tipPercent === null || $tipPercent === '') {
+            return null;
+        }
+
+        $type = PoolDistributionType::query()->find($typeId);
+        if (!$type || strtoupper((string) $type->code) !== 'TIPS') {
+            return null;
+        }
+
+        return round((float) $tipPercent, 4);
     }
 
     private function closeOpenHistory(string $employeeId, int $typeId, string $effectiveDate): void

@@ -31,6 +31,7 @@ class EmployeePersonSync
     {
         return DB::transaction(function () use ($attributes) {
             ['person' => $personData, 'employee' => $employeeData] = self::splitAttributes($attributes);
+            $employeeData = self::prepareIdentifiers($employeeData);
 
             $person = Person::create($personData);
             $employeeData['person_id'] = $person->id;
@@ -72,6 +73,7 @@ class EmployeePersonSync
             }
 
             if ($employeeData !== []) {
+                $employeeData = self::prepareIdentifiers($employeeData, $employee->id);
                 $employee->update($employeeData);
             }
 
@@ -116,6 +118,31 @@ class EmployeePersonSync
             'employeeDefaultDeductions',
             'qualifications',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $employeeData
+     * @return array<string, mixed>
+     */
+    private static function prepareIdentifiers(array $employeeData, ?string $ignoreEmployeeId = null): array
+    {
+        if (array_key_exists('code', $employeeData)) {
+            $code = EmployeeIdentifierUniqueness::normalize($employeeData['code']);
+            if ($code !== null) {
+                $employeeData['code'] = $code;
+            }
+        }
+
+        if (array_key_exists('internalId1', $employeeData)) {
+            $employeeData['internalId1'] = EmployeeIdentifierUniqueness::normalize($employeeData['internalId1']);
+        }
+
+        EmployeeIdentifierUniqueness::assertAvailable(
+            Arr::only($employeeData, ['code', 'internalId1']),
+            $ignoreEmployeeId,
+        );
+
+        return $employeeData;
     }
 
     /**
